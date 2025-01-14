@@ -4,15 +4,15 @@
 
 ## 카테고리
 
-| Application | Domain | Language | Framework | Infra |
-| ---- | ---- | ---- | ---- | ---- |
-| :white_check_mark: Desktop Web | :white_check_mark: AI | :black_square_button: JavaScript | :black_square_button: Vue.js | :white_check_mark: Docker|
-| :black_square_button: Mobile Web | :black_square_button: Big Data | :black_square_button: TypeScript | :white_check_mark: React | :white_check_mark: Jenkins|
-| :white_check_mark: Responsive Web | :black_square_button: Blockchain | :black_square_button: C/C++ | :black_square_button: Angular | |
-| :black_square_button: Android App | :black_square_button: IoT | :black_square_button: C# | :white_check_mark: Node.js | |
-| :black_square_button: iOS App | :black_square_button: AR/VR/Metaverse | :white_check_mark: Python | :black_square_button: Flask/Django | |
-| :black_square_button: Desktop App | :black_square_button: Game | :black_square_button: Java | :black_square_button: Spring/Springboot | |
-| | | :black_square_button: Kotlin | :white_check_mark: FastAPI | |
+| Application | Domain | Language | Framework |
+| ---- | ---- | ---- | ---- |
+| :white_check_mark: Desktop Web | :white_check_mark: AI | :black_square_button: JavaScript | :black_square_button: Vue.js |
+| :black_square_button: Mobile Web | :black_square_button: Big Data | :black_square_button: TypeScript | :white_check_mark: React |
+| :white_check_mark: Responsive Web | :black_square_button: Blockchain | :black_square_button: C/C++ | :black_square_button: Angular |
+| :black_square_button: Android App | :black_square_button: IoT | :black_square_button: C# | :white_check_mark: Node.js |
+| :black_square_button: iOS App | :black_square_button: AR/VR/Metaverse | :white_check_mark: Python | :black_square_button: Flask/Django |
+| :black_square_button: Desktop App | :black_square_button: Game | :black_square_button: Java | :black_square_button: Spring/Springboot |
+| | | :black_square_button: Kotlin | :white_check_mark: FastAPI |
 
 <!-- 필수 항목 -->
 
