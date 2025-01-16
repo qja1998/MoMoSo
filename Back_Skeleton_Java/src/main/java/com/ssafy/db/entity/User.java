@@ -9,7 +9,7 @@ import lombok.Setter;
 import javax.persistence.Entity;
 
 /**
- * 유저 모델 정의.
+ * 유저 모델 정의.,model.py
  */
 @Entity
 @Getter
