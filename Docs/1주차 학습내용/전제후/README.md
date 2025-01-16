@@ -43,5 +43,5 @@
 ![alt text](image/image-5.png)
 * 프로젝트 회의록 및 스크럼, 회고록 등 기록을 저장
 ![alt text](image/image-6.png)
-* 프로젝트 산출물 정리리
+* 프로젝트 산출물 정리
 ![alt text](image/image-7.png)
