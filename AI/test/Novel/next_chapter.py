@@ -15,11 +15,11 @@ load_dotenv()
 init_db()
 
 # MySQL 연결 설정
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = int(os.getenv("DB_PORT", 3306))
-DB_USER = os.getenv("DB_USER", "root")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "root")
-DB_NAME = os.getenv("DB_NAME", "novel_test_db")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = int(os.getenv("DB_PORT"))
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_NAME = os.getenv("DB_NAME")
 
 def get_novel_info(novel_id):
     """
@@ -60,12 +60,12 @@ llm = ChatOpenAI(
 
 # 다음 화 생성 프롬프트 (모든 챕터 누적)
 prompt_template_next = PromptTemplate(
-    input_variables=["all_content", "next_chapter_number", "genre", "title", "synopsis", "characters"],
+    input_variables=["all_content", "next_chapter_number", "genre", "title", "synopsis", "timeline", "characters"],
     template="""
     당신은 창의적인 소설 작가입니다.
-    아래는 지금까지 작성된 모든 화(챕터)의 내용입니다. 이를 충분히 반영하고, 개연성이 있도록
+    아래는 지금까지 작성된 모든 화(챕터)의 내용입니다. 이를 충분히 인지하고, 개연성이 있도록
     다음 화인 챕터 {next_chapter_number}를 작성해주세요.
-    단, 이전 화의 내용을 반복하지 않고 새로운 내용을 자연스럽게 이어지도록 추가해주세요.
+    **단, 이전 화의 내용을 반복하지 않고 자연스럽게 다음 화의 내용이 이어지도록 추가해주세요.**
 
     지금까지의 내용:
     {all_content}
@@ -73,11 +73,12 @@ prompt_template_next = PromptTemplate(
     소설의 장르: {genre}
     소설의 제목: {title}
     시놉시스: {synopsis}
+    시간적 배경: {timeline}
     등장인물:
     {characters}
 
     이번 화에서는 새로운 갈등이나 흥미로운 이벤트를 추가해 독자의 관심을 이어가 주세요.
-    약 500~700자 분량으로 작성하세요.
+    **반드시 500-700자 분량으로 작성하세요.**
     """
 )
 
