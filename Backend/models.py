@@ -150,6 +150,7 @@ class Note(Base):
     __tablename__ = "note"
 
     note_pk = Column(Integer, primary_key=True, autoincrement=True)
+    novel_pk = Column(Integer, ForeignKey("novel.novel_pk"), nullable=False)
     summary = Column(Text, nullable=False)
 
 
