@@ -1,9 +1,7 @@
 from pydantic import BaseModel, field_validator
 from fastapi import HTTPException
 
-
-#순환 참조 문제 때문에 나머지도 SCHEMA를 만들어야 함.특히 코멘트와 cocomet부분이 순환 참조가 일어나기 쉬운 형태라고 함.
-
+#순환 참조 문제 때문에 나머지도 SCHEMA를 만들어야 함 .특히 코멘트와 cocomet부분이 순환 참조가 일어나기 쉬운 형태라고 함.
 
 class NovelCreateBase(BaseModel) : 
     title : str

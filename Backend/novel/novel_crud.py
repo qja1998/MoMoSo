@@ -4,9 +4,6 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 
-# def create_
-
-
 def get_all_novel(db : Session) : 
     novel = db.query(Novel).all()
     return novel
