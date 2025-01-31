@@ -92,8 +92,8 @@ def init_db():
             id INT PRIMARY KEY AUTO_INCREMENT,
             title VARCHAR(255),
             genre VARCHAR(100),
+            worldview TEXT,
             synopsis TEXT,
-            timeline VARCHAR(255),
             characters MEDIUMTEXT
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         """
@@ -125,15 +125,15 @@ def init_db():
         print("init_db 에러:", e)
         raise e
 
-def insert_novel(genre, title, synopsis, timeline, characters):
+def insert_novel(genre, title, worldview, synopsis, characters):
     """
     novels 테이블에 새 소설 삽입, 삽입된 novel_id 반환하는 함수
 
     * 입력 매개변수:
         - genre (str): 소설 장르
         - title (str): 소설 제목
+        - worldview (str): 소설의 세계관 설명
         - synopsis (str): 소설의 시놉시스
-        - timeline (str): 소설의 시간대 또는 배경
         - characters (str): 등장인물 정보 (JSON 문자열 형식)
     
     * 반환값:
@@ -155,12 +155,12 @@ def insert_novel(genre, title, synopsis, timeline, characters):
 
     # novels Table에 새 소설 정보 삽입
     sql = """
-    INSERT INTO novels (title, genre, synopsis, timeline, characters)
+    INSERT INTO novels (genre, title, worldview, synopsis, characters)
     VALUES (%s, %s, %s, %s, %s)
     """
 
     # SQL 쿼리 실행
-    cursor.execute(sql, (title, genre, synopsis, timeline, characters))
+    cursor.execute(sql, (genre, title, worldview, synopsis, characters))
 
     # SQL 실행 결과를 데이터베이스에 반영
     conn.commit()

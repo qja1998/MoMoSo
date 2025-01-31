@@ -33,7 +33,7 @@ def get_novel_info(novel_id):
         database=DB_NAME
     )
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT title, genre, synopsis, timeline, characters FROM novels WHERE id = %s", (novel_id,))
+    cursor.execute("SELECT title, genre, worldview, synopsis, characters FROM novels WHERE id = %s", (novel_id,))
     novel_info = cursor.fetchone()
     cursor.close()
     conn.close()
@@ -49,10 +49,10 @@ llm = ChatOpenAI(
     # model: 사용할 OpenAI 모델 설정
     model="gpt-4o-mini",
     # temperature: 생성된 텍스트의 창의성 조정(0.0(결정적) ~ 2.0(창의적))
-    temperature=0.7,
+    temperature=1.0,
     # max_tokens: 출력될 텍스트의 최대 토큰 수 지정
     # 입력 토큰과 출력 토큰의 합이 최대 토큰 한도 초과하면 안됨(gpt-4o-mini: 16,384 tokens)
-    max_tokens=10000,
+    max_tokens=1000,
     # top_p: 다양성을 조절하는 파라미터(0.0 ~ 1.0)
     # 일반적으로 1.0(전체 확률 사용) 설정
     top_p=1.0,
@@ -60,7 +60,7 @@ llm = ChatOpenAI(
 
 # 다음 화 생성 프롬프트 (모든 챕터 누적)
 prompt_template_next = PromptTemplate(
-    input_variables=["all_content", "next_chapter_number", "genre", "title", "synopsis", "timeline", "characters"],
+    input_variables=["all_content", "next_chapter_number", "genre", "worldview", "title", "synopsis", "characters"],
     template="""
     당신은 창의적이고 몰입감 있는 소설을 집필하는 전문 소설 작가입니다.
     
@@ -73,17 +73,18 @@ prompt_template_next = PromptTemplate(
     
     소설의 장르: {genre}
     소설의 제목: {title}
+    세계관 소개: {worldview}
     시놉시스: {synopsis}
-    시간적 배경: {timeline}
     등장인물: {characters}
-    
+    `
     이번 화에서는 다음 사항을 고려하여 작성하세요:
     - 이전 화의 서술 방식과 톤을 유지하며, 이야기의 흐름이 자연스럽게 이어지도록 하세요.
     - 새로운 갈등, 반전, 또는 등장인물 간의 중요한 상호작용을 추가하여 독자의 관심을 유지하세요.
     - 등장인물의 감정과 동기를 세밀하게 묘사하여 몰입감을 높이세요.
     - 스토리의 개연성을 유지하면서 무리한 설정 변경 없이 자연스럽게 진행하세요.
     - 대화와 행동 묘사를 활용하여 장면을 생동감 있게 표현하세요.
-    - 반드시 500-700자 분량을 준수하세요.
+    - 소설의 진행 방향을 고려하여, 다음 화에서 다룰 주제나 갈등을 시사하는 작품성 있는 마무리를 작성하세요.
+    - 소설은 반드시 한글 기준으로 500-700자 분량을 준수하세요.
     """
 )
 
@@ -102,8 +103,8 @@ def generate_next_chapter(novel_id: int) -> str:
 
     genre = novel_info["genre"]
     title = novel_info["title"]
+    worldview = novel_info["worldview"]
     synopsis = novel_info["synopsis"]
-    timeline = novel_info["timeline"]
     characters = novel_info["characters"]
 
     # 현재 마지막 챕터 번호
@@ -122,8 +123,8 @@ def generate_next_chapter(novel_id: int) -> str:
         "next_chapter_number": next_chapter_number,
         "genre": genre,
         "title": title,
+        "worldview": worldview,
         "synopsis": synopsis,
-        "timeline": timeline,
         "characters": characters
     })
 
@@ -142,10 +143,10 @@ def add_new_character(novel_id):
     age = input("나이: ")
     sex = input("성별 (남성/여성): ")
     job = input("직업: ")
-    traits = input("특징: ")
+    profile = input("프로필: ")
 
     # 새 등장인물 정보를 문자열로 구성
-    new_character = f"- 이름: {name}, 역할: {role}, 나이: {age}, 성별: {sex}, 직업: {job}, 특징: {traits}"
+    new_character = f"- 이름: {name}, 역할: {role}, 나이: {age}, 성별: {sex}, 직업: {job}, 프로필: {profile}"
 
     # 기존 등장인물 목록에 추가
     updated_characters = existing_characters + "\n" + new_character
@@ -178,3 +179,4 @@ if __name__ == "__main__":
     # DB에 저장
     insert_chapter(novel_id, next_chapter_number, next_chapter)  # 텍스트만 DB에 저장
     print(f"소설 ID: {novel_id}, {next_chapter_number}화 저장 완료!")
+    
