@@ -1,62 +1,43 @@
-# novel_create.py
-
 import re
 import os
+import asyncio
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
-
-# DB 관련 함수
 from db_manager import init_db, insert_novel, insert_chapter
 
 load_dotenv()
-
-# DB 초기화 (처음 한 번)
-init_db()
 
 # OpenAI API 키
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # OpenAI 모델 설정
 llm = ChatOpenAI(
-    # openai_api_key: OpenAI API 인증 키 설정
     openai_api_key=OPENAI_API_KEY,
-    # model: 사용할 OpenAI 모델 설정
     model="gpt-4o-mini",
-    # temperature: 생성된 텍스트의 창의성 조정(0.0(결정적) ~ 2.0(창의적))
-    # temperature=1.0,
-    # max_tokens: 출력될 텍스트의 최대 토큰 수 지정
-    # 입력 토큰과 출력 토큰의 합이 최대 토큰 한도 초과하면 안됨(gpt-4o-mini: 16,384 tokens)
-    # max_tokens=1000,
-    # top_p: 다양성을 조절하는 파라미터(0.0 ~ 1.0)
-    # 일반적으로 1.0(전체 확률 사용) 설정
-    # top_p=1.0,
 )
 
 # 1화 생성용 프롬프트 템플릿
 prompt_template_1st = PromptTemplate(
     input_variables=["genre", "title", "worldview", "synopsis", "characters"],
     template="""
-    <역할>
-    당신은 뛰어난 글 솜씨로 독자들을 만족시키는 전문 소설 작가입니다. 당신은 다양한 장르와 스타일에서 뛰어난 작품을 생성할 수 있습니다.
-    당신의 목표인 소설을 작성을 단계별 프로세스에 따라 진행하고, 이 과정에서 필요한 도구를 적절히 사용해야 합니다.
-    주어진 정보를 바탕으로 창의적이고 몰입감 있는 첫 번째 챕터(서문)를 작성해야 합니다.
+    당신은 주어진 정보를 바탕으로 창의적이고 몰입감 있는 소설을 집필하는 전문 소설 작가입니다.
+    제공된 정보를 활용하여 소설의 첫 번째 챕터(서문)를 작성해 주세요.
 
-    <목표>
-    소설의 구성 단계인 '발단 → 전개 → 위기 → 절정 → 결말'에 따라, 주어진 정보를 기반으로, 
-    흥미로운 사건, 매력적인 캐릭터, 그리고 개연성 있는 이야기를 작성하는 것입니다.
+    목표는 소설의 구성 단계인 '발단 → 전개 → 위기 → 절정 → 결말'에 따라, 선택된 장르, 톤, 스타일, 그리고 구조를 기반으로, 
+    기발한 사건, 매력적인 캐릭터, 그리고 예기치 않은 절정을 가진 창의적이고 매력적인 이야기를 작성하는 것입니다.
 
-    <작성 지침>
+    **소설의 총 챕터는 10챕터로 구성되며, 6챕터에서 절정에 이르는 갈등이 발생합니다.**
+
     - 소설의 톤과 분위기는 {genre} 장르에 맞게 설정하세요.
     - 서술 방식은 생동감 있고 감각적인 묘사를 포함하며, 대사는 자연스럽고 캐릭터의 개성을 반영하도록 작성하세요.
     - 첫 챕터에서는 주인공을 등장시키고, 독자의 흥미를 끌 수 있는 주요 사건 또는 갈등의 단서를 제시하세요.
     - 스토리의 배경을 독자가 쉽게 이해할 수 있도록 자연스럽게 설명하되, 장황하지 않도록 주의하세요.
+    - 대화와 행동 묘사를 활용하여 장면을 생동감 있게 표현하세요.
     - 문장이 매끄럽게 이어지도록 흐름을 유지하며, 문법적으로 올바른 문장을 작성하세요.
-    - 대화의 내용이 개연성있도록 작성하고, 캐릭터 간의 상호작용을 통해 감정을 표현하세요.
     - 소설의 첫 챕터(서문)는 한글 기준으로 작성하며, 공백을 제외한 문자 수가 500자 이상 700자 이하가 되도록 작성해주세요. 문장 구성과 흐름은 자연스럽게 유지하면서도 요구되는 분량을 철저히 충족시키도록 주의해주세요.
     - 단, 문단 간격은 문자 수에 포함하지 않습니다.
-
-    <주어진 정보>
+    
     소설의 장르: {genre}
     소설의 제목: {title}
     세계관 소개: {worldview}
@@ -67,14 +48,44 @@ prompt_template_1st = PromptTemplate(
     """
 )
 
-# PromptTemplate과 ChatOpenAI를 체인으로 연결
+prompt_template_1st = PromptTemplate(
+    input_variables=["genre", "title", "worldview", "synopsis", "characters"],
+    template="""
+    당신은 전문 소설 작가로서, 주어진 정보를 바탕으로 창의적이고 몰입감 있는 첫 번째 챕터(서문)를 작성해야 합니다. 
+    이 소설은 **{genre}** 장르에 속하며, 소설의 톤과 스타일은 그에 맞춰야 합니다. 
+    이야기의 중심에는 여러 복잡한 감정선을 지닌 인물들이 등장하며, 그들의 내면적인 갈등이 중요한 플롯의 일부입니다.
+
+    **첫 번째 챕터(서문) 작성 지침**:
+    1. **소설의 장르**: {genre} 장르는 그 특성에 맞는 분위기와 사건 전개를 요구합니다. 예를 들어, **SF** 장르라면 미래적이고 과학적인 요소가 포함되어야 하며, **판타지**라면 마법이나 초자연적인 요소가 핵심적이어야 합니다. 
+    2. **세계관**: {worldview}에서 설명된 설정을 고려하여, 이야기가 펼쳐지는 세계의 규칙과 환경을 잘 반영해야 합니다. 예를 들어, 마법이 존재하는 세계라면 그 법칙이나 제약을 명확히 하세요.
+    3. **등장인물**: {characters}에 나와 있는 등장인물들을 생동감 있게 묘사해야 합니다. 각 인물은 고유한 동기와 갈등을 가지고 있으며, 그들의 내면적인 변화를 중요하게 다뤄야 합니다. 
+        - 각 인물의 성격, 나이, 역할이 이야기에 어떤 영향을 미칠지 생각해 보세요.
+        - 등장인물의 동기와 감정을 세밀하게 묘사하여 독자가 그들과 함께 이야기 속에 몰입할 수 있도록 하세요.
+    4. **스토리 구조**: 소설은 **5단계 구성** (발단 → 전개 → 위기 → 절정 → 결말)으로 진행됩니다. 
+        - **발단**: 첫 번째 챕터에서 주인공을 소개하고, 이야기가 시작되는 주요 사건이나 갈등을 소개하세요.
+        - **전개**: 주인공이 사건에 반응하며 중요한 결정을 내리게 되는 과정을 설명하세요.
+        - **위기**: 주인공이 직면하는 갈등과 위기 상황을 극적으로 묘사하세요.
+        - **절정**: 갈등이 최고조에 이르는 순간, 독자의 긴장을 고조시키는 중요한 사건을 설정하세요.
+        - **결말**: 첫 번째 챕터의 결말은 독자가 다음 이야기를 기대하게 만들 수 있도록, 열린 결말로 끝내세요.
+    5. **대화와 행동 묘사**: 대화와 행동은 등장인물의 감정과 성격을 드러내는 중요한 요소입니다. 각 등장인물이 어떻게 대화하는지, 어떤 행동을 취하는지에 따라 그들의 성격이 드러나도록 하세요.
+    6. **서술 스타일**: 서술자의 시점은 **3인칭 제한적 시점**으로 설정하세요. 주인공의 생각과 감정을 중심으로 사건을 진행시키되, 필요할 경우 외부의 시각을 통해 추가 정보를 제공합니다. 문장은 간결하면서도 감정이 잘 전달되도록 구성하세요.
+
+    소설의 장르: {genre}
+    소설의 제목: {title}
+    세계관 소개: {worldview}
+    시놉시스: {synopsis}
+    등장인물: {characters}
+
+    **소설 첫 챕터(서문)**
+    """
+)
+
 chain_1st = prompt_template_1st | llm
 
-def generate_first_chapter(genre: str, title: str, worldview: str, synopsis: str, characters: list) -> str:
+async def generate_first_chapter(genre: str, title: str, worldview: str, synopsis: str, characters: list) -> str:
     """
     주어진 장르, 제목, 세계관, 시놉시스, 등장인물 정보를 바탕으로 소설 1화(첫 챕터)를 생성
     """
-    # 등장인물 문자열
     characters_str = "\n".join([
         f"- 이름: {char['name']}, 역할: {char['role']}, 나이: {char['age']}, 성별: {char['sex']}, 직업: {char['job']}, 프로필: {char['profile']}"
         for char in characters
@@ -88,15 +99,14 @@ def generate_first_chapter(genre: str, title: str, worldview: str, synopsis: str
         "characters": characters_str
     }
 
-    generated_text = chain_1st.invoke(input_data)
+    generated_text = await asyncio.to_thread(chain_1st.invoke, input_data)
     return generated_text
 
 def clean_filename(filename: str) -> str:
     # Windows에서 파일 이름에 사용할 수 없는 문자 목록: <>:"/\|?*
-    # 이 문자들을 하이픈(-)으로 치환합니다.
     return re.sub(r'[<>:"/\\|?*]', '-', filename)
 
-if __name__ == "__main__":
+async def main():
     # 예시 데이터
     genre = "SF, 디스토피아, 배틀로얄, 초능력"
     title = "이터널 리턴: 아글라이아의 실험"
@@ -147,8 +157,6 @@ if __name__ == "__main__":
             "sex": "여성",
             "job": "견습 수녀",
             "profile": """
-            
-
             태어나자마자 폐쇄적인 성당에 맡겨졌고, 매일 하느님의 전능을 세뇌 받다시피 교육받는다.
             바깥 외출이 허가된 이후 그녀는 하느님의 사도로서 충실하기 위해 가장 어둡고 더러운 곳에서 전도를 시작했지만, 그녀가 마주한 현실은 배운 것 보다 훨씬 더 냉담했다.
             그 과정에서 충실한 사도인 자신을 지켜주지 않는 하느님을 부정하는 생각을 품게 되고, 그런 자기 자신에 대한 강한 혐오감을 가지게 된다.
@@ -216,30 +224,21 @@ if __name__ == "__main__":
         }
     ]
 
-    # 등장인물 문자열 생성
-    characters_str = "\n".join([
-        f"- 이름: {char['name']}, 역할: {char['role']}, 나이: {char['age']}, 성별: {char['sex']}, 직업: {char['job']}, 프로필: {char['profile']}"
-        for char in characters
-    ])
+    # 소설 생성
+    novel_id = insert_novel(genre, title, worldview, synopsis, characters)
+    first_chapter = await generate_first_chapter(genre, title, worldview, synopsis, characters)
 
-    # 새 소설 레코드 생성
-    novel_id = insert_novel(genre, title, worldview, synopsis, characters_str)
-
-    # 첫 챕터(1화) 생성
-    first_chapter = generate_first_chapter(genre, title, worldview, synopsis, characters)
-    first_chapter_text = first_chapter.content  # 텍스트 추출
-    print("소설 1화 생성 완료!!")
-
-    # 결과물을 파일로 저장
+    # 결과물 파일로 저장
     output_dir = os.path.join(os.getcwd(), "novel")
-    os.makedirs("novel", exist_ok=True)
-    # 제목에 포함된 금지 문자를 치환하여 파일 이름 생성
+    os.makedirs(output_dir, exist_ok=True)
     clean_title = clean_filename(title)
     file_name = os.path.join(output_dir, f"{clean_title}_1화.txt")
     with open(file_name, 'w', encoding='utf-8') as file:
-        file.write(first_chapter_text)  # 텍스트만 저장
+        file.write(first_chapter)
+    
+    # DB에 저장
+    insert_chapter(novel_id, 1, first_chapter)
     print(f"파일 저장 완료: {file_name}")
 
-    # DB에 저장 (1화 -> chapter_number=1)
-    insert_chapter(novel_id, 1, first_chapter_text)  # 텍스트만 DB에 저장
-    print(f"소설 ID: {novel_id}, 1화 저장 완료!")
+if __name__ == "__main__":
+    asyncio.run(main())
