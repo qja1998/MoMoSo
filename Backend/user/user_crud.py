@@ -1,12 +1,12 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
-from Backend.models import User
+from models import User
 
 from passlib.context import CryptContext
-from .. import models
+import models
 from . import user_schema
-from ..auth import auth_schema
+from auth import auth_schema
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

@@ -7,9 +7,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from . import auth_crud, auth_schema
-from ..database import get_db
-from ..user import user_crud
-from ..utils.auth_utils import send_sms, verify_code, check_verified, redis_client, generate_verification_code, save_verification_code
+from database import get_db
+from user import user_crud
+from utils.auth_utils import send_sms, verify_code, check_verified, redis_client, generate_verification_code, save_verification_code
 
 from dotenv import load_dotenv
 import os
@@ -135,6 +135,14 @@ async def reset_password(reset_password: auth_schema.ResetPasswordSchema, db: Se
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="사용자를 찾을 수 없습니다.")
 
+    # OAuth2 사용자 비밀번호 변경 불가하도록 차단
+    if user.is_oauth_user:
+        print(f"🚨 OAuth2 사용자({user.email})가 비밀번호 변경 시도 → 차단됨")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="이 계정은 Google OAuth2 로그인 전용입니다. 비밀번호 변경이 불가능합니다."
+        )
+
     # 비밀번호 변경
     hashed_password = auth_crud.hash_password(reset_password.new_password)
     auth_crud.update_user_password(db, email, hashed_password)
@@ -152,8 +160,17 @@ async def signup(new_user: auth_schema.NewUserForm, db: Session = Depends(get_db
     """
     회원가입 API (비밀번호 일치 검증 추가)
     """
-    # 이메일 중복 체크
-    if user_crud.get_user_by_email(db, new_user.email):
+    # 이메일 소문자로 변환
+    normalized_email = new_user.email.lower()
+
+    existing_user = user_crud.get_user_by_email(db, normalized_email)
+
+    if existing_user:
+        if existing_user.is_oauth_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="이 계정은 Google OAuth2 계정입니다. 일반 회원가입을 시도하지 말고, 소셜 로그인을 이용하세요."
+            )
         raise HTTPException(status_code=409, detail="이미 사용 중인 이메일입니다.")
 
     # 닉네임 중복 체크
@@ -168,9 +185,12 @@ async def signup(new_user: auth_schema.NewUserForm, db: Session = Depends(get_db
         raise HTTPException(status_code=422, detail="입력한 비밀번호가 일치하지 않습니다.")
 
     # 사용자 생성
-    auth_crud.create_user(new_user, db)
+    user_data = new_user.dict()
+    user_data["email"] = normalized_email  # 이메일을 소문자로 덮어쓰기
+    auth_crud.create_user(auth_schema.NewUserForm(**user_data), db)
 
     return {"message": "회원가입이 완료되었습니다."}
+
 
 
 # ======================================= 아이디 찾기 로직 =======================================
@@ -218,10 +238,20 @@ def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None):
 # 로그인 할 때 받아줄 폼 : OAuth2PasswordRequestForm -> pip install python-multipart 필요
 @app.post("/login")
 async def login(response: Response, login_form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """
+    일반 로그인 처리 (OAuth2 연결된 사용자는 비밀번호 로그인도 가능)
+    """
     # 이메일로 사용자 조회
     user = user_crud.get_user_by_email(db, login_form.username)
     if not user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user")
+
+    # OAuth2 연결이 되어 있어도 비밀번호 로그인 가능 (소셜 로그인 병행 가능)
+    if user.is_oauth_user and user.password is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="이 계정은 Google OAuth2 계정입니다. 일반 로그인이 불가능합니다. Google 로그인을 이용하세요."
+        )
 
     # 비밀번호 검증
     if not auth_crud.verify_password(login_form.password, user.password):
@@ -315,10 +345,3 @@ async def logout(response: Response, credentials: HTTPAuthorizationCredentials =
         return {"message": "Successfully logged out"}
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-
-# ======================================= 소셜 로그인 로직 ======================================= 
-
-from httpx_oauth.clients.google import GoogleOAuth2
-
-google_oauth_client = GoogleOAuth2("CLIENT_ID", "CLIENT_SECRET")

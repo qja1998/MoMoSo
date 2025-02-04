@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr, validator
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from fastapi import HTTPException
 
 # 사용자 조회
@@ -23,7 +23,8 @@ class UpdateUserForm(BaseModel):
     class Config:
         extra = "forbid"  # 정의되지 않은 필드는 허용하지 않음
 
-    @validator('phone')
+    @field_validator('phone')
+    @classmethod
     def check_phone_format(cls, v):
         if v and (not v.startswith("010") or len(v) != 13 or '-' not in v):
             raise HTTPException(status_code=422, detail="전화번호는 '010-XXXX-XXXX' 형식으로 입력해야 합니다.")

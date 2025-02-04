@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr, validator
+from pydantic import BaseModel, Field, EmailStr, ValidationError, field_validator, ValidationInfo
 from fastapi import HTTPException
 from typing import Optional
 from datetime import datetime
@@ -7,7 +7,8 @@ from datetime import datetime
 class SmsRequest(BaseModel):
     phone: str
 
-    @validator("phone")
+    @field_validator("phone")
+    @classmethod
     def validate_phone(cls, v):
         v = v.strip()
 
@@ -39,7 +40,8 @@ class FindIdRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=50, description="사용자 이름")
     phone: str
 
-    @validator("phone")
+    @field_validator("phone")
+    @classmethod
     def validate_phone(cls, v):
         v = v.strip()
 
@@ -56,7 +58,7 @@ class Token(BaseModel):
     token_type : str
 
 
-# 사용자 가입 폼
+# 1. 사용자 가입 폼(일반 회원가입)
 class NewUserForm(BaseModel):
     email: EmailStr = Field(..., description="이메일은 필수 항목입니다.")
     name: str = Field(..., min_length=1, max_length=50, description="이름을 입력해주세요.")
@@ -65,19 +67,38 @@ class NewUserForm(BaseModel):
     password: str
     confirm_password: str
     user_img: str = "static_url"  # 기본값 설정
+    is_oauth_user: bool = False
 
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v):
+        """이메일을 소문자로 변환"""
+        return v.lower()
 
-    @validator('password')
+    @field_validator("password")
+    @classmethod
     def validate_password(cls, v):
         if len(v) < 8 or not any(char.isdigit() for char in v) or not any(char.isalpha() for char in v) or not any(char in "!@#$%^&*()-_=+[]{}|;:',.<>?/~`" for char in v):
-            raise HTTPException(status_code=422, detail="비밀번호는 8자리 이상, 영문, 숫자, 특수문자를 포함해야 합니다.")
+            raise ValueError("비밀번호는 8자리 이상, 영문, 숫자, 특수문자를 포함해야 합니다.")
         return v
-    
-    @validator('confirm_password')
-    def validate_confirm_password(cls, v, values):
+
+    @field_validator("confirm_password", mode="after")
+    @classmethod
+    def validate_confirm_password(cls, v, info: ValidationInfo):
         """
-        비밀번호 확인 필드 검증
+        비밀번호 검증 (password와 confirm_password 일치 여부 확인)
         """
-        if 'password' in values and v != values['password']:
-            raise HTTPException(status_code=422, detail="입력한 비밀번호가 일치하지 않습니다.")
+        if "password" in info.data and v != info.data["password"]:
+            raise ValueError("입력한 비밀번호가 일치하지 않습니다.")
         return v
+
+
+# 2. 사용자 가입 폼 (OAuth2 회원가입)
+class OAuthUserForm(BaseModel):
+    email: EmailStr = Field(..., description="이메일은 필수 항목입니다.")
+    name: str = Field(..., min_length=1, max_length=50, description="이름을 입력해주세요.")
+    nickname: str = Field(..., min_length=1, max_length=50, description="닉네임을 입력해주세요.")
+    user_img: Optional[str] = "static_url"
+
+    class Config:
+        orm_mode = True
