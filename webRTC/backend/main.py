@@ -1,167 +1,97 @@
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, File, UploadFile
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict, Set
-import logging
-import json
+import uvicorn
+from pathlib import Path
+import datetime
 import aiofiles
 import os
-import time
-
-# 로깅 설정
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import speech_recognition as sr
 
 app = FastAPI()
 
-# CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["SET_IP", "SET_IP"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
-class Room:
-    def __init__(self, name: str):
-        self.name = name
-        self.participants: Set[WebSocket] = set()
+UPLOAD_DIR = Path("audio_uploads")
 
-class ConnectionManager:
-    def __init__(self):
-        self.active_rooms: Dict[str, Room] = {}  # 방 이름 -> Room 객체 매핑
-        self.connection_count = 0
-
-    async def connect(self, websocket: WebSocket, room_name: str):
-        try:
-            await websocket.accept()
-            
-            # 방이 없으면 새로 생성
-            if room_name not in self.active_rooms:
-                self.active_rooms[room_name] = Room(room_name)
-            
-            room = self.active_rooms[room_name]
-            room.participants.add(websocket)
-            self.connection_count += 1
-            
-            logger.info(f"Client connected to room {room_name}. Participants in room: {len(room.participants)}")
-            await self.broadcast_to_room(
-                room_name,
-                {
-                    "type": "system",
-                    "message": f"새로운 참가자가 입장했습니다. (현재 {len(room.participants)}명)"
-                }
-            )
-            
-        except Exception as e:
-            logger.error(f"Error accepting connection: {e}")
-            raise
-
-    async def disconnect(self, websocket: WebSocket):
-        # 모든 방을 확인하여 참가자 제거
-        for room_name, room in list(self.active_rooms.items()):
-            if websocket in room.participants:
-                room.participants.remove(websocket)
-                self.connection_count -= 1
-                logger.info(f"Client disconnected from room {room_name}. Participants remaining: {len(room.participants)}")
-                
-                # 방에 아무도 없으면 방 삭제
-                if not room.participants:
-                    del self.active_rooms[room_name]
-                    logger.info(f"Room {room_name} deleted - no participants remaining")
-                else:
-                    # 남은 참가자들에게 퇴장 메시지 전송
-                    await self.broadcast_to_room(
-                        room_name,
-                        {
-                            "type": "system",
-                            "message": f"참가자가 퇴장했습니다. (현재 {len(room.participants)}명)"
-                        }
-                    )
-                break
-
-    async def broadcast_to_room(self, room_name: str, message: dict, sender: WebSocket = None):
-        if room_name in self.active_rooms:
-            room = self.active_rooms[room_name]
-            for participant in room.participants:
-                if participant != sender:
-                    try:
-                        await participant.send_json(message)
-                    except Exception as e:
-                        logger.error(f"Error broadcasting message: {e}")
-                        await self.disconnect(participant)
-
-manager = ConnectionManager()
-
-@app.get("/")
-async def get_status():
-    rooms_info = {name: len(room.participants) for name, room in manager.active_rooms.items()}
-    return {
-        "status": "running",
-        "total_connections": manager.connection_count,
-        "active_rooms": rooms_info
-    }
-
-@app.websocket("/ws/{room_name}")
-async def websocket_endpoint(websocket: WebSocket, room_name: str):
-    await manager.connect(websocket, room_name)
+async def process_audio_to_text(file_path):
+    recognizer = sr.Recognizer()
     try:
-        while True:
-            data = await websocket.receive_text()
-            try:
-                message = json.loads(data)
-                logger.info(f"Received message in room {room_name}: {message}")
-                
-                # 메시지를 같은 방의 다른 참가자들에게 브로드캐스트
-                await manager.broadcast_to_room(room_name, message, websocket)
-                
-            except json.JSONDecodeError:
-                logger.error("Invalid JSON received")
-                await websocket.send_json(
-                    {"type": "error", "message": "Invalid message format"}
-                )
-                
-    except WebSocketDisconnect:
-        await manager.disconnect(websocket)
+        with sr.AudioFile(str(file_path)) as source:
+            # 주변 노이즈 처리
+            recognizer.adjust_for_ambient_noise(source, duration=1)
+            audio_data = recognizer.record(source)
+            text = recognizer.recognize_google(audio_data, language='ko-KR')
+            return text
+    except sr.UnknownValueError:
+        print(f"음성을 인식할 수 없습니다: {file_path}")
+        return ""
+    except sr.RequestError as e:
+        print(f"Google 음성 인식 서비스 오류: {e}")
+        return "음성 인식 서비스 오류"
     except Exception as e:
-        logger.error(f"Error in websocket connection: {e}")
-        await manager.disconnect(websocket)
+        print(f"음성 처리 중 오류 발생: {e}")
+        return "음성 처리 오류"
 
-import subprocess
-from fastapi import FastAPI, File, UploadFile
-import os
-import time
-
-@app.post("/audio-stream/{room_name}")
-async def receive_audio(room_name: str, audio: UploadFile = File(...)):
+@app.post("/api/audio")
+async def receive_audio(
+    audio: UploadFile = File(...),
+    roomName: str = Form(...),
+    userName: str = Form(...)
+):
     try:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        save_dir = os.path.join(base_dir, "audio_recordings", room_name)
-        os.makedirs(save_dir, exist_ok=True)
-        
-        timestamp = int(time.time() * 1000)
-        webm_file = os.path.join(save_dir, f"chunk_{timestamp}.wav")
-        
-        async with aiofiles.open(webm_file, 'wb') as out_file:
+        # 방 폴더 생성
+        room_dir = UPLOAD_DIR / roomName
+        room_dir.mkdir(parents=True, exist_ok=True)
+
+        # 사용자 폴더 생성
+        user_dir = room_dir / userName
+        user_dir.mkdir(exist_ok=True)
+
+        # transcriptions 폴더 생성
+        transcription_dir = user_dir / "transcriptions"
+        transcription_dir.mkdir(exist_ok=True)
+
+        # 오디오 파일 저장
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        audio_filename = f"audio_{timestamp}.wav"
+        audio_path = user_dir / audio_filename
+
+        # 파일 저장
+        async with aiofiles.open(audio_path, "wb") as out_file:
             content = await audio.read()
             await out_file.write(content)
-        
-        return {"status": "success", "file": webm_file}
-        
+
+        # STT 변환
+        text = await process_audio_to_text(audio_path)
+
+        # 변환된 텍스트 저장
+        if text:
+            text_filename = f"audio_{timestamp}.txt"
+            text_path = transcription_dir / text_filename
+            async with aiofiles.open(text_path, "w", encoding="utf-8") as f:
+                await f.write(text)
+
+        return {
+            "message": "Audio processed successfully",
+            "room": roomName,
+            "user": userName,
+            "filename": audio_filename,
+            "text": text,
+            "timestamp": timestamp
+        }
+    
     except Exception as e:
-        logger.error(f"Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error processing audio: {e}")
+        return {"error": str(e)}
 
 if __name__ == "__main__":
-    import uvicorn
-    import os
-    
-    # 환경 변수 설정
     port = int(os.getenv("PORT", 8000))
-    
-    # SSL 설정
-    ssl_keyfile = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "webrtc-chat", "cert.key")
-    ssl_certfile = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "webrtc-chat", "cert.crt")
     
     uvicorn.run(
         "main:app",
@@ -169,6 +99,6 @@ if __name__ == "__main__":
         port=port,
         log_level="info",
         reload=True,
-        ssl_keyfile=ssl_keyfile,
-        ssl_certfile=ssl_certfile
+        ssl_keyfile="cert.key",
+        ssl_certfile="cert.crt"
     )
