@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from Backend.models import User
+from models import User
 from .auth_schema import NewUserForm
 
 from passlib.context import CryptContext

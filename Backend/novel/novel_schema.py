@@ -1,41 +1,37 @@
-from pydantic import BaseModel, field_validator
-from fastapi import HTTPException
+from pydantic import BaseModel, field_validator, Field
+from typing import Optional
+from typing import List
 
-#순환 참조 문제 때문에 나머지도 SCHEMA를 만들어야 함 .특히 코멘트와 cocomet부분이 순환 참조가 일어나기 쉬운 형태라고 함.
-
-class NovelCreateBase(BaseModel) : 
-    title : str
-    synopsis_pk : int
-    description : str
-    num_episode : int
-    genre : str
-
-class CommentBase(BaseModel) :    
-    # ep_pk : int
-    # user_pk : str
-    content : str
-    cocoment_cnt : int
-    likes : int
-
-class CoComentBase(BaseModel) : 
-    # user_pk : int
-    # comment_pk : int
-    content : str
-    likes : int
-
-class SynopsisBase(BaseModel) : 
-    category : str
-    content : str
+# 장르 선택
 
 
-# class EpisodeBase(BaseModel) : 
-#     ep_title : str
-#     novel_pk : int
-#     ep_content : str
+# 소설 생성 요청
+class NovelCreateBase(BaseModel):
+    title: str
+    worldview: str
+    synopsis: str
+    genres: List = Field(default_factory=list) 
+    @field_validator("title")
+    @classmethod
+    def validate_not_empty(cls, v):
+        if not v.strip():
+            raise ValueError("이 필드는 비워둘 수 없습니다.")
+        return v
+    @field_validator("genres")
+    @classmethod
+    def validate_genre_not_empty(cls, v):
+        if not v : 
+            raise ValueError("이 필드는 비워둘 수 없습니다.")
 
 
-class EpisodeCreateBase(BaseModel) : 
-    ep_title : str
-    ep_content : str
 
+# 소설 기본 정보 (응답용)
+class NovelBase(NovelCreateBase):
+    novel_pk: int
+    num_episode: int = 0
+    likes: int = 0
+    views: int = 0
+    is_completed: bool = False
 
+    class Config:
+        from_attributes = True

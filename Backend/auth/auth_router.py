@@ -7,9 +7,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from . import auth_crud, auth_schema
-from ..database import get_db
-from ..user import user_crud
-from ..utils.auth_utils import send_sms, verify_code, check_verified, redis_client, generate_verification_code, save_verification_code
+from database import get_db
+from user import user_crud
+from utils.auth_utils import send_sms, verify_code, check_verified, redis_client, generate_verification_code, save_verification_code
 
 from dotenv import load_dotenv
 import os

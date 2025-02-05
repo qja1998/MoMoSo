@@ -1,14 +1,12 @@
 
-from fastapi import Depends, HTTPException, status, APIRouter, Response
+from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
 
-
 from . import user_crud, user_schema
-from ..auth import auth_crud, auth_schema
-from ..utils import auth_utils
-from ..database import get_db
+from utils import auth_utils
+from database import get_db
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
