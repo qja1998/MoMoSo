@@ -1,8 +1,8 @@
 from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, DateTime, Table
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declarative_base
-
+from fastapi_users.db import SQLAlchemyBaseOAuthAccountTable
 
 
 
@@ -97,7 +97,6 @@ class Novel(Base):
     @property
     def genre_names(self):
         return [genre.genre for genre in self.genres]
-
 
 class Genre(Base) : 
     __tablename__ = "genre"

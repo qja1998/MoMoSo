@@ -97,6 +97,13 @@ def update_novel(novel_pk: int, update_data: novel_schema.NovelUpdateBase, db: S
     db.refresh(novel)
     return novel
 
+#소설 삭제(장르 중계 테이블도 삭제해줘야 함.)
+def delete_novel(novel_pk: int, db: Session):
+    novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+    db.delete(novel)
+    db.commit()
+    return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+
 
 # 특정 소설의 에피소드 조회
 def novel_episode(novel_pk: int, db: Session):
@@ -120,6 +127,14 @@ def save_episode(novel_pk: int, episode_data: novel_schema.EpisodeCreateBase, db
 # 에피소드 수정
 def change_episode(novel_pk: int, episode_pk : int, db: Session) :
     pass
+
+# 에피소드 삭제
+def delete_episode(novel_pk: int, episode_pk : int, db: Session) :
+    episode = db.query(Episode).filter(Episode.ep_pk == episode_pk).first()
+    db.delete(episode)
+    db.commit()
+    return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+
 
 # 특정 에피소드의 모든 댓글 조회
 def get_all_ep_comment(novel_pk: int, ep_pk: int, db: Session):
@@ -162,16 +177,12 @@ def delete_comment(comment_pk: int, db: Session):
     
     db.delete(comment)
     db.commit()
-    return {"message": "댓글이 삭제되었습니다."}
-
-
+    return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
 
 """
 여기서 부터 만들면 됨.
 
 """
-
-
 
 # 댓글 좋아요 및 좋아요 취소
 def like_comment(comment_pk: int, db: Session):
@@ -181,7 +192,6 @@ def like_comment(comment_pk: int, db: Session):
     
     print(comment.liked_users) #형태가 어떤지 봐야 로직을 짤 수 있을듯.
     
-
     comment.likes += 1
 
     

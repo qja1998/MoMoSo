@@ -58,6 +58,9 @@ def create_episode(novel_pk: int, episode_data: novel_schema.EpisodeCreateBase, 
 여기서부터 짜면 됨. 
 """
 
+"""
+얘 짜기 귀찮으니까 일단 냅두자... 갸귀찮아
+"""
 # 에피소드 변경
 @app.post("/novel/{novel_pk}/{episode_pk}", response_model=novel_schema.EpisodeCreateBase)
 def change_episode(novel_pk: int, episode_pk : int, db: Session = Depends(get_db)) : 
@@ -66,7 +69,7 @@ def change_episode(novel_pk: int, episode_pk : int, db: Session = Depends(get_db
 #에피소드 삭제
 @app.delete("/novel/{novel_pk}/{episode_pk}")
 def delete_episode(novel_pk: int, episode_pk : int, db: Session = Depends(get_db)) : 
-    pass
+    return novel_crud.delete_episode
 
 # 특정 에피소드의 댓글 조회
 @app.get("/novel/{novel_pk}/episode/{ep_pk}/comments")
