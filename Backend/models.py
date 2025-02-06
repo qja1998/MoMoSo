@@ -1,12 +1,18 @@
 from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, DateTime, Table
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declarative_base
-
-
-
+from fastapi_users.db import SQLAlchemyBaseOAuthAccountTable
 
 Base = declarative_base()
+
+# User와 Discussion의 M:N 관계 설정
+user_discussion_table = Table(
+    "user_discussion",
+    Base.metadata,
+    Column("user_pk", Integer, ForeignKey("users.user_pk"), primary_key=True),
+    Column("discussion_pk", Integer, ForeignKey("discussion.discussion_pk"), primary_key=True),
+)
 
 # User와 Novel의 M:N 관계를 위한 연결 테이블
 user_like_table = Table(
@@ -39,6 +45,16 @@ novel_genre_table = Table(
     Column("genre_pk", Integer, ForeignKey("genre.genre_pk"), primary_key=True),
 )
 
+class OAuthAccount(SQLAlchemyBaseOAuthAccountTable, Base):
+    """
+    OAuth2 로그인 계정을 저장하는 테이블
+    (Google, Kakao, Naver 등 OAuth 로그인 시 사용자 계정 정보 저장)
+    """
+    __tablename__ = "oauth_account"  # 테이블 명시적으로 지정
+
+    id = Column(Integer, primary_key=True, index=True)  # 기본 키 추가
+    user_id = Column(Integer, ForeignKey("users.user_pk", ondelete="CASCADE"), nullable=False)
+
 # User Model
 class User(Base):
     __tablename__ = "users"
@@ -69,6 +85,11 @@ class User(Base):
 
     # 1:N 관계 설정 (작성한 대댓글)
     cocomments = relationship("CoComment", back_populates="user")
+    
+    # M:N 관계 설정 (Discussion 참여)
+    discussions = relationship("Discussion", secondary=user_discussion_table, back_populates="participants")
+
+
 
 # Novel Model (Synopsis와 병합됨)
 class Novel(Base):
@@ -182,10 +203,14 @@ class Discussion(Base):
     discussion_pk = Column(Integer, primary_key=True, autoincrement=True)
     novel_pk = Column(Integer, ForeignKey("novel.novel_pk"), nullable=False)
     user_pk = Column(Integer, ForeignKey("users.user_pk"), nullable=False)
-    title = Column(String(150), nullable=False)
-    content = Column(Text, nullable=False)
-    start_time = Column(DateTime, default=func.now())
-    end_time = Column(DateTime)
+    topic = Column(Text, nullable=False)
+    category = Column(Boolean, nullable=False) # 0 : 전체 토론, 1 : 회차별 토론론
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=True)
+    max_participants = Column(Integer, nullable=False)
+
+    # M:N 관계 설정 (User 참여)
+    participants = relationship("User", secondary=user_discussion_table, back_populates="discussions")
 
 # Note Model
 class Note(Base):
