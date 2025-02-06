@@ -28,7 +28,7 @@ def get_user(user_id:int, db:Session=Depends(get_db)):
     return user
 
 
-@app.put('/{user_id}', description='사용자 정보 수정', response_model=user_schema.User)
+@app.put('/{user_id}', description="사용자 정보 수정", response_model=user_schema.User)
 def update_user(user_id:int, updated_user:user_schema.UpdateUserForm, db:Session=Depends(get_db)):
     user = user_crud.get_user(db, user_id)
     if user is None:

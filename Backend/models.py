@@ -47,9 +47,13 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False)
     name = Column(String(50), nullable=False)
     nickname = Column(String(50), unique=True, nullable=False)
-    phone = Column(String(50), nullable=False)
-    password = Column(String(255), nullable=False)
+    phone = Column(String(50), nullable=True) # OAuth2 로그인 시, blank 가능
+    password = Column(String(255), nullable=True) #O Auth2 로그인 시, blank 가능
     user_img = Column(Text, default="static_url")
+    is_oauth_user = Column(Boolean, default=False)  # OAuth2 로그인 여부
+
+    # OAuth2 계정과 연결
+    oauth_accounts: Mapped[list[OAuthAccount]] = relationship("OAuthAccount", lazy="joined")
 
     # M:N 관계 설정 (소설 좋아요)
     liked_novels = relationship("Novel", secondary=user_like_table, back_populates="liked_users")

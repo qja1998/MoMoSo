@@ -1,8 +1,9 @@
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from starlette.middleware.sessions import SessionMiddleware
+# from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
+
 # 데이터베이스 연결
 from database import engine
 from models import Base
@@ -19,7 +20,7 @@ secret_key = secrets.token_urlsafe(32)
 
 
 app = FastAPI()
-app.add_middleware(SessionMiddleware, secret_key=secret_key)
+# app.add_middleware(SessionMiddleware, secret_key=secret_key)
 
 # 테이블 자동 생성
 Base.metadata.create_all(bind=engine)
