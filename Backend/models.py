@@ -6,6 +6,14 @@ from fastapi_users.db import SQLAlchemyBaseOAuthAccountTable
 
 Base = declarative_base()
 
+# User와 Discussion의 M:N 관계 설정
+user_discussion_table = Table(
+    "user_discussion",
+    Base.metadata,
+    Column("user_pk", Integer, ForeignKey("users.user_pk"), primary_key=True),
+    Column("discussion_pk", Integer, ForeignKey("discussion.discussion_pk"), primary_key=True),
+)
+
 # User와 Novel의 M:N 관계를 위한 연결 테이블
 user_like_table = Table(
     "userlike",
@@ -13,6 +21,7 @@ user_like_table = Table(
     Column("novel_pk", Integer, ForeignKey("novel.novel_pk"), primary_key=True),
     Column("user_pk", Integer, ForeignKey("users.user_pk"), primary_key=True),
 )
+
 # User와 Comment 간의 M:N 관계를 위한 연결 테이블 (댓글 좋아요)
 user_comment_like_table = Table(
     "user_comment_like",
@@ -27,6 +36,13 @@ user_cocomment_like_table = Table(
     Base.metadata,
     Column("user_pk", Integer, ForeignKey("users.user_pk"), primary_key=True),
     Column("cocomment_pk", Integer, ForeignKey("cocomment.cocomment_pk"), primary_key=True),
+)
+
+novel_genre_table = Table(
+    "novel_genre",
+    Base.metadata,
+    Column("novel_pk", Integer, ForeignKey("novel.novel_pk"), primary_key=True),
+    Column("genre_pk", Integer, ForeignKey("genre.genre_pk"), primary_key=True),
 )
 
 class OAuthAccount(SQLAlchemyBaseOAuthAccountTable, Base):
@@ -69,6 +85,10 @@ class User(Base):
 
     # 1:N 관계 설정 (작성한 대댓글)
     cocomments = relationship("CoComment", back_populates="user")
+    
+    # M:N 관계 설정 (Discussion 참여)
+    discussions = relationship("Discussion", secondary=user_discussion_table, back_populates="participants")
+
 
 
 # Novel Model (Synopsis와 병합됨)
@@ -77,7 +97,6 @@ class Novel(Base):
 
     novel_pk = Column(Integer, primary_key=True, autoincrement=True)
     user_pk = Column(Integer, ForeignKey("users.user_pk"), nullable=False)
-    category = Column(String(20), nullable=False)
     title = Column(String(200), nullable=False)
     worldview = Column(Text, nullable=False)
     synopsis = Column(Text, nullable=False)  # = description
@@ -87,11 +106,27 @@ class Novel(Base):
     num_episode = Column(Integer, default=0)
     likes = Column(Integer, default=0)
     views = Column(Integer, default=0)
-    genre = Column(String(200), nullable=False)
+    
     is_completed = Column(Boolean, default=False)
 
     # M:N 관계 설정
     liked_users = relationship("User", secondary=user_like_table, back_populates="liked_novels")
+
+    # 장르 M:N 관계
+    genres = relationship("Genre", secondary=novel_genre_table, back_populates="novels")
+
+    @property
+    def genre_names(self):
+        return [genre.genre for genre in self.genres]
+
+
+class Genre(Base) : 
+    __tablename__ = "genre"
+    genre_pk = Column(Integer, primary_key=True, autoincrement=True)  # Add a primary key
+    genre = Column(String(50), nullable=False, unique=True) # Genre name should be unique
+    # M:N relationship with Novel
+    novels = relationship("Novel", secondary=novel_genre_table, back_populates="genres")
+
 
 # Character Model (synopsis_fk -> novel_fk로 변경)
 class Character(Base):
@@ -168,10 +203,14 @@ class Discussion(Base):
     discussion_pk = Column(Integer, primary_key=True, autoincrement=True)
     novel_pk = Column(Integer, ForeignKey("novel.novel_pk"), nullable=False)
     user_pk = Column(Integer, ForeignKey("users.user_pk"), nullable=False)
-    title = Column(String(150), nullable=False)
-    content = Column(Text, nullable=False)
-    start_time = Column(DateTime, default=func.now())
-    end_time = Column(DateTime)
+    topic = Column(Text, nullable=False)
+    category = Column(Boolean, nullable=False) # 0 : 전체 토론, 1 : 회차별 토론
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=True)
+    max_participants = Column(Integer, nullable=False)
+
+    # M:N 관계 설정 (User 참여)
+    participants = relationship("User", secondary=user_discussion_table, back_populates="discussions")
 
 # Note Model
 class Note(Base):
