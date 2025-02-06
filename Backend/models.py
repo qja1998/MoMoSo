@@ -204,7 +204,7 @@ class Discussion(Base):
     novel_pk = Column(Integer, ForeignKey("novel.novel_pk"), nullable=False)
     user_pk = Column(Integer, ForeignKey("users.user_pk"), nullable=False)
     topic = Column(Text, nullable=False)
-    category = Column(Boolean, nullable=False) # 0 : 전체 토론, 1 : 회차별 토론론
+    category = Column(Boolean, nullable=False) # 0 : 전체 토론, 1 : 회차별 토론
     start_time = Column(DateTime, nullable=False)
     end_time = Column(DateTime, nullable=True)
     max_participants = Column(Integer, nullable=False)
