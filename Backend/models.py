@@ -90,6 +90,11 @@ class Novel(Base):
     # 장르 M:N 관계
     genres = relationship("Genre", secondary=novel_genre_table, back_populates="novels")
 
+    @property
+    def genre_names(self):
+        return [genre.genre for genre in self.genres]
+
+
 class Genre(Base) : 
     __tablename__ = "genre"
     genre_pk = Column(Integer, primary_key=True, autoincrement=True)  # Add a primary key
