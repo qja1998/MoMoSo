@@ -30,13 +30,11 @@ async def run_code(request: Request):
 
     try:
         # 실행된 코드의 결과를 저장할 변수
-        exec_globals = {}
-        exec(code, exec_globals)
-        result = exec_globals.get("result", "No result variable found")
+        print(code)
     except Exception as e:
         return {"error": str(e)}
 
-    return {"output": result}
+    return {"output": code}
 
 # FastAPI 실행 함수 (Jupyter Notebook 비동기 실행 지원)
 def run_api():
