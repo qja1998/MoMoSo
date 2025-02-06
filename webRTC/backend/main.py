@@ -24,7 +24,8 @@ async def process_audio_to_text(file_path):
     try:
         with sr.AudioFile(str(file_path)) as source:
             # 주변 노이즈 처리
-            recognizer.adjust_for_ambient_noise(source, duration=1)
+            # recognizer.adjust_for_ambient_noise(source, duration=1)
+            # recognizer.adjust_for_ambient_noise(source)
             audio_data = recognizer.record(source)
             text = recognizer.recognize_google(audio_data, language='ko-KR')
             return text

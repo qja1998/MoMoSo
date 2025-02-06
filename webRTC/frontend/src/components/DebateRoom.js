@@ -5,6 +5,150 @@ import { Mic, MicOff, Videocam, VideocamOff } from '@mui/icons-material';
 import VideoPlayer from './VideoPlayer';
 import RecordRTC from 'recordrtc';
 
+// VAD 클래스 추가
+const VoiceActivityDetector = class {
+  constructor(stream, options = {}) {
+    this.audioContext = new AudioContext();
+    this.microphone = this.audioContext.createMediaStreamSource(stream);
+    this.analyser = this.audioContext.createAnalyser();
+    this.recorder = null;
+
+    this.options = {
+      threshold: 0.1,     // 음성 감지 임계값
+      maxSilentTime: 1500, // 최대 침묵 시간 (ms)
+      minRecordingTime: 500 // 최소 녹음 시간 (ms)
+    };
+
+    this.setupAnalyser();
+  }
+
+  setupAnalyser() {
+    this.analyser.minDecibels = -45;
+    this.analyser.maxDecibels = -10;
+    this.analyser.fftSize = 2048;
+
+    this.microphone.connect(this.analyser);
+    this.dataArray = new Float32Array(this.analyser.frequencyBinCount);
+  }
+
+  isVoiceActive() {
+    this.analyser.getFloatTimeDomainData(this.dataArray);
+    
+    const rms = Math.sqrt(
+      this.dataArray.reduce((sum, value) => sum + value * value, 0) / this.dataArray.length
+    );
+
+    const normalizedVolume = Math.abs(rms);
+    
+    console.log('음성 레벨:', normalizedVolume);
+
+    return normalizedVolume > this.options.threshold;
+  }
+
+  startRecording(onDataAvailable) {
+    // 이전 RecordRTC 인스턴스 정리
+    if (this.recorder) {
+      try {
+        this.recorder.stopRecording();
+        this.recorder.destroy();
+      } catch (error) {
+        console.error('기존 레코더 정리 중 오류:', error);
+      }
+    }
+
+    const audioStream = this.microphone.mediaStream;
+    
+    // 새로운 RecordRTC 인스턴스 생성
+    this.recorder = new RecordRTC(audioStream, {
+      type: 'audio',
+      mimeType: 'audio/wav',
+      recorderType: RecordRTC.StereoAudioRecorder,
+      desiredSampRate: 16000,
+      numberOfAudioChannels: 1
+    });
+
+    let isRecording = false;
+    let silentTime = 0;
+    let recordingTime = 0;
+    const CHECK_INTERVAL = 100;
+
+    const checkVoiceActivity = setInterval(() => {
+      const isActive = this.isVoiceActive();
+
+      console.log('VAD 상태:', {
+        isActive,                  // 현재 음성 활성 상태
+        silentTime,                // 현재 누적 침묵 시간
+        recordingTime,             // 현재 녹음 시간
+        maxSilentTime: this.options.maxSilentTime,  // 최대 허용 침묵 시간
+        minRecordingTime: this.options.minRecordingTime  // 최소 녹음 시간
+      });
+
+      if (isActive) {
+        if (!isRecording) {
+          console.log('음성 감지 - 녹음 시작');
+          this.recorder.startRecording();
+          isRecording = true;
+          silentTime = 0;
+          recordingTime = 0;
+        } else {
+          silentTime = 0;
+          recordingTime += CHECK_INTERVAL;
+        }
+      } else {
+        if (isRecording) {
+          silentTime += CHECK_INTERVAL;
+          recordingTime += CHECK_INTERVAL;
+
+          if (recordingTime >= this.options.minRecordingTime && 
+              silentTime >= this.options.maxSilentTime) {
+            console.log('침묵 감지 - 녹음 중지');
+            this.recorder.stopRecording(() => {
+              const blob = this.recorder.getBlob();
+              
+              if (blob && blob.size > 0) {
+                console.log('녹음된 블롭:', {
+                  size: blob.size,
+                  type: blob.type
+                });
+                
+                onDataAvailable(blob);
+                
+                // 레코더 완전 초기화
+                this.recorder.destroy();
+                this.recorder = new RecordRTC(audioStream, {
+                  type: 'audio',
+                  mimeType: 'audio/wav',
+                  recorderType: RecordRTC.StereoAudioRecorder,
+                  desiredSampRate: 16000,
+                  numberOfAudioChannels: 1
+                });
+              }
+            });
+
+            isRecording = false;
+            silentTime = 0;
+            recordingTime = 0;
+          }
+        }
+      }
+    }, CHECK_INTERVAL);
+
+    // 녹음 중지 함수 반환
+    return () => {
+      clearInterval(checkVoiceActivity);
+      if (this.recorder) {
+        try {
+          this.recorder.stopRecording();
+          this.recorder.destroy();
+          this.recorder = null;
+        } catch (error) {
+          console.error('레코더 중지 중 오류:', error);
+        }
+      }
+    };
+  }
+};
+
 const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => {
  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
@@ -14,8 +158,9 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
  const recorderRef = useRef(null);
  const chatBoxRef = useRef(null);
  const [activeSpeeakers, setActiveSpeakers] = useState(new Set());
+ const vadRef = useRef(null);
+ const stopVADRef = useRef(null);
 
- // session이 생성된 후 signal 이벤트 리스너 등록
  useEffect(() => {
    if (publisher?.session) {
      publisher.session.on('signal:chat', (event) => {
@@ -47,7 +192,6 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
    };
  }, [publisher]);
 
- // 새 메시지가 추가될 때마다 스크롤을 아래로 이동
  useEffect(() => {
    if (chatBoxRef.current) {
      const chatContainer = chatBoxRef.current;
@@ -55,112 +199,6 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
    }
  }, [messages]);
 
- const startAudioRecording = () => {
-   if (publisher) {
-     const audioTrack = publisher.stream.getMediaStream().getAudioTracks()[0];
-
-     if (audioTrack) {
-       const audioStream = new MediaStream([audioTrack]);
-       
-       recorderRef.current = new RecordRTC(audioStream, {
-         type: 'audio',
-         mimeType: 'audio/wav',
-         recorderType: RecordRTC.StereoAudioRecorder,
-         timeSlice: 3000,
-         desiredSampRate: 16000,
-         numberOfAudioChannels: 1,
-         ondataavailable: async (blob) => {
-           await sendAudioData(blob);
-         }
-       });
-
-       recorderRef.current.startRecording();
-     }
-   }
- };
-
-  // 활성 발화자 감지
-  useEffect(() => {
-    let audioContext;
-    let sources = new Map();
-    let analysers = new Map();
-
-    const setupAudioAnalysis = (stream, userId) => {
-      if (!audioContext) {
-        audioContext = new AudioContext();
-      }
-
-      if (!sources.has(userId)) {
-        const source = audioContext.createMediaStreamSource(stream);
-        const analyser = audioContext.createAnalyser();
-        analyser.fftSize = 2048;
-        source.connect(analyser);
-        sources.set(userId, source);
-        analysers.set(userId, analyser);
-      }
-    };
-
-    const checkAudioLevel = (analyser) => {
-      const dataArray = new Float32Array(analyser.frequencyBinCount);
-      analyser.getFloatTimeDomainData(dataArray);
-      const rms = Math.sqrt(
-        dataArray.reduce((sum, value) => sum + value * value, 0) / dataArray.length
-      );
-      return rms;
-    };
-
-    const checkAudioActivity = setInterval(() => {
-      const activeSpeakersNow = new Set();
-      
-      // 본인의 음성 활동 체크
-      if (publisher && isAudioEnabled) {
-        const stream = publisher.stream.getMediaStream();
-        if (stream.getAudioTracks().length > 0) {
-          setupAudioAnalysis(stream, userName);
-          const analyser = analysers.get(userName);
-          if (analyser) {
-            const rms = checkAudioLevel(analyser);
-            console.log(`내 음성 레벨: ${rms}`); // 디버깅용
-            if (rms > 0.01) {
-              activeSpeakersNow.add(userName);
-            }
-          }
-        }
-      }
-
-      // 다른 참가자들의 음성 활동 체크
-      subscribers.forEach(sub => {
-        const userData = JSON.parse(sub.stream.connection.data);
-        if (sub.stream.audioActive) {
-          const stream = sub.stream.getMediaStream();
-          if (stream.getAudioTracks().length > 0) {
-            setupAudioAnalysis(stream, userData.clientData);
-            const analyser = analysers.get(userData.clientData);
-            if (analyser) {
-              const rms = checkAudioLevel(analyser);
-              console.log(`${userData.clientData}의 음성 레벨: ${rms}`); // 디버깅용
-              if (rms > 0.01) {
-                activeSpeakersNow.add(userData.clientData);
-              }
-            }
-          }
-        }
-      });
-
-      setActiveSpeakers(activeSpeakersNow);
-    }, 100);
-
-    return () => {
-      clearInterval(checkAudioActivity);
-      // 모든 연결 정리
-      sources.forEach(source => source.disconnect());
-      if (audioContext) {
-        audioContext.close();
-      }
-    };
-  }, [publisher, subscribers, isAudioEnabled, userName]);
-
- // 채팅 메시지 전송
  const sendChatMessage = async (e) => {
    e.preventDefault();
    if (!chatInput.trim()) return;
@@ -180,82 +218,98 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
  };
 
  const sendAudioData = async (blob) => {
-   const formData = new FormData();
-   formData.append('audio', blob, `audio_${Date.now()}.wav`);
-   formData.append('roomName', roomName);
-   formData.append('userName', userName);
+  // 오디오 데이터 처리
+  console.log('Blob 정보:', { type: blob.type, size: blob.size });
 
-    /* 서버 Ip로 변경할것 추후 .env로 빼야함함 */
-    const SERVER_IP = window.location.hostname === 'localhost' ? 'localhost' : import.meta.env.VITE_BACKEND_IP;
-    const SERVER_PORT = import.meta.env.VITE_BACKEND_PORT;
-    const PROTOCOL = import.meta.env.VITE_BACKEND_PROTOCOL;
+  const audioContext = new AudioContext();
+  try {
+    const arrayBuffer = await blob.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    console.log('오디오 길이:', audioBuffer.duration, '초');
+  } catch (decodeError) {
+    console.error('오디오 디코딩 에러:', decodeError);
+  }
 
-   try {
-     const response = await axios.post(`${PROTOCOL}://${SERVER_IP}:${SERVER_PORT}/api/audio`, formData, {
-       headers: { 'Content-Type': 'multipart/form-data' }
-     });
+  const formData = new FormData();
+  formData.append('audio', blob, `audio_${Date.now()}.wav`);
+  formData.append('roomName', roomName);
+  formData.append('userName', userName);
 
-     if (response.data.text) {
-       // STT 결과를 signal로 전송
-       await publisher.session.signal({
-         data: JSON.stringify({
-           text: response.data.text,
-           user: userName
-         }),
-         type: 'stt'
-       });
-     }
-     console.log(`✅ WAV 청크 업로드 완료! (Size: ${blob.size} bytes)`);
-     console.log(`📝 STT 결과:`, response.data.text);
-   } catch (error) {
-     console.error('❌ 오디오 전송 에러:', error);
-   }
- };
+  const SERVER_IP = window.location.hostname === 'localhost' ? 'localhost' : import.meta.env.VITE_BACKEND_IP;
+  const SERVER_PORT = import.meta.env.VITE_BACKEND_PORT;
+  const PROTOCOL = import.meta.env.VITE_BACKEND_PROTOCOL;
 
- const stopAudioRecording = () => {
-   if (recorderRef.current) {
-     recorderRef.current.stopRecording(async () => {
-       let blob = recorderRef.current.getBlob();
-       if (blob && blob.size > 0) {
-         await sendAudioData(blob);
-       }
-     });
-   }
- };
+  try {
+    const response = await axios.post(`${PROTOCOL}://${SERVER_IP}:${SERVER_PORT}/api/audio`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
+    });
 
- const toggleAudio = () => {
-   if (publisher) {
-     const newAudioState = !isAudioEnabled;
-     publisher.publishAudio(newAudioState);
-     setIsAudioEnabled(newAudioState);
+    if (response.data.text) {
+      await publisher.session.signal({
+        data: JSON.stringify({
+          text: response.data.text,
+          user: userName
+        }),
+        type: 'stt'
+      });
+    }
+    console.log(`✅ WAV 청크 업로드 완료! (Size: ${blob.size} bytes)`);
+    console.log(`📝 STT 결과:`, response.data.text);
+  } catch (error) {
+    console.error('❌ 오디오 전송 에러:', {
+      message: error.message,
+      response: error.response?.data,
+      config: error.config
+    });
+  }
+};
 
-     if (newAudioState) {
-       startAudioRecording();
-     } else {
-       stopAudioRecording();
-     }
-   }
- };
+const toggleAudio = () => {
+  if (publisher) {
+    const newAudioState = !isAudioEnabled;
+    publisher.publishAudio(newAudioState);
+    setIsAudioEnabled(newAudioState);
+
+    if (newAudioState) {
+      const audioStream = publisher.stream.getMediaStream();
+      const vad = new VoiceActivityDetector(audioStream);
+      
+      const stopRecording = vad.startRecording(async (blob) => {
+        await sendAudioData(blob);
+      });
+
+      if (vadRef.current) {
+        vadRef.current();
+      }
+      vadRef.current = stopRecording;
+    } else {
+      if (vadRef.current) {
+        vadRef.current();
+        vadRef.current = null;
+      }
+    }
+  }
+};
 
  const toggleVideo = () => {
+   const newVideoState = !isVideoEnabled;
+   setIsVideoEnabled(newVideoState);
    if (publisher) {
-     publisher.publishVideo(!isVideoEnabled);
-     setIsVideoEnabled(!isVideoEnabled);
+     publisher.publishVideo(newVideoState);
    }
  };
 
- useEffect(() => {
-   if (publisher) {
-     localStreamRef.current = publisher.stream.getMediaStream();
+ const handleLeave = () => {
+   if (vadRef.current) {
+     vadRef.current();
    }
-
-   return () => {
-     if (recorderRef.current) {
-       recorderRef.current.stopRecording();
-     }
-   };
- }, [publisher]);
-
+   if (publisher && publisher.session) {
+     publisher.session.disconnect();
+   }
+   onLeave();
+ };
  return (
   <Box sx={{ 
     display: 'flex', 
