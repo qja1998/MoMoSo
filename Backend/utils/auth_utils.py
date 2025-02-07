@@ -153,3 +153,4 @@ async def verify_user_pk(user_pk: int, db: Session = Depends(get_db), current_us
         raise HTTPException(status_code=403, detail="You do not have permission to access this resource.")
     
     return target_user
+

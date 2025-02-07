@@ -8,6 +8,15 @@ from fastapi_users.db import SQLAlchemyBaseOAuthAccountTable
 
 Base = declarative_base()
 
+# User와 최근 본 Novel의 M:N 관계를 위한 연결 테이블
+user_recent_novel_table = Table(
+    "user_recent_novel",
+    Base.metadata,
+    Column("user_pk", Integer, ForeignKey("users.user_pk", ondelete="CASCADE"), primary_key=True),
+    Column("novel_pk", Integer, ForeignKey("novel.novel_pk", ondelete="CASCADE"), primary_key=True),
+    Column("viewed_date", DateTime, default=func.now())  # 최근 본 날짜 저장
+)
+
 # User와 Discussion의 M:N 관계 설정
 user_discussion_table = Table(
     "user_discussion",
@@ -68,27 +77,19 @@ class User(Base):
     name = Column(String(50), nullable=False)
     nickname = Column(String(50), unique=True, nullable=False)
     phone = Column(String(50), nullable=True) # OAuth2 로그인 시, blank 가능
-    password = Column(String(255), nullable=True) #O Auth2 로그인 시, blank 가능
+    password = Column(String(255), nullable=True) #OAuth2 로그인 시, blank 가능
     user_img = Column(Text, default="static_url")
     is_oauth_user = Column(Boolean, default=False)  # OAuth2 로그인 여부
 
     # OAuth2 계정과 연결
     oauth_accounts: Mapped[list[OAuthAccount]] = relationship("OAuthAccount", lazy="joined", cascade="all, delete, delete-orphan", passive_deletes=True)
 
-    # M:N 관계 설정 (소설 좋아요)
-    liked_novels = relationship("Novel", secondary=user_like_table, back_populates="liked_users", passive_deletes=True)
-
-    # M:N 관계 설정 (댓글 좋아요)
-    liked_comments = relationship("Comment", secondary=user_comment_like_table, back_populates="liked_users", passive_deletes=True)
-
-    # M:N 관계 설정 (대댓글 좋아요)
-    liked_cocomments = relationship("CoComment", secondary=user_cocomment_like_table, back_populates="liked_users", passive_deletes=True)
-
-    # 1:N 관계 설정 (작성한 댓글)
-    comments = relationship("Comment", back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
-
-    # 1:N 관계 설정 (작성한 대댓글)
-    cocomments = relationship("CoComment", back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
+    recent_novels = relationship("Novel", secondary=user_recent_novel_table, back_populates="recent_viewers", passive_deletes=True, lazy="subquery") # 최근에 본 소설 (1:N 관계)
+    liked_novels = relationship("Novel", secondary=user_like_table, back_populates="liked_users", passive_deletes=True)# M:N 관계 설정 (소설 좋아요) 
+    liked_comments = relationship("Comment", secondary=user_comment_like_table, back_populates="liked_users", passive_deletes=True) # M:N 관계 설정 (댓글 좋아요)    
+    liked_cocomments = relationship("CoComment", secondary=user_cocomment_like_table, back_populates="liked_users", passive_deletes=True) # M:N 관계 설정 (대댓글 좋아요)
+    comments = relationship("Comment", back_populates="user", cascade="all, delete-orphan", passive_deletes=True) # 1:N 관계 설정 (작성한 댓글)
+    cocomments = relationship("CoComment", back_populates="user", cascade="all, delete-orphan", passive_deletes=True) # 1:N 관계 설정 (작성한 대댓글)
 
 # Novel Model (Synopsis와 병합됨)
 class Novel(Base):
@@ -109,10 +110,9 @@ class Novel(Base):
     is_completed = Column(Boolean, default=False)
 
     # M:N 관계 설정
-    liked_users = relationship("User", secondary=user_like_table, back_populates="liked_novels")
-
-    # 장르 M:N 관계
+    liked_users = relationship("User", secondary=user_like_table, back_populates="liked_novels")    # 장르 M:N 관계
     genres = relationship("Genre", secondary=novel_genre_table, back_populates="novels", cascade="all, delete", passive_deletes=True)
+    recent_viewers = relationship("User", secondary=user_recent_novel_table, back_populates="recent_novels")
 
     @property
     def genre_names(self):

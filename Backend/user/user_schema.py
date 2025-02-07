@@ -14,40 +14,6 @@ class User(BaseModel):
     class Config:
         from_attributes = True
 
-
-# 사용자 상세 정보 조회
-class UserDetail(BaseModel):
-    user_pk: int
-    name: str
-    nickname: str
-    user_img: str
-    liked_novels: List[str]
-    liked_comments: List[str]
-    liked_cocoments: List[str]
-    comments: List[str]
-    cocomments: List[str]
-
-# 사용자가 불러올 Novel, Comment, Cocomment 정보
-class UserNovel(BaseModel):
-    novel_pk: int
-    title: str
-    novel_img: str
-    is_completed: bool
-
-
-class UserComment(BaseModel):
-    commemt_pk: int
-    content: str
-    cocomment_cnt: str
-    likes: int
-
-
-class UserCocomment(BaseModel):
-    cocomment_pk: int
-    content: str
-    likes: int
-
-
 # 사용자 정보 수정
 class UpdateUserForm(BaseModel):
     nickname: str = Field(None, min_length=1, max_length=50, description="수정할 닉네임")
@@ -69,3 +35,54 @@ class UpdateUserForm(BaseModel):
 class DeleteUserForm(BaseModel):
     email: EmailStr = Field(..., description="사용자 이메일")
     password: str = Field(..., description="사용자 비밀번호")
+
+
+# 사용자가 최근 본 Novel, 좋아요한 Novel, Comment, Cocomment
+class RecentNovel(BaseModel):
+    novel_pk: int
+    title: str
+    novel_img: str
+    is_completed: bool
+
+    class Config:
+        from_attributes = True
+
+class UserNovel(BaseModel):
+    novel_pk: int
+    title: str
+    novel_img: str
+    is_completed: bool
+
+    class Config:
+        from_attributes = True
+
+class UserComment(BaseModel):
+    comment_pk: int
+    content: str
+    cocomment_cnt: int
+    likes: int
+
+    class Config:
+        from_attributes = True
+
+class UserCocomment(BaseModel):
+    cocomment_pk: int
+    content: str
+    likes: int
+
+    class Config:
+        from_attributes = True
+
+# 사용자 상세 정보 조회 스키마
+class UserDetail(BaseModel):
+    user_pk: int
+    name: str
+    nickname: str
+    user_img: str
+    recent_novels: Optional[List[RecentNovel]]
+    liked_novels: List[UserNovel]
+    liked_comments: List[UserComment]
+    liked_cocomments: List[UserCocomment]
+
+    class Config:
+        from_attributes = True
