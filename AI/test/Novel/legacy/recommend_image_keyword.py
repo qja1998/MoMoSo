@@ -50,12 +50,14 @@ input_genre = input("소설 장르를 입력하세요 (없으면 엔터키): ")
 input_title = input("소설 제목을 입력하세요 (없으면 엔터키): ")
 input_worldview = input("소설 세계관을 입력하세요 (없으면 엔터키): ")
 input_synopsis = input("소설 줄거리를 입력하세요 (없으면 엔터키): ")
+input_characters = input("소설 등장인물을 입력하세요 (없으면 엔터키): ")
 
 input_json = {
     "genre": input_genre.strip(),
     "title": input_title.strip(),
     "worldview": input_worldview.strip(),
-    "synopsis": input_synopsis.strip()
+    "synopsis": input_synopsis.strip(),
+    "characters": input_characters.strip()
 }
 
 # 6. langchain 체인 실행
