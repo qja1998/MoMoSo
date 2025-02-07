@@ -1,21 +1,23 @@
-import { styled } from '@mui/material/styles'
+import { useState } from 'react'
+
+import { Link } from 'react-router-dom'
+
+import AccountCircleIcon from '@mui/icons-material/AccountCircle'
+import LogoutIcon from '@mui/icons-material/Logout'
+import MenuIcon from '@mui/icons-material/Menu'
+import PersonIcon from '@mui/icons-material/Person'
 import {
   AppBar,
-  Toolbar,
+  Avatar,
   Box,
   IconButton,
   Menu,
   MenuItem,
-  useTheme,
+  Toolbar,
   useMediaQuery,
-  Avatar,
+  useTheme,
 } from '@mui/material'
-import MenuIcon from '@mui/icons-material/Menu'
-import AccountCircleIcon from '@mui/icons-material/AccountCircle'
-import LogoutIcon from '@mui/icons-material/Logout'
-import PersonIcon from '@mui/icons-material/Person'
-import { Link } from 'react-router-dom'
-import { useState } from 'react'
+import { styled } from '@mui/material/styles'
 
 const StyledAppBar = styled(AppBar)({
   backgroundColor: '#FFFFFF',

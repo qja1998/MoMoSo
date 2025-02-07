@@ -1,5 +1,14 @@
+import { Email, Lock } from '@mui/icons-material'
+import {
+  Box,
+  Button,
+  Divider,
+  InputAdornment,
+  TextField,
+  Typography,
+} from '@mui/material'
 import { styled } from '@mui/material/styles'
-import { Box, TextField, Button, Typography, Divider } from '@mui/material'
+import { Link } from 'react-router-dom'
 
 import graphicLogo from '/src/assets/logo/graphic-logo.svg'
 
@@ -69,13 +78,35 @@ const Login = () => {
           fullWidth
           placeholder="이메일을 입력해주세요"
           variant="outlined"
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Email sx={{ color: '#c9c9c9' }} />
+              </InputAdornment>
+            ),
+          }}
         />
         <TextField
           fullWidth
           type="password"
           placeholder="비밀번호를 입력해주세요"
           variant="outlined"
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Lock sx={{ color: '#c9c9c9' }}  />
+              </InputAdornment>
+            ),
+          }}
         />
+
+        {/* 계정 찾기 섹션 */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button component={Link} to="/find-id">아이디 찾기</Button>
+          <Button>비밀번호 찾기</Button>
+        </Box>
+
+        {/* 로그인 버튼 섹션 */}
         <StyledButton variant="contained" fullWidth>
           <img
             src={graphicLogo}
@@ -89,12 +120,6 @@ const Login = () => {
           />
           모모소 로그인
         </StyledButton>
-
-        {/* 계정 찾기 섹션 */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-          <Button>아이디 찾기</Button>
-          <Button>비밀번호 찾기</Button>
-        </Box>
 
         {/* 소셜 로그인 섹션 */}
         <Divider sx={{ my: 2 }}>간편 로그인</Divider>

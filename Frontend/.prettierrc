@@ -9,7 +9,21 @@
   "endOfLine": "lf",
   "jsxSingleQuote": false,
   "proseWrap": "preserve",
-  "importOrder": ["^@core/(.*)$", "^@server/(.*)$", "^@ui/(.*)$", "^[./]"],
+  "plugins": ["@trivago/prettier-plugin-sort-imports"],
+  "importOrder": [
+    "^react(-dom)?$",
+    "^react-router(-dom)?$",
+    "^@mui/(.*)$",
+    "^@components/(.*)$",
+    "^@pages/(.*)$",
+    "^@styles/(.*)$",
+    "^@assets/(.*)$",
+    "^[./]components/(.*)$",
+    "^[./]pages/(.*)$",
+    "^[./]styles/(.*)$",
+    "^[./]assets/(.*)$",
+    "^[./]"
+  ],
   "importOrderSeparation": true,
   "importOrderSortSpecifiers": true
 }
