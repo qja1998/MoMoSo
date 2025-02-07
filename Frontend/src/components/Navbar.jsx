@@ -2,15 +2,18 @@ import { styled } from '@mui/material/styles'
 import {
   AppBar,
   Toolbar,
-  Typography,
   Box,
   IconButton,
   Menu,
   MenuItem,
   useTheme,
   useMediaQuery,
+  Avatar,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
+import AccountCircleIcon from '@mui/icons-material/AccountCircle'
+import LogoutIcon from '@mui/icons-material/Logout'
+import PersonIcon from '@mui/icons-material/Person'
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 
@@ -33,6 +36,7 @@ const NavLink = styled(Link)({
 
 const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState(null)
+  const [userMenuAnchorEl, setUserMenuAnchorEl] = useState(null)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
@@ -42,6 +46,19 @@ const Navbar = () => {
 
   const handleClose = () => {
     setAnchorEl(null)
+  }
+
+  const handleUserMenuOpen = (event) => {
+    setUserMenuAnchorEl(event.currentTarget)
+  }
+
+  const handleUserMenuClose = () => {
+    setUserMenuAnchorEl(null)
+  }
+
+  const handleLogout = () => {
+    // TODO: 로그아웃 로직 구현
+    handleUserMenuClose()
   }
 
   return (
@@ -93,10 +110,33 @@ const Navbar = () => {
             </Menu>
           </>
         ) : (
-          <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <NavLink to="/editor">AI소설 에디터</NavLink>
             <NavLink to="/community">그룹 토론</NavLink>
             <NavLink to="/novels">소설 게시판</NavLink>
+            <IconButton
+              onClick={handleUserMenuOpen}
+              sx={{ marginLeft: '1rem' }}
+            >
+              <Avatar sx={{ width: 32, height: 32, bgcolor: '#FFA726' }}>
+                <AccountCircleIcon />
+              </Avatar>
+            </IconButton>
+            <Menu
+              anchorEl={userMenuAnchorEl}
+              open={Boolean(userMenuAnchorEl)}
+              onClose={handleUserMenuClose}
+              onClick={handleUserMenuClose}
+            >
+              <MenuItem component={Link} to="/mypage">
+                <PersonIcon sx={{ mr: 1 }} />
+                마이페이지
+              </MenuItem>
+              <MenuItem onClick={handleLogout}>
+                <LogoutIcon sx={{ mr: 1 }} />
+                로그아웃
+              </MenuItem>
+            </Menu>
           </Box>
         )}
       </Toolbar>
