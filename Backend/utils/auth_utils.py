@@ -91,47 +91,6 @@ def save_verification_code(email: str, code: str, name: str, expiration: int = 6
     redis_client.setex(f"email_verification_name:{email}", expiration, name)  # 이름도 저장
 
 # ================================== 로그인 여부 확인 ===============================================
-# from fastapi import Depends, HTTPException, status
-# from database import get_db
-# from jose import jwt
-# from jose.exceptions import JWTClaimsError, JWTError, ExpiredSignatureError
-# from sqlalchemy.orm import Session
-# from user import user_crud
-# from typing import Optional
-# from fastapi.security import OAuth2PasswordBearer, SecurityScopes
-# from auth.auth_router import oauth2_scheme
-
-# from dotenv import load_dotenv
-# import os
-
-# from fastapi import Header
-
-# load_dotenv()
-
-# SECRET_KEY = os.getenv("SECRET_KEY")
-# ALGORITHM = os.getenv("ALGORITHM")
-
-
-# # 로그인 유저의 Access Token 검증
-# async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-#     try:
-#         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-#         email: str = payload.get("sub")
-#         if email is None:
-#             raise HTTPException(
-#                 status_code=status.HTTP_401_UNAUTHORIZED,
-#                 detail="Invalid token payload",
-#             )
-#     except JWTError:
-#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-
-#     # DB에서 사용자 정보 가져오기
-#     user = user_crud.get_user_by_email(db, email)
-#     if user is None:
-#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-#     return user
-
 
 from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -175,4 +134,22 @@ async def get_current_user(
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    return user  # 유저 객체 반환  
+    return user  # 유저 객체 반환
+
+from models import User
+
+async def verify_user_pk(user_pk: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    특정 `user_pk`가 현재 로그인한 사용자와 동일한지
+    """
+    # DB에서 `user_pk`를 기반으로 유저 조회
+    target_user = user_crud.get_user(db, user_pk)
+    
+    if target_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 본인이 아닌 경우 권한 없음 (403 Forbidden)
+    if current_user.user_pk != target_user.user_pk:
+        raise HTTPException(status_code=403, detail="You do not have permission to access this resource.")
+    
+    return target_user
