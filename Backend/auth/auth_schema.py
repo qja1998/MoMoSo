@@ -101,4 +101,4 @@ class OAuthUserForm(BaseModel):
     user_img: Optional[str] = "static_url"
 
     class Config:
-        orm_mode = True
+        from_attributes = True

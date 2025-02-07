@@ -2,7 +2,8 @@
 from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
-
+from models import User
+from utils.auth_utils import get_current_user
 
 from . import user_crud, user_schema
 from utils import auth_utils
@@ -11,7 +12,7 @@ from database import get_db
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 app = APIRouter(
-    prefix='/api/v1/user',
+    prefix='/api/v1/users',
 )
 
 @app.get('/', description="전체 사용자 조회", response_model=list[user_schema.User])
@@ -19,8 +20,14 @@ def get_users(db:Session=Depends(get_db)):
     users = user_crud.get_users(db)
     return users
 
-
 @app.get('/{user_id}', description="개별 사용자 조회", response_model=user_schema.User)
+def get_user(user_id:int, db:Session=Depends(get_db)):
+    user = user_crud.get_user(db, user_id=user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not Found")
+    return user
+
+@app.get('/detail/{user_id}', description="개별 사용자 상세 조회(마이 페이지 데이터 출력용)", response_model=user_schema.User)
 def get_user(user_id:int, db:Session=Depends(get_db)):
     user = user_crud.get_user(db, user_id=user_id)
     if user is None:

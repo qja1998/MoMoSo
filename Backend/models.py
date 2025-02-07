@@ -8,6 +8,14 @@ from fastapi_users.db import SQLAlchemyBaseOAuthAccountTable
 
 Base = declarative_base()
 
+# User와 Discussion의 M:N 관계 설정
+user_discussion_table = Table(
+    "user_discussion",
+    Base.metadata,
+    Column("user_pk", Integer, ForeignKey("users.user_pk"), primary_key=True),
+    Column("discussion_pk", Integer, ForeignKey("discussion.discussion_pk"), primary_key=True),
+)
+
 # User와 Novel의 M:N 관계를 위한 연결 테이블
 user_like_table = Table(
     "userlike",
