@@ -65,7 +65,7 @@ def delete_discussion(discussion_pk: int, db: Session = Depends(get_db)):
     discussion_crud.delete_discussion(db, discussion_pk)
     return
 
-@app.post('/summary', description="토론 요약본 저장")
+@app.post('/note', description="토론 요약본 저장")
 def create_discussion_summary(db:Session=Depends(get_db)):
     """
     AI 쪽에서 정보 받아와서 저장 필요

@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, EmailStr, field_validator
 from fastapi import HTTPException
+from typing import List, Optional
 
 # 사용자 조회
 class User(BaseModel):
@@ -7,11 +8,45 @@ class User(BaseModel):
     email: str
     name: str
     nickname: str
-    phone: str
+    phone: Optional[str] = None
     user_img: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+
+# 사용자 상세 정보 조회
+class UserDetail(BaseModel):
+    user_pk: int
+    name: str
+    nickname: str
+    user_img: str
+    liked_novels: List[str]
+    liked_comments: List[str]
+    liked_cocoments: List[str]
+    comments: List[str]
+    cocomments: List[str]
+
+# 사용자가 불러올 Novel, Comment, Cocomment 정보
+class UserNovel(BaseModel):
+    novel_pk: int
+    title: str
+    novel_img: str
+    is_completed: bool
+
+
+class UserComment(BaseModel):
+    commemt_pk: int
+    content: str
+    cocomment_cnt: str
+    likes: int
+
+
+class UserCocomment(BaseModel):
+    cocomment_pk: int
+    content: str
+    likes: int
+
 
 # 사용자 정보 수정
 class UpdateUserForm(BaseModel):
