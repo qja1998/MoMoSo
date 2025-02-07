@@ -54,7 +54,8 @@ class NovelUpdateBase(BaseModel):
     synopsis: Optional[str] = None
     genre: Optional[List[str]] = None
     is_completed: Optional[bool] = None
-
+    
+    #아래 부분 삭제해도 정상 작동하는지 확인
     @field_validator("title", "worldview", "synopsis")
     @classmethod
     def validate_not_empty(cls, v):
@@ -68,30 +69,8 @@ class NovelUpdateBase(BaseModel):
         if v is not None and not v: #none과 비어있는 리스트 모두 허용 불가
             raise ValueError("장르 필드는 비워둘 수 없습니다.")
         return v
-"""
-
-class NovelUpdateBase(BaseModel) : 
-    title: Optional[str] = None
-    worldview: Optional[str] = None
-    synopsis: Optional[str] = None
-    genre: Optional[str] = None
-    is_completed: Optional[bool] = None
-
-    @field_validator("title", "worldview", "synopsis")
-    @classmethod
-    def validate_not_empty(cls, v):
-        if v is not None and not v.strip():
-            raise ValueError("제목, 세계관, 시놉시스 필드는 비워둘 수 없습니다.")
-        return v
     
-    @field_validator("genre")
-    @classmethod
-    def validate_genre_not_empty(cls, v):
-        if not v : 
-            raise ValueError("이 필드는 비워둘 수 없습니다.")
-        return v
-"""
-        
+
 # 에피소드 생성 요청
 class EpisodeCreateBase(BaseModel):
     ep_title: str
@@ -113,6 +92,12 @@ class EpisodeBase(EpisodeCreateBase):
 
     class Config:
         from_attributes = True
+
+
+class EpisodeUpdateBase(BaseModel) : 
+    ep_title: Optional[str] = None
+    ep_content: Optional[str] = None
+
 
 # 댓글 생성 요청
 class CommentBase(BaseModel):
@@ -143,20 +128,20 @@ class CharacterBase(BaseModel) :
     name : str
     role : str
     age : int 
-    sex : str
+    sex : bool
     job : str
     profile : str
 
 class CharacterUpdateBase(BaseModel) : 
-    novel_pk : int
-    name : str
-    role : str
-    age : int 
-    sex : str
-    job : str
-    profile : str
+    novel_pk: Optional[int] = None
+    name: Optional[str] = None
+    role: Optional[str] = None
+    age: Optional[int] = None
+    sex: Optional[bool] = None
+    job: Optional[str] = None
+    profile: Optional[str] = None
 
-    @field_validator("novel_pk","name","role","age","sex","job","profile")
+    @field_validator("name","role","job","profile")
     @classmethod
     def validate_not_empty(cls, v):
         if v is not None and not v.strip():

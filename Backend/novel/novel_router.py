@@ -36,9 +36,13 @@ def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Ses
     
 
 #소설 정정
-@app.put("/novel/{novel_pk}", response_model=novel_schema.NovelBase)
+@app.put("/novel/{novel_pk}")
 def update_novel(novel_pk: int, update_data: novel_schema.NovelUpdateBase,db: Session = Depends(get_db)):
     return novel_crud.update_novel(novel_pk, update_data, db)
+
+@app.delete("/novel/{novel_pk}")
+def delete_novel(novel_pk: int, db: Session = Depends(get_db)):
+    return novel_crud.delete_novel(novel_pk, db)
 
 
 # 에피소드 CRUD
@@ -53,23 +57,15 @@ def novel_episode(novel_pk: int, db: Session = Depends(get_db)):
 def create_episode(novel_pk: int, episode_data: novel_schema.EpisodeCreateBase, db: Session = Depends(get_db)):
     return novel_crud.save_episode(novel_pk, episode_data, db)
 
-
-"""
-여기서부터 짜면 됨. 
-"""
-
-"""
-얘 짜기 귀찮으니까 일단 냅두자... 갸귀찮아
-"""
 # 에피소드 변경
-@app.post("/novel/{novel_pk}/{episode_pk}", response_model=novel_schema.EpisodeCreateBase)
-def change_episode(novel_pk: int, episode_pk : int, db: Session = Depends(get_db)) : 
-    pass
+@app.post("/novel/{novel_pk}/{episode_pk}",response_model=novel_schema.EpisodeCreateBase)
+def change_episode(novel_pk: int, update_data: novel_schema.EpisodeUpdateBase,episode_pk : int, db: Session = Depends(get_db)) : 
+    return novel_crud.change_episode(novel_pk, update_data, episode_pk, db)
 
 #에피소드 삭제
 @app.delete("/novel/{novel_pk}/{episode_pk}")
 def delete_episode(novel_pk: int, episode_pk : int, db: Session = Depends(get_db)) : 
-    return novel_crud.delete_episode
+    return novel_crud.delete_episode(novel_pk,episode_pk,db)
 
 # 특정 에피소드의 댓글 조회
 @app.get("/novel/{novel_pk}/episode/{ep_pk}/comments")
@@ -96,8 +92,7 @@ def change_comment(content: str, comment_pk: int, db: Session = Depends(get_db))
 # 댓글 삭제
 @app.delete("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}")
 def delete_comment(comment_pk: int, db: Session = Depends(get_db)):
-    novel_crud.delete_comment(comment_pk, db)
-    return {"message": "댓글이 삭제되었습니다."}
+    return novel_crud.delete_comment(comment_pk, db)
 
 # 댓글 좋아요
 @app.put("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/like")
@@ -137,4 +132,20 @@ def delete_cocomment(cocomment_pk: int, db: Session = Depends(get_db)):
     return {"message": "대댓글이 삭제되었습니다."}
 
 
+#등장인물 
 
+@app.get("/api/v1/novel/character/{novel_pk}/{character_pk}")
+def get_character(novel_pk : int, db: Session = Depends(get_db)) : 
+    return novel_crud.get_character(novel_pk, db)
+
+@app.post("/api/v1/novel/character/{novel_pk}")
+def save_character(novel_pk : int, character_info : novel_schema.CharacterBase, db: Session = Depends(get_db)) :
+    return novel_crud.save_character(novel_pk, character_info ,db)
+
+@app.put("/api/v1/novel/character/{novel_pk}/{character_pk}")
+def update_character(request : Request,character_pk : int, update_data: novel_schema.CharacterUpdateBase, db: Session = Depends(get_db)) : 
+    return novel_crud.update_character(request, character_pk,update_data, db )
+
+@app.delete("/api/v1/novel/character/{novel_pk}")
+def delete_character(character_pk : int, db: Session = Depends(get_db)) : 
+    return novel_crud.delete_character(character_pk, db )
