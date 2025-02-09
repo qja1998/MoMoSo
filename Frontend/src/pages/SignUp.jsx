@@ -1,13 +1,6 @@
 import { Link } from 'react-router-dom'
 
-import {
-  Box,
-  Button,
-  Divider,
-  InputLabel,
-  TextField,
-  Typography,
-} from '@mui/material'
+import { Box, Button, Divider, InputLabel, TextField, Typography } from '@mui/material'
 import { styled } from '@mui/material/styles'
 
 import { PrimaryButton, SocialLoginButton } from '../components/common/buttons'
@@ -49,10 +42,7 @@ const SignUp = () => {
         </Typography>
 
         {/* 회원가입 폼 섹션 */}
-        <InputLabel
-          htmlFor="email"
-          sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}
-        >
+        <InputLabel htmlFor="email" sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}>
           이메일
         </InputLabel>
         <TextField
@@ -62,10 +52,7 @@ const SignUp = () => {
           placeholder="이메일을 입력해주세요"
           variant="outlined"
         />
-        <InputLabel
-          htmlFor="name"
-          sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}
-        >
+        <InputLabel htmlFor="name" sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}>
           이름
         </InputLabel>
         <TextField
@@ -75,10 +62,7 @@ const SignUp = () => {
           placeholder="이름을 입력해주세요"
           variant="outlined"
         />
-        <InputLabel
-          htmlFor="penName"
-          sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}
-        >
+        <InputLabel htmlFor="penName" sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}>
           필명
         </InputLabel>
         <TextField
@@ -88,10 +72,7 @@ const SignUp = () => {
           placeholder="필명을 입력해주세요"
           variant="outlined"
         />
-        <InputLabel
-          htmlFor="phone"
-          sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}
-        >
+        <InputLabel htmlFor="phone" sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}>
           연락처
         </InputLabel>
         <Box sx={{ display: 'flex', gap: 1, mb: -1 }}>
@@ -145,10 +126,7 @@ const SignUp = () => {
             인증번호 확인
           </PrimaryButton>
         </Box>
-        <InputLabel
-          htmlFor="password"
-          sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}
-        >
+        <InputLabel htmlFor="password" sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}>
           비밀번호
         </InputLabel>
         <TextField
@@ -167,10 +145,7 @@ const SignUp = () => {
           }}
           helperText="8자 이상, 영문 대소문자, 숫자, 특수문자를 포함해주세요"
         />
-        <InputLabel
-          htmlFor="passwordConfirm"
-          sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}
-        >
+        <InputLabel htmlFor="passwordConfirm" sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}>
           비밀번호 확인
         </InputLabel>
         <TextField

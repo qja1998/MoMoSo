@@ -1,14 +1,7 @@
 import { Link } from 'react-router-dom'
 
 import { Email, Lock } from '@mui/icons-material'
-import {
-  Box,
-  Button,
-  Divider,
-  InputAdornment,
-  TextField,
-  Typography,
-} from '@mui/material'
+import { Box, Button, Divider, InputAdornment, TextField, Typography } from '@mui/material'
 import { styled } from '@mui/material/styles'
 
 import { PrimaryButton, SocialLoginButton } from '../components/common/buttons'
