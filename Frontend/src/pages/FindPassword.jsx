@@ -3,7 +3,7 @@ import { styled } from '@mui/material/styles'
 
 import { PrimaryButton } from '../components/common/buttons'
 
-const FindIdContainer = styled(Box)({
+const FindPasswordContainer = styled(Box)({
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
@@ -14,7 +14,7 @@ const FindIdContainer = styled(Box)({
   paddingTop: '64px',
 })
 
-const FindIdBox = styled(Box)({
+const FindPasswordBox = styled(Box)({
   width: '100%',
   maxWidth: '400px',
   display: 'flex',
@@ -22,30 +22,30 @@ const FindIdBox = styled(Box)({
   gap: '1rem',
 })
 
-const FindId = () => {
+const FindPassword = () => {
   return (
-    <FindIdContainer>
-      <FindIdBox>
+    <FindPasswordContainer>
+      <FindPasswordBox>
         {/* 헤더 섹션 */}
         <Typography variant="h4" align="center" gutterBottom fontWeight={950}>
-          아이디 찾기
+          비밀번호 찾기
         </Typography>
         <Typography variant="body1" align="center" gutterBottom>
-          가입 시 입력한 이름과 연락처를 입력해주세요.
+          가입 시 입력한 이메일과 연락처를 입력해주세요.
         </Typography>
 
-        {/* 아이디 찾기 폼 섹션 */}
+        {/* 비밀번호 찾기 폼 섹션 */}
         <InputLabel
-          htmlFor="name"
+          htmlFor="email"
           sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}
         >
-          이름
+          이메일
         </InputLabel>
         <TextField
-          id="name"
-          name="name"
+          id="email"
+          name="email"
           fullWidth
-          placeholder="이름을 입력해주세요"
+          placeholder="이메일을 입력해주세요"
           variant="outlined"
         />
 
@@ -109,11 +109,11 @@ const FindId = () => {
         </Box>
 
         <PrimaryButton fullWidth sx={{ mt: 2 }}>
-          아이디 찾기
+          비밀번호 찾기
         </PrimaryButton>
-      </FindIdBox>
-    </FindIdContainer>
+      </FindPasswordBox>
+    </FindPasswordContainer>
   )
 }
 
-export default FindId
+export default FindPassword 
