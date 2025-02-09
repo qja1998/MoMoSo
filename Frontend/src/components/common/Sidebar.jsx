@@ -81,7 +81,15 @@ const Sidebar = () => {
         {open ? (
           <>
             <Logo>
-              <img src="/src/assets/logo/text-logo.svg" alt="MOMOSO" />
+              <img
+                src="/src/assets/logo/text-logo.svg"
+                alt="MOMOSO"
+                style={{
+                  paddingLeft: '16px',
+                  height: '24px',
+                  width: 'auto',
+                }}
+              />
             </Logo>
             <IconButton
               onClick={handleDrawerToggle}
@@ -89,6 +97,8 @@ const Sidebar = () => {
                 backgroundColor: '#FFB347',
                 color: '#FFFFFF',
                 borderRadius: '50%',
+                height: '28px',
+                width: '28px',
                 '&:hover': {
                   backgroundColor: '#FFA022',
                 },
@@ -105,9 +115,12 @@ const Sidebar = () => {
                 backgroundColor: '#FFB347',
                 color: '#FFFFFF',
                 borderRadius: '50%',
+                height: '30px',
+                width: '30px',
                 '&:hover': {
                   backgroundColor: '#FFA022',
                 },
+
               }}
             >
               <KeyboardDoubleArrowRight />
