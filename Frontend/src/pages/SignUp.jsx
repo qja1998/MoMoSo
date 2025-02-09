@@ -101,6 +101,8 @@ const SignUp = () => {
             }}
           />
           <PrimaryButton
+            backgroundColor="#FFA000"
+            hoverBackgroundColor="#FF8F00"
             sx={{
               px: 4,
               whiteSpace: 'nowrap',
@@ -118,6 +120,8 @@ const SignUp = () => {
             variant="outlined"
           />
           <PrimaryButton
+            backgroundColor="#FFA000"
+            hoverBackgroundColor="#FF8F00"
             sx={{
               px: 4,
               whiteSpace: 'nowrap',
@@ -157,7 +161,13 @@ const SignUp = () => {
           variant="outlined"
         />
 
-        <PrimaryButton fullWidth>회원가입</PrimaryButton>
+        <PrimaryButton 
+          fullWidth
+          backgroundColor="#FFA000"
+          hoverBackgroundColor="#FF8F00"
+        >
+          회원가입
+        </PrimaryButton>
 
         {/* 소셜 회원가입 섹션 */}
         <Divider sx={{ my: 2 }}>간편 회원가입</Divider>
