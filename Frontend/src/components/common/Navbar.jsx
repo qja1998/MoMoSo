@@ -116,10 +116,7 @@ const Navbar = () => {
             <NavLink to="/editor">AI소설 에디터</NavLink>
             <NavLink to="/community">그룹 토론</NavLink>
             <NavLink to="/novels">소설 게시판</NavLink>
-            <IconButton
-              onClick={handleUserMenuOpen}
-              sx={{ marginLeft: '1rem' }}
-            >
+            <IconButton onClick={handleUserMenuOpen} sx={{ marginLeft: '1rem' }}>
               <Avatar sx={{ width: 32, height: 32, bgcolor: '#FFA726' }}>
                 <AccountCircleIcon />
               </Avatar>

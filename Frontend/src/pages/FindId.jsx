@@ -35,10 +35,7 @@ const FindId = () => {
         </Typography>
 
         {/* 아이디 찾기 폼 섹션 */}
-        <InputLabel
-          htmlFor="name"
-          sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}
-        >
+        <InputLabel htmlFor="name" sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}>
           이름
         </InputLabel>
         <TextField
@@ -49,10 +46,7 @@ const FindId = () => {
           variant="outlined"
         />
 
-        <InputLabel
-          htmlFor="phone"
-          sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}
-        >
+        <InputLabel htmlFor="phone" sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}>
           연락처
         </InputLabel>
         <Box sx={{ display: 'flex', gap: 1, mb: -1 }}>

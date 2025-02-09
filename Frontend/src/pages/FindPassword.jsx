@@ -35,10 +35,7 @@ const FindPassword = () => {
         </Typography>
 
         {/* 비밀번호 찾기 폼 섹션 */}
-        <InputLabel
-          htmlFor="email"
-          sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}
-        >
+        <InputLabel htmlFor="email" sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}>
           이메일
         </InputLabel>
         <TextField
@@ -49,10 +46,7 @@ const FindPassword = () => {
           variant="outlined"
         />
 
-        <InputLabel
-          htmlFor="phone"
-          sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}
-        >
+        <InputLabel htmlFor="phone" sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}>
           연락처
         </InputLabel>
         <Box sx={{ display: 'flex', gap: 1, mb: -1 }}>
@@ -116,4 +110,4 @@ const FindPassword = () => {
   )
 }
 
-export default FindPassword 
+export default FindPassword
