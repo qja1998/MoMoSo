@@ -133,7 +133,14 @@ const App = () => {
         frameRate: 30,
         insertMode: 'APPEND',
         mirror: true,
-        videoSimulcast: true
+        videoSimulcast: true,
+        mediaOptions: {
+          audio: {
+            echoCancellation: true,  // 에코 취소
+            noiseSuppression: true,  // 소음 억제
+            autoGainControl: true    // 자동 게인 제어
+          }
+        }
       });
   
       try {

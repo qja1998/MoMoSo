@@ -11,18 +11,25 @@ const VoiceActivityDetector = class {
     this.audioContext = new AudioContext();
     this.microphone = this.audioContext.createMediaStreamSource(stream);
     this.analyser = this.audioContext.createAnalyser();
+    // this.recorder = new RecordRTC(audioStream, {
+    //   type: 'audio',
+    //   mimeType: 'audio/wav',
+    //   recorderType: RecordRTC.StereoAudioRecorder,
+    //   desiredSampRate: 16000,
+    //   numberOfAudioChannels: 1
+    // });
     this.recorder = null;
-
     this.options = {
-      threshold: 0.1,     // 음성 감지 임계값
-      maxSilentTime: 1500, // 최대 침묵 시간 (ms)
-      minRecordingTime: 500 // 최소 녹음 시간 (ms)
+      threshold: 0.15,     // 음성 감지 임계값
+      maxSilentTime: 2000, // 최대 침묵 시간 (ms)
+      minRecordingTime: 1000 // 최소 녹음 시간 (ms)
     };
 
     this.setupAnalyser();
   }
 
   setupAnalyser() {
+    console.warn = function() {};
     this.analyser.minDecibels = -45;
     this.analyser.maxDecibels = -10;
     this.analyser.fftSize = 2048;
@@ -40,7 +47,7 @@ const VoiceActivityDetector = class {
 
     const normalizedVolume = Math.abs(rms);
     
-    console.log('음성 레벨:', normalizedVolume);
+    // console.log('음성 레벨:', normalizedVolume);
 
     return normalizedVolume > this.options.threshold;
   }
@@ -49,8 +56,10 @@ const VoiceActivityDetector = class {
     // 이전 RecordRTC 인스턴스 정리
     if (this.recorder) {
       try {
-        this.recorder.stopRecording();
-        this.recorder.destroy();
+        this.recorder.stopRecording(()=>{
+          this.recorder.reset();
+        });
+        // this.recorder.destroy();
       } catch (error) {
         console.error('기존 레코더 정리 중 오류:', error);
       }
@@ -63,30 +72,33 @@ const VoiceActivityDetector = class {
       type: 'audio',
       mimeType: 'audio/wav',
       recorderType: RecordRTC.StereoAudioRecorder,
+      disableLogs: true,
       desiredSampRate: 16000,
       numberOfAudioChannels: 1
     });
 
+    this.recorder.startRecording();
+
     let isRecording = false;
     let silentTime = 0;
     let recordingTime = 0;
-    const CHECK_INTERVAL = 100;
+    const CHECK_INTERVAL = 200; //반복 주기 ms단위 ex)0.1초 간격으로 음성정보를 확인
 
     const checkVoiceActivity = setInterval(() => {
       const isActive = this.isVoiceActive();
 
-      console.log('VAD 상태:', {
-        isActive,                  // 현재 음성 활성 상태
-        silentTime,                // 현재 누적 침묵 시간
-        recordingTime,             // 현재 녹음 시간
-        maxSilentTime: this.options.maxSilentTime,  // 최대 허용 침묵 시간
-        minRecordingTime: this.options.minRecordingTime  // 최소 녹음 시간
-      });
+      // console.log('VAD 상태:', {
+      //   isActive,                  // 현재 음성 활성 상태
+      //   silentTime,                // 현재 누적 침묵 시간
+      //   recordingTime,             // 현재 녹음 시간
+      //   maxSilentTime: this.options.maxSilentTime,  // 최대 허용 침묵 시간
+      //   minRecordingTime: this.options.minRecordingTime  // 최소 녹음 시간
+      // });
 
       if (isActive) {
         if (!isRecording) {
           console.log('음성 감지 - 녹음 시작');
-          this.recorder.startRecording();
+          // this.recorder.startRecording();
           isRecording = true;
           silentTime = 0;
           recordingTime = 0;
@@ -102,33 +114,42 @@ const VoiceActivityDetector = class {
           if (recordingTime >= this.options.minRecordingTime && 
               silentTime >= this.options.maxSilentTime) {
             console.log('침묵 감지 - 녹음 중지');
-            this.recorder.stopRecording(() => {
+            this.recorder.stopRecording(async() => {
               const blob = this.recorder.getBlob();
               
               if (blob && blob.size > 0) {
-                console.log('녹음된 블롭:', {
-                  size: blob.size,
-                  type: blob.type
-                });
+                // console.log('녹음된 블롭:', {
+                //   size: blob.size,
+                //   type: blob.type
+                // });
+                await onDataAvailable(blob);
                 
-                onDataAvailable(blob);
                 
                 // 레코더 완전 초기화
-                this.recorder.destroy();
-                this.recorder = new RecordRTC(audioStream, {
-                  type: 'audio',
-                  mimeType: 'audio/wav',
-                  recorderType: RecordRTC.StereoAudioRecorder,
-                  desiredSampRate: 16000,
-                  numberOfAudioChannels: 1
-                });
-              }
-            });
+                // this.recorder.destroy();
+                // this.recorder = new RecordRTC(audioStream, {
+                //   type: 'audio',
+                //   mimeType: 'audio/wav',
+                //   recorderType: RecordRTC.StereoAudioRecorder,
+                //   desiredSampRate: 16000,
+                //   numberOfAudioChannels: 1
+                // });
 
+                // 레코드는 유지하고 초기화만
+              }
+              this.recorder.reset();
+            });
+            this.recorder.startRecording();
             isRecording = false;
             silentTime = 0;
             recordingTime = 0;
           }
+        } else {
+          // isActive가 false == 작은 소리 && 현재 녹음중이 아니였다면
+          this.recorder.stopRecording(() => {
+            this.recorder.reset();
+          });
+          this.recorder.startRecording();
         }
       }
     }, CHECK_INTERVAL);
@@ -138,9 +159,21 @@ const VoiceActivityDetector = class {
       clearInterval(checkVoiceActivity);
       if (this.recorder) {
         try {
-          this.recorder.stopRecording();
-          this.recorder.destroy();
-          this.recorder = null;
+          this.recorder.stopRecording(()=>{
+            const blob = this.recorder.getBlob();
+              
+              if (blob && blob.size > 0) {
+                // console.log('녹음된 블롭:', {
+                //   size: blob.size,
+                //   type: blob.type
+                // });
+                
+                onDataAvailable(blob);
+              }
+            this.recorder.reset();
+          });
+          // this.recorder.destroy();
+          // this.recorder = null;
         } catch (error) {
           console.error('레코더 중지 중 오류:', error);
         }
@@ -148,6 +181,163 @@ const VoiceActivityDetector = class {
     };
   }
 };
+
+// const VoiceActivityDetector = class {
+//   constructor(stream, options = {}) {
+//     this.audioContext = new AudioContext();
+//     this.microphone = this.audioContext.createMediaStreamSource(stream);
+//     this.analyser = this.audioContext.createAnalyser();
+//     this.recorder = null;
+//     this.options = {
+//       threshold: 0.1,     // 음성 감지 임계값
+//       maxSilentTime: 1500, // 최대 침묵 시간 (ms)
+//       minRecordingTime: 500 // 최소 녹음 시간 (ms)
+//     };
+
+//     this.setupAnalyser();
+//   }
+
+//   setupAnalyser() {
+//     this.analyser.minDecibels = -45;
+//     this.analyser.maxDecibels = -10;
+//     this.analyser.fftSize = 2048;
+
+//     this.microphone.connect(this.analyser);
+//     this.dataArray = new Float32Array(this.analyser.frequencyBinCount);
+//   }
+
+//   isVoiceActive() {
+//     this.analyser.getFloatTimeDomainData(this.dataArray);
+    
+//     const rms = Math.sqrt(
+//       this.dataArray.reduce((sum, value) => sum + value * value, 0) / this.dataArray.length
+//     );
+
+//     const normalizedVolume = Math.abs(rms);
+    
+//     console.log('음성 레벨:', normalizedVolume);
+
+//     return normalizedVolume > this.options.threshold;
+//   }
+
+//   startRecording(onDataAvailable) {
+//     // 이전 RecordRTC 인스턴스 정리
+//     if (this.recorder) {
+//       try {
+//         this.recorder.stopRecording(()=>{
+//           this.recorder.reset();
+//         });
+//       } catch (error) {
+//         console.error('기존 레코더 정리 중 오류:', error);
+//       }
+//     }
+
+//     const audioStream = this.microphone.mediaStream;
+    
+//     // 새로운 RecordRTC 인스턴스 생성
+//     this.recorder = new RecordRTC(audioStream, {
+//       type: 'audio',
+//       mimeType: 'audio/wav',
+//       recorderType: RecordRTC.StereoAudioRecorder,
+//       desiredSampRate: 16000,
+//       numberOfAudioChannels: 1
+//     });
+
+//     // 녹음 시작 - 첫 음성을 놓치지 않기 위해 미리 시작
+//     this.recorder.startRecording();
+
+//     let isRecording = false;
+//     let silentTime = 0;
+//     let recordingTime = 0;
+//     const CHECK_INTERVAL = 100;
+
+//     const checkVoiceActivity = setInterval(() => {
+//       const isActive = this.isVoiceActive();
+
+//       console.log('VAD 상태:', {
+//         isActive,                  // 현재 음성 활성 상태
+//         isRecording,              // 현재 녹음 상태
+//         silentTime,               // 현재 누적 침묵 시간
+//         recordingTime,            // 현재 녹음 시간
+//         maxSilentTime: this.options.maxSilentTime,  // 최대 허용 침묵 시간
+//         minRecordingTime: this.options.minRecordingTime  // 최소 녹음 시간
+//       });
+
+//       if (isActive) {
+//         if (!isRecording) {
+//           console.log('음성 감지 - 녹음 계속');
+//           isRecording = true;
+//           silentTime = 0;
+//           recordingTime = 0;
+//         } else {
+//           silentTime = 0;
+//           recordingTime += CHECK_INTERVAL;
+//         }
+//       } else {
+//         if (isRecording) {
+//           silentTime += CHECK_INTERVAL;
+//           recordingTime += CHECK_INTERVAL;
+
+//           if (recordingTime >= this.options.minRecordingTime && 
+//               silentTime >= this.options.maxSilentTime) {
+//             console.log('침묵 감지 - 녹음 중지');
+//             const currentRecorder = this.recorder;
+//             currentRecorder.stopRecording(() => {
+//               const blob = currentRecorder.getBlob();
+              
+//               if (blob && blob.size > 0) {
+//                 console.log('녹음된 블롭:', {
+//                   size: blob.size,
+//                   type: blob.type
+//                 });
+                
+//                 onDataAvailable(blob);
+//               }
+
+//               // 새로운 레코더 생성 및 시작
+//               this.recorder = new RecordRTC(audioStream, {
+//                 type: 'audio',
+//                 mimeType: 'audio/wav',
+//                 recorderType: RecordRTC.StereoAudioRecorder,
+//                 desiredSampRate: 16000,
+//                 numberOfAudioChannels: 1
+//               });
+//               this.recorder.startRecording();
+//             });
+
+//             isRecording = false;
+//             silentTime = 0;
+//             recordingTime = 0;
+//           }
+//         }
+//       }
+//     }, CHECK_INTERVAL);
+
+//     // 녹음 중지 함수 반환
+//     return () => {
+//       clearInterval(checkVoiceActivity);
+//       if (this.recorder) {
+//         try {
+//           this.recorder.stopRecording(()=>{
+//             const blob = this.recorder.getBlob();
+              
+//             if (blob && blob.size > 0 && isRecording) {
+//               console.log('녹음된 블롭:', {
+//                 size: blob.size,
+//                 type: blob.type
+//               });
+              
+//               onDataAvailable(blob);
+//             }
+//             this.recorder.reset();
+//           });
+//         } catch (error) {
+//           console.error('레코더 중지 중 오류:', error);
+//         }
+//       }
+//     };
+//   }
+// };
 
 const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => {
  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
@@ -219,13 +409,13 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
 
  const sendAudioData = async (blob) => {
   // 오디오 데이터 처리
-  console.log('Blob 정보:', { type: blob.type, size: blob.size });
+  // console.log('Blob 정보:', { type: blob.type, size: blob.size });
 
   const audioContext = new AudioContext();
   try {
     const arrayBuffer = await blob.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    console.log('오디오 길이:', audioBuffer.duration, '초');
+    // console.log('오디오 길이:', audioBuffer.duration, '초');
   } catch (decodeError) {
     console.error('오디오 디코딩 에러:', decodeError);
   }
@@ -242,8 +432,11 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
   try {
     const response = await axios.post(`${PROTOCOL}://${SERVER_IP}:${SERVER_PORT}/api/audio`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      maxContentLength: Infinity,
-      maxBodyLength: Infinity
+      // SSL 인증서 검증 무시
+      httpsAgent: {
+        rejectUnauthorized: false
+      }
+      
     });
 
     if (response.data.text) {
