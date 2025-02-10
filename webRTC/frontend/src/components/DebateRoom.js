@@ -164,6 +164,7 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
   const [activeSpeeakers, setActiveSpeakers] = useState(new Set());
   const vadRef = useRef(null);
   const stopVADRef = useRef(null);
+  const [participantCount, setParticipantCount] = useState(1 + subscribers.length);
 
   // 디바운스 유틸리티 함수
   const debounce = (func, delay) => {
@@ -177,6 +178,50 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
       }, delay);
     };
   };
+
+  // 회의록 생성 함수
+  const createMeetingMinutes = useCallback(async () => {
+    console.log('회의록 저장 시도');
+    
+    // 메시지가 없으면 기본 메시지 추가
+    const messagesToSave = messages.length > 0 ? messages : [
+      { 
+        type: 'system', 
+        text: '회의 중 메시지 없음', 
+        timestamp: new Date().toLocaleTimeString() 
+      }
+    ];
+  
+    const formData = new FormData();
+    formData.append('room_name', roomName);
+    formData.append('host_name', userName);
+    formData.append('start_time', meetingStartTime.toISOString());
+    formData.append('end_time', new Date().toISOString());
+    formData.append('duration', ((new Date() - meetingStartTime) / 1000 / 60).toFixed(2));
+    
+    formData.append('participants', JSON.stringify([
+      userName, 
+      ...subscribers.map(sub => JSON.parse(sub.stream.connection.data).clientData)
+    ]));
+    
+    formData.append('messages', JSON.stringify(messagesToSave));
+  
+    try {
+      const SERVER_IP = window.location.hostname === 'localhost' ? 'localhost' : import.meta.env.VITE_BACKEND_IP;
+      const SERVER_PORT = import.meta.env.VITE_BACKEND_PORT;
+      const PROTOCOL = import.meta.env.VITE_BACKEND_PROTOCOL;
+  
+      const response = await axios.post(`${PROTOCOL}://${SERVER_IP}:${SERVER_PORT}/api/meeting-minutes`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      console.log('회의록 저장 성공:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('회의록 저장 실패:', error);
+      throw error;
+    }
+  }, [roomName, userName, subscribers, messages, meetingStartTime]);
 
   // OpenVidu 시그널 이벤트 처리
   useEffect(() => {
@@ -260,49 +305,56 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
     return () => voiceActivityChecks.forEach(cleanup => cleanup());
   }, [subscribers]);
 
-  // 회의록 생성 함수
-  const createMeetingMinutes = useCallback(async () => {
-    console.log('회의록 저장 시도');
-    
-    // 메시지가 없으면 기본 메시지 추가
-    const messagesToSave = messages.length > 0 ? messages : [
-      { 
-        type: 'system', 
-        text: '회의 중 메시지 없음', 
-        timestamp: new Date().toLocaleTimeString() 
-      }
-    ];
-  
-    const formData = new FormData();
-    formData.append('room_name', roomName);
-    formData.append('host_name', userName);
-    formData.append('start_time', meetingStartTime.toISOString());
-    formData.append('end_time', new Date().toISOString());
-    formData.append('duration', ((new Date() - meetingStartTime) / 1000 / 60).toFixed(2));
-    
-    formData.append('participants', JSON.stringify([
-      userName, 
-      ...subscribers.map(sub => JSON.parse(sub.stream.connection.data).clientData)
-    ]));
-    
-    formData.append('messages', JSON.stringify(messagesToSave));
-  
-    try {
-      const SERVER_IP = window.location.hostname === 'localhost' ? 'localhost' : import.meta.env.VITE_BACKEND_IP;
-      const SERVER_PORT = import.meta.env.VITE_BACKEND_PORT;
-      const PROTOCOL = import.meta.env.VITE_BACKEND_PROTOCOL;
-  
-      const response = await axios.post(`${PROTOCOL}://${SERVER_IP}:${SERVER_PORT}/api/meeting-minutes`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      console.log('회의록 저장 성공:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('회의록 저장 실패:', error);
-      throw error;
+  useEffect(() => {
+    if (publisher?.session) {
+      const handleStreamCreated = (event) => {
+        setParticipantCount(prev => prev + 1);
+      };
+
+      const handleStreamDestroyed = async (event) => {
+        const newCount = participantCount - 1;
+        setParticipantCount(newCount);
+        
+        // If this was the last participant, save meeting minutes
+        if (newCount === 0) {
+          console.log('마지막 참가자가 나갔습니다. 회의록을 저장합니다.');
+          try {
+            await createMeetingMinutes();
+          } catch (error) {
+            console.error('마지막 참가자 퇴장 시 회의록 저장 실패:', error);
+          }
+        }
+      };
+
+      // Handle connection destroyed event
+      const handleConnectionDestroyed = async (event) => {
+        const newCount = participantCount - 1;
+        setParticipantCount(newCount);
+        
+        if (newCount === 0) {
+          console.log('마지막 연결이 종료되었습니다. 회의록을 저장합니다.');
+          try {
+            await createMeetingMinutes();
+          } catch (error) {
+            console.error('마지막 연결 종료 시 회의록 저장 실패:', error);
+          }
+        }
+      };
+
+      // Add event listeners
+      publisher.session.on('streamCreated', handleStreamCreated);
+      publisher.session.on('streamDestroyed', handleStreamDestroyed);
+      publisher.session.on('connectionDestroyed', handleConnectionDestroyed);
+
+      // Cleanup
+      return () => {
+        publisher.session.off('streamCreated', handleStreamCreated);
+        publisher.session.off('streamDestroyed', handleStreamDestroyed);
+        publisher.session.off('connectionDestroyed', handleConnectionDestroyed);
+      };
     }
-  }, [roomName, userName, subscribers, messages, meetingStartTime]);
+  }, [publisher, participantCount, createMeetingMinutes]);
+
 
   // 디바운스된 회의록 생성 함수
   const debouncedCreateMeetingMinutes = useCallback(
@@ -416,6 +468,7 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
   // 나가기 처리
   const handleLeave = useCallback(() => {
     console.log("나가기 누름!!!!");
+    // console.log(JSON.parse(sub.stream.connection.data).clientData)
     
     const saveAndLeave = async () => {
       try {
@@ -435,11 +488,13 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
         }
   
         // 회의록 저장
-        await createMeetingMinutes();
+        if (participantCount === 1) {
+          await createMeetingMinutes();
+        }
   
         // 세션 연결 해제를 최후에 수행
         if (publisher?.session) {
-          return new Promise((resolve, reject) => {
+          return new Promise((resolve) => {
             // 타임아웃 설정
             const timeout = setTimeout(() => {
               console.log('세션 연결 해제 타임아웃');
@@ -469,7 +524,7 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
   
     // 비동기 함수 즉시 호출
     saveAndLeave();
-  }, [vadRef, publisher, createMeetingMinutes, onLeave]);
+  }, [vadRef, publisher, createMeetingMinutes, onLeave, participantCount]);
 
  return (
   <Box sx={{ 
