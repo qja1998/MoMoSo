@@ -1,0 +1,73 @@
+image: docker:latest
+
+stages:
+  - build
+  - test
+  - deploy
+
+services:
+  - name: docker:dind
+    alias: docker
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+  ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+
+before_script:
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - ssh-keyscan -H i12b106.p.ssafy.io >> ~/.ssh/known_hosts
+  - chmod 400 I12B106T.pem
+  - apk add --no-cache docker-compose
+  - docker info
+  
+  - echo SECRET_KEY=$SECRET_KEY >> .env
+  - echo ACCESS_TOKEN_EXPIRE_MINUTES=$ACCESS_TOKEN_EXPIRE_MINUTES >> .env
+  - echo DATABASE_URL=mysql+pymysql://root:root@localhost:3306/test?charset=utf8 >> .env
+  - echo ALGORITHM=SH256 >> .env
+
+
+build_backend:
+  stage: build
+  script:
+    - docker build -t fastapi_backend ./backend
+
+build_frontend:
+  stage: build
+  script:
+    - docker build -t react_frontend ./frontend
+
+
+# test_frontend:
+#   stage: test
+#   script:
+#     - docker-compose -f docker-compose.yml build frontend
+#     - docker-compose -f docker-compose.yml up -d frontend
+#     - docker exec $(docker ps -qf "name=frontend") npm install
+#     - docker exec $(docker ps -qf "name=frontend") npm test -- --watchAll=false --ci --coverage
+#     - docker-compose -f docker-compose.yml down
+#   dependencies:
+#     - build_backend
+
+
+# test_backend:
+#   stage: test
+#   script:
+#     - docker-compose -f docker-compose.yml up -d db
+#     - docker-compose -f docker-compose.yml build backend
+#     - docker-compose -f docker-compose.yml run backend # pytest ./tests
+#     - docker-compose -f docker-compose.yml down
+#   dependencies:
+#     - build_backend
+
+deploy:
+  stage: deploy
+  script:
+    - scp -i I12B106T.pem -r ./nginx ubuntu@i12b106.p.ssafy.io:/home/ubuntu/nginx
+    - scp -i I12B106T.pem docker-compose.yml ubuntu@i12b106.p.ssafy.io:/home/ubuntu/docker-compose.yml
+    - ssh -i I12B106T.pem ubuntu@i12b106.p.ssafy.io "cd /home/ubuntu/test_repo/ci_cd_test && docker-compose -f 'docker-compose.yml' up -d --build"
+
+  only:
+    - master
+    - release
