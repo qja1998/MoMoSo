@@ -120,7 +120,6 @@ const Sidebar = () => {
                 '&:hover': {
                   backgroundColor: '#FFA022',
                 },
-
               }}
             >
               <KeyboardDoubleArrowRight />

@@ -12,6 +12,7 @@ const StyledButton = styled(Button)(({ bgColor, textColor, hoverBgColor }) => ({
   backgroundColor: bgColor,
   color: textColor,
   padding: '8px 16px',
+  whiteSpace: 'nowrap',
   '&:hover': {
     backgroundColor: hoverBgColor,
   },

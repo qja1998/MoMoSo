@@ -161,11 +161,7 @@ const SignUp = () => {
           variant="outlined"
         />
 
-        <PrimaryButton 
-          fullWidth
-          backgroundColor="#FFA000"
-          hoverBackgroundColor="#FF8F00"
-        >
+        <PrimaryButton fullWidth backgroundColor="#FFA000" hoverBackgroundColor="#FF8F00">
           회원가입
         </PrimaryButton>
 

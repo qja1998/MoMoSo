@@ -6,9 +6,9 @@ import Sidebar from '../common/Sidebar'
 
 const SidebarLayout = () => {
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar />
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+      <Box component="main" sx={{ flexGrow: 1, p: 3, overflowX: 'hidden', overflowY: 'auto' }}>
         <Outlet />
       </Box>
     </Box>
