@@ -1,6 +1,7 @@
 from pydantic import BaseModel, field_validator, Field
 from typing import Optional
 from typing import List
+from datetime import datetime
 
 # 장르 선택
 
@@ -23,7 +24,21 @@ from typing import List
 #         if not v : 
 #             raise ValueError("이 필드는 비워둘 수 없습니다.")
 
+class GenreGetBase(BaseModel) : 
+    genre : str
 
+class NovelShowBase(BaseModel) : 
+    novel_pk : int
+    title: str
+    created_date : datetime  
+    updated_date : datetime   # 이거 뭐로 해야 하냐? 
+    novel_img : str 
+    views : int
+    likes : int
+    is_completed : bool
+    genre: List[GenreGetBase] 
+    class Config:
+        from_attributes = True
 
 class NovelCreateBase(BaseModel):
     title: str
@@ -45,6 +60,8 @@ class NovelBase(NovelCreateBase):
 
     class Config:
         from_attributes = True
+
+    
 
 
 # 소설 부분 업데이트 요청
