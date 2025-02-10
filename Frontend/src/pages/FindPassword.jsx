@@ -102,9 +102,7 @@ const FindPassword = () => {
           </PrimaryButton>
         </Box>
 
-        <PrimaryButton fullWidth sx={{ mt: 2 }}>
-          비밀번호 찾기
-        </PrimaryButton>
+        <PrimaryButton fullWidth>비밀번호 찾기</PrimaryButton>
       </FindPasswordBox>
     </FindPasswordContainer>
   )

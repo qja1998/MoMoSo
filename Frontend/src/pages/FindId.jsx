@@ -102,9 +102,7 @@ const FindId = () => {
           </PrimaryButton>
         </Box>
 
-        <PrimaryButton fullWidth sx={{ mt: 2 }}>
-          아이디 찾기
-        </PrimaryButton>
+        <PrimaryButton fullWidth>아이디 찾기</PrimaryButton>
       </FindIdBox>
     </FindIdContainer>
   )

@@ -8,8 +8,9 @@ import SidebarLayout from '/src/components/layout/SidebarLayout'
 import FindId from '/src/pages/FindId'
 import FindPassword from '/src/pages/FindPassword'
 import Login from '/src/pages/Login'
-import NovelBackgroundGeneration from '/src/pages/NovelBackgroundGeneration'
+import NovelBackgroundEditor from '/src/pages/NovelBackgroundEditor'
 import NovelEditor from '/src/pages/NovelEditor'
+import NovelEpisodeEditor from '/src/pages/NovelEpisodeEditor'
 import SignUp from '/src/pages/SignUp'
 import theme from '/src/styles/theme'
 
@@ -21,17 +22,24 @@ function App() {
         <Routes>
           {/* Navbar Layout */}
           <Route element={<NavbarLayout />}>
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<SignUp />} />
-            <Route path="/find-id" element={<FindId />} />
-            <Route path="/find-password" element={<FindPassword />} />
+            {/* Auth routes */}
             <Route path="/" element={<div>대시보드</div>} />
+            <Route path="/auth">
+              <Route path="login" element={<Login />} />
+              <Route path="signup" element={<SignUp />} />
+              <Route path="find-id" element={<FindId />} />
+              <Route path="find-password" element={<FindPassword />} />
+            </Route>
+            <Route path="/novel/edit/" element={<NovelEditor />} />
           </Route>
 
           {/* Sidebar Layout */}
           <Route element={<SidebarLayout />}>
-            <Route path="/editor" element={<NovelEditor />} />
-            <Route path="/editor/background" element={<NovelBackgroundGeneration />} />
+            <Route path="/novel">
+              <Route path="edit/background" element={<NovelBackgroundEditor />} />
+              <Route path="edit/episode" element={<NovelEpisodeEditor />} />
+              <Route path="viewer/list" element={<div>작품 리스트 페이지</div>} />
+            </Route>
           </Route>
         </Routes>
       </Router>
