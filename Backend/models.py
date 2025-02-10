@@ -90,6 +90,7 @@ class User(Base):
     liked_cocomments = relationship("CoComment", secondary=user_cocomment_like_table, back_populates="liked_users", passive_deletes=True) # M:N 관계 설정 (대댓글 좋아요)
     comments = relationship("Comment", back_populates="user", cascade="all, delete-orphan", passive_deletes=True) # 1:N 관계 설정 (작성한 댓글)
     cocomments = relationship("CoComment", back_populates="user", cascade="all, delete-orphan", passive_deletes=True) # 1:N 관계 설정 (작성한 대댓글)
+    discussions = relationship("Discussion", secondary=user_discussion_table, back_populates="participants") # Discussion과의 M:N 관계 설정
 
 # Novel Model (Synopsis와 병합됨)
 class Novel(Base):
@@ -199,11 +200,14 @@ class Discussion(Base):
 
     discussion_pk = Column(Integer, primary_key=True, autoincrement=True)
     novel_pk = Column(Integer, ForeignKey("novel.novel_pk", ondelete="CASCADE"), nullable=False)
-    user_pk = Column(Integer, ForeignKey("users.user_pk", ondelete="CASCADE"), nullable=False)
-    title = Column(String(150), nullable=False)
-    content = Column(Text, nullable=False)
+    ep_pk = Column(Integer, ForeignKey("episode.ep_pk"), nullable=True)
+    topic = Column(Text, nullable=False)
+    category = Column(Boolean, nullable=False) # category 0이면 전체에 대한 토론, 1이면 회차별 토론
     start_time = Column(DateTime, default=func.now())
-    end_time = Column(DateTime)
+    end_time = Column(DateTime, nullable=True)
+    max_participants = Column(Integer, nullable=False)
+
+    participants = relationship("User", secondary=user_discussion_table, back_populates="discussions") # M:N 관계 (토론 참여자)
 
 # Note Model
 class Note(Base):
@@ -211,5 +215,5 @@ class Note(Base):
 
     note_pk = Column(Integer, primary_key=True, autoincrement=True)
     novel_pk = Column(Integer, ForeignKey("novel.novel_pk", ondelete="CASCADE"), nullable=False)
-    user_pk = Column(Integer, ForeignKey("users.user_pk", ondelete="CASCADE"), nullable=False)
+    user_pk = Column(Integer, ForeignKey("users.user_pk", ondelete="CASCADE"), nullable=False) # 토론이 이뤄진 소설의 작가
     summary = Column(Text, nullable=False)

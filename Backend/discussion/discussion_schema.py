@@ -1,6 +1,8 @@
-from pydantic import BaseModel, FutureDatetime
-from typing import List, Optional
+from pydantic import BaseModel, FutureDatetime, field_validator
+from typing import List, Optional, Annotated
 from datetime import datetime
+from fastapi import HTTPException, status
+from pydantic_core.core_schema import ValidationInfo
 
 # 토론 조회 시 전달하는 유저 정보
 class DiscussionUser(BaseModel):
@@ -15,7 +17,6 @@ class DiscussionUser(BaseModel):
 class DiscussionEpisode(BaseModel):
     ep_pk: int
     ep_title: str
-    created_date: datetime
 
     class Config:
         from_attributes = True
@@ -24,8 +25,6 @@ class DiscussionEpisode(BaseModel):
 class DiscussionNovel(BaseModel):
     novel_pk: int
     title: str
-    created_date: datetime
-    episodes: List[DiscussionEpisode]  # Novel에 연결된 에피소드 목록
 
     class Config:
         from_attributes = True
@@ -33,11 +32,11 @@ class DiscussionNovel(BaseModel):
 # 토론 조회
 class Discussion(BaseModel):
     discussion_pk: int
-    novel_pk: int
-    topic: str
-    start_time: FutureDatetime
-    end_time: datetime
     novel: DiscussionNovel
+    episode: Optional[DiscussionEpisode] = None
+    topic: str
+    start_time: datetime
+    end_time: Optional[datetime] = None
     participants: List[DiscussionUser]
 
     class Config:
@@ -49,8 +48,20 @@ class NewDiscussionForm(BaseModel):
     novel_pk: int
     topic: str
     category: bool
-    start_time: datetime
+    ep_pk: Optional[int] = None
+    start_time: Annotated[FutureDatetime, "Must be a future datetime"]
     max_participants: int
+
+    # category=1이면 ep_pk가 필수 검증(필수값 여부 검증)
+    @field_validator("ep_pk")
+    @classmethod
+    def check_episode_pk(cls, ep_pk: Optional[int], values: ValidationInfo) -> Optional[int]:
+        if values.data.get("category") == 1 and ep_pk is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="When category is 1, ep_pk (episode_pk) is required."
+            )
+        return ep_pk
 
     class Config:
         from_attributes = True
