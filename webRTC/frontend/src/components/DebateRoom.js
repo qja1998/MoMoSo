@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { Box, Button, Typography, IconButton, Grid, TextField, Dialog,DialogActions,DialogContent,DialogContentText,DialogTitle } from '@mui/material';
 import { Mic, MicOff, Videocam, VideocamOff,Logout,Save } from '@mui/icons-material';
@@ -47,7 +47,7 @@ const VoiceActivityDetector = class {
 
     const normalizedVolume = Math.abs(rms);
     
-    console.log('음성 레벨:', normalizedVolume);
+    // console.log('음성 레벨:', normalizedVolume);
 
     return normalizedVolume > this.options.threshold;
   }
@@ -87,13 +87,13 @@ const VoiceActivityDetector = class {
     const checkVoiceActivity = setInterval(() => {
       const isActive = this.isVoiceActive();
 
-      console.log('VAD 상태:', {
-        isActive,                  // 현재 음성 활성 상태
-        silentTime,                // 현재 누적 침묵 시간
-        recordingTime,             // 현재 녹음 시간
-        maxSilentTime: this.options.maxSilentTime,  // 최대 허용 침묵 시간
-        minRecordingTime: this.options.minRecordingTime  // 최소 녹음 시간
-      });
+      // console.log('VAD 상태:', {
+      //   isActive,                  // 현재 음성 활성 상태
+      //   silentTime,                // 현재 누적 침묵 시간
+      //   recordingTime,             // 현재 녹음 시간
+      //   maxSilentTime: this.options.maxSilentTime,  // 최대 허용 침묵 시간
+      //   minRecordingTime: this.options.minRecordingTime  // 최소 녹음 시간
+      // });
 
       if (isActive) {
         if (!isRecording) {
@@ -340,281 +340,327 @@ const VoiceActivityDetector = class {
 // };
 
 const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => {
- const [isAudioEnabled, setIsAudioEnabled] = useState(false);
- const [isVideoEnabled, setIsVideoEnabled] = useState(false);
- const [messages, setMessages] = useState([]);  // 채팅 메시지 저장
- const [chatInput, setChatInput] = useState(''); // 채팅 입력값
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [meetingStartTime] = useState(new Date());
+  const [openSaveDialog, setOpenSaveDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
- const [meetingStartTime, setMeetingStartTime] = useState(new Date());
- const [openSaveDialog, setOpenSaveDialog] = useState(false);
- const localStreamRef = useRef(null);
- const recorderRef = useRef(null);
- const chatBoxRef = useRef(null);
- const [activeSpeeakers, setActiveSpeakers] = useState(new Set());
- const vadRef = useRef(null);
- const stopVADRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const recorderRef = useRef(null);
+  const chatBoxRef = useRef(null);
+  const [activeSpeeakers, setActiveSpeakers] = useState(new Set());
+  const vadRef = useRef(null);
+  const stopVADRef = useRef(null);
 
- useEffect(() => {
-   if (publisher?.session) {
-     publisher.session.on('signal:chat', (event) => {
-       const data = JSON.parse(event.data);
-       setMessages(prev => [...prev, {
-         type: 'chat',
-         user: data.user,
-         text: data.message,
-         timestamp: new Date().toLocaleTimeString()
-       }]);
-     });
-
-     publisher.session.on('signal:stt', (event) => {
-       const data = JSON.parse(event.data);
-       setMessages(prev => [...prev, {
-         type: 'stt',
-         user: data.user,
-         text: data.text,
-         timestamp: new Date().toLocaleTimeString()
-       }]);
-     });
-   }
-
-   return () => {
-     if (publisher?.session) {
-       publisher.session.off('signal:chat');
-       publisher.session.off('signal:stt');
-     }
-   };
- }, [publisher]);
-
- useEffect(() => {
-   if (chatBoxRef.current) {
-     const chatContainer = chatBoxRef.current;
-     chatContainer.scrollTop = chatContainer.scrollHeight;
-   }
- }, [messages]);
-
-   // 컴포넌트 마운트 시 회의 시작 시간 기록
-   useEffect(() => {
-    setMeetingStartTime(new Date());
-  }, []);
-  
-  useEffect(() => {
-    if (publisher && publisher.stream) {
-      const updateActiveSpeakers = (userName, isActive) => {
-        setActiveSpeakers(prev => {
-          const newSpeakers = new Set(prev);
-          if (isActive) {
-            newSpeakers.add(userName);
-          } else {
-            newSpeakers.delete(userName);
-          }
-          return newSpeakers;
-        });
-      };
-  
-      // 현재 사용자(Publisher)의 음성 활동 추적
-      if (isAudioEnabled) {
-        const audioStream = publisher.stream.getMediaStream();
-        const vad = new VoiceActivityDetector(audioStream);
-        
-        const checkVoiceActivity = setInterval(() => {
-          const isActive = vad.isVoiceActive();
-          updateActiveSpeakers(userName, isActive);
-        }, 200); // 0.2초마다 음성 활동 체크
-  
-        return () => {
-          clearInterval(checkVoiceActivity);
-        };
+  // 디바운스 유틸리티 함수
+  const debounce = (func, delay) => {
+    let timeoutId;
+    return (...args) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
-    }
-  }, [publisher, isAudioEnabled, userName]);
-  
-  // 구독자(Subscribers)들의 음성 활동 추적
-  useEffect(() => {
-    const voiceActivityChecks = subscribers.map((sub) => {
-      const subUserName = JSON.parse(sub.stream.connection.data).clientData;
-      
-      if (sub.stream.audioActive) {
-        const audioStream = sub.stream.getMediaStream();
-        const vad = new VoiceActivityDetector(audioStream);
-        
-        const checkVoiceActivity = setInterval(() => {
-          const isActive = vad.isVoiceActive();
-          setActiveSpeakers(prev => {
-            const newSpeakers = new Set(prev);
-            if (isActive) {
-              newSpeakers.add(subUserName);
-            } else {
-              newSpeakers.delete(subUserName);
-            }
-            return newSpeakers;
-          });
-        }, 200);
-  
-        return () => clearInterval(checkVoiceActivity);
-      }
-      
-      return null;
-    }).filter(Boolean);
-  
-    return () => {
-      voiceActivityChecks.forEach(cleanup => cleanup());
+      timeoutId = setTimeout(() => {
+        func(...args);
+      }, delay);
     };
-  }, [subscribers]);
+  };
 
- const sendChatMessage = async (e) => {
-   e.preventDefault();
-   if (!chatInput.trim()) return;
+  // OpenVidu 시그널 이벤트 처리
+  useEffect(() => {
+    if (publisher?.session) {
+      const handleChatSignal = (event) => {
+        const data = JSON.parse(event.data);
+        setMessages(prev => [...prev, {
+          type: 'chat',
+          user: data.user,
+          text: data.message,
+          timestamp: new Date().toLocaleTimeString()
+        }]);
+      };
 
-   try {
-     await publisher.session.signal({
-       data: JSON.stringify({
-         message: chatInput,
-         user: userName
-       }),
-       type: 'chat'
-     });
-     setChatInput('');
-   } catch (error) {
-     console.error('채팅 전송 에러:', error);
-   }
- };
+      const handleSTTSignal = (event) => {
+        const data = JSON.parse(event.data);
+        setMessages(prev => [...prev, {
+          type: 'stt',
+          user: data.user,
+          text: data.text,
+          timestamp: new Date().toLocaleTimeString()
+        }]);
+      };
 
- const sendAudioData = async (blob) => {
-  // 오디오 데이터 처리
-  // console.log('Blob 정보:', { type: blob.type, size: blob.size });
+      publisher.session.on('signal:chat', handleChatSignal);
+      publisher.session.on('signal:stt', handleSTTSignal);
 
-  const audioContext = new AudioContext();
-  try {
-    const arrayBuffer = await blob.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    // console.log('오디오 길이:', audioBuffer.duration, '초');
-  } catch (decodeError) {
-    console.error('오디오 디코딩 에러:', decodeError);
-  }
-
-  const formData = new FormData();
-  formData.append('audio', blob, `audio_${Date.now()}.wav`);
-  formData.append('roomName', roomName);
-  formData.append('userName', userName);
-
-  const SERVER_IP = window.location.hostname === 'localhost' ? 'localhost' : import.meta.env.VITE_BACKEND_IP;
-  const SERVER_PORT = import.meta.env.VITE_BACKEND_PORT;
-  const PROTOCOL = import.meta.env.VITE_BACKEND_PROTOCOL;
-
-  try {
-    const response = await axios.post(`${PROTOCOL}://${SERVER_IP}:${SERVER_PORT}/api/audio`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      // SSL 인증서 검증 무시
-      httpsAgent: {
-        rejectUnauthorized: false
-      }
-      
-    });
-
-    if (response.data.text) {
-      await publisher.session.signal({
-        data: JSON.stringify({
-          text: response.data.text,
-          user: userName
-        }),
-        type: 'stt'
-      });
+      return () => {
+        publisher.session.off('signal:chat', handleChatSignal);
+        publisher.session.off('signal:stt', handleSTTSignal);
+      };
     }
-    console.log(`✅ WAV 청크 업로드 완료! (Size: ${blob.size} bytes)`);
-    console.log(`📝 STT 결과:`, response.data.text);
-  } catch (error) {
-    console.error('❌ 오디오 전송 에러:', {
-      message: error.message,
-      response: error.response?.data,
-      config: error.config
-    });
-  }
-};
+  }, [publisher]);
 
-const toggleAudio = () => {
-  if (publisher) {
-    const newAudioState = !isAudioEnabled;
-    publisher.publishAudio(newAudioState);
-    setIsAudioEnabled(newAudioState);
+  // 채팅 스크롤 
+  useEffect(() => {
+    if (chatBoxRef.current) {
+      const chatContainer = chatBoxRef.current;
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  }, [messages]);
 
-    if (newAudioState) {
+  // 음성 활동 감지 (게시자)
+  useEffect(() => {
+    if (publisher && publisher.stream && isAudioEnabled) {
       const audioStream = publisher.stream.getMediaStream();
       const vad = new VoiceActivityDetector(audioStream);
       
-      const stopRecording = vad.startRecording(async (blob) => {
-        await sendAudioData(blob);
-      });
+      const checkVoiceActivity = setInterval(() => {
+        const isActive = vad.isVoiceActive();
+        setActiveSpeakers(prev => {
+          const newSpeakers = new Set(prev);
+          isActive ? newSpeakers.add(userName) : newSpeakers.delete(userName);
+          return newSpeakers;
+        });
+      }, 200);
 
-      if (vadRef.current) {
-        vadRef.current();
-      }
-      vadRef.current = stopRecording;
-    } else {
-      if (vadRef.current) {
-        vadRef.current();
-        vadRef.current = null;
-      }
+      return () => clearInterval(checkVoiceActivity);
     }
-  }
-};
+  }, [publisher, isAudioEnabled, userName]);
 
- const toggleVideo = () => {
-   const newVideoState = !isVideoEnabled;
-   setIsVideoEnabled(newVideoState);
-   if (publisher) {
-     publisher.publishVideo(newVideoState);
-   }
- };
+  // 음성 활동 감지 (구독자)
+  useEffect(() => {
+    const voiceActivityChecks = subscribers.filter(sub => sub.stream.audioActive).map((sub) => {
+      const subUserName = JSON.parse(sub.stream.connection.data).clientData;
+      const audioStream = sub.stream.getMediaStream();
+      const vad = new VoiceActivityDetector(audioStream);
+      
+      const checkVoiceActivity = setInterval(() => {
+        const isActive = vad.isVoiceActive();
+        setActiveSpeakers(prev => {
+          const newSpeakers = new Set(prev);
+          isActive ? newSpeakers.add(subUserName) : newSpeakers.delete(subUserName);
+          return newSpeakers;
+        });
+      }, 200);
 
- const createMeetingMinutes = async () => {
-  if (messages.length === 0) return;
+      return () => clearInterval(checkVoiceActivity);
+    });
 
-  const meetingEndTime = new Date();
-  const duration = (meetingEndTime - meetingStartTime) / 1000 / 60; // 분 단위
+    return () => voiceActivityChecks.forEach(cleanup => cleanup());
+  }, [subscribers]);
 
-  const formData = new FormData();
-  formData.append('room_name', roomName);
-  formData.append('host_name', userName);
-  formData.append('start_time', meetingStartTime.toISOString());
-  formData.append('end_time', meetingEndTime.toISOString());
-  formData.append('duration', duration);
+  // 회의록 생성 함수
+  const createMeetingMinutes = useCallback(async () => {
+    console.log('회의록 저장 시도');
+    
+    // 메시지가 없으면 기본 메시지 추가
+    const messagesToSave = messages.length > 0 ? messages : [
+      { 
+        type: 'system', 
+        text: '회의 중 메시지 없음', 
+        timestamp: new Date().toLocaleTimeString() 
+      }
+    ];
   
-  // JSON 문자열로 변환
-  formData.append('participants', JSON.stringify([
-    userName, 
-    ...subscribers.map(sub => JSON.parse(sub.stream.connection.data).clientData)
-  ]));
-  formData.append('messages', JSON.stringify(messages));
+    const formData = new FormData();
+    formData.append('room_name', roomName);
+    formData.append('host_name', userName);
+    formData.append('start_time', meetingStartTime.toISOString());
+    formData.append('end_time', new Date().toISOString());
+    formData.append('duration', ((new Date() - meetingStartTime) / 1000 / 60).toFixed(2));
+    
+    formData.append('participants', JSON.stringify([
+      userName, 
+      ...subscribers.map(sub => JSON.parse(sub.stream.connection.data).clientData)
+    ]));
+    
+    formData.append('messages', JSON.stringify(messagesToSave));
+  
+    try {
+      const SERVER_IP = window.location.hostname === 'localhost' ? 'localhost' : import.meta.env.VITE_BACKEND_IP;
+      const SERVER_PORT = import.meta.env.VITE_BACKEND_PORT;
+      const PROTOCOL = import.meta.env.VITE_BACKEND_PROTOCOL;
+  
+      const response = await axios.post(`${PROTOCOL}://${SERVER_IP}:${SERVER_PORT}/api/meeting-minutes`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      console.log('회의록 저장 성공:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('회의록 저장 실패:', error);
+      throw error;
+    }
+  }, [roomName, userName, subscribers, messages, meetingStartTime]);
 
-  try {
+  // 디바운스된 회의록 생성 함수
+  const debouncedCreateMeetingMinutes = useCallback(
+    debounce(createMeetingMinutes, 300),
+    [createMeetingMinutes]
+  );
+
+  // 채팅 메시지 전송
+  const sendChatMessage = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    try {
+      await publisher.session.signal({
+        data: JSON.stringify({
+          message: chatInput,
+          user: userName
+        }),
+        type: 'chat'
+      });
+      setChatInput('');
+    } catch (error) {
+      console.error('채팅 전송 에러:', error);
+    }
+  };
+
+  // 음성 데이터 전송
+  const sendAudioData = async (blob) => {
+    const audioContext = new AudioContext();
+    try {
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    } catch (decodeError) {
+      console.error('오디오 디코딩 에러:', decodeError);
+    }
+
+    const formData = new FormData();
+    formData.append('audio', blob, `audio_${Date.now()}.wav`);
+    formData.append('roomName', roomName);
+    formData.append('userName', userName);
+
     const SERVER_IP = window.location.hostname === 'localhost' ? 'localhost' : import.meta.env.VITE_BACKEND_IP;
     const SERVER_PORT = import.meta.env.VITE_BACKEND_PORT;
     const PROTOCOL = import.meta.env.VITE_BACKEND_PROTOCOL;
 
-    const response = await axios.post(`${PROTOCOL}://${SERVER_IP}:${SERVER_PORT}/api/meeting-minutes`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    
-    console.log('회의록 저장 성공:', response.data);
-    // 저장 성공 시 추가 처리 (예: 알림)
-  } catch (error) {
-    console.error('회의록 저장 실패:', error.response ? error.response.data : error);
-    // 오류 처리 (사용자에게 오류 메시지 표시 등)
-  }
-};
+    try {
+      const response = await axios.post(`${PROTOCOL}://${SERVER_IP}:${SERVER_PORT}/api/audio`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        httpsAgent: {
+          rejectUnauthorized: false
+        }
+      });
 
- const handleLeave = () => {
-  // 회의록 생성 및 전송
-  createMeetingMinutes();
+      if (response.data.text) {
+        await publisher.session.signal({
+          data: JSON.stringify({
+            text: response.data.text,
+            user: userName
+          }),
+          type: 'stt'
+        });
+      }
+      console.log(`✅ WAV 청크 업로드 완료! (Size: ${blob.size} bytes)`);
+      console.log(`📝 STT 결과:`, response.data.text);
+    } catch (error) {
+      console.error('❌ 오디오 전송 에러:', {
+        message: error.message,
+        response: error.response?.data,
+        config: error.config
+      });
+    }
+  };
+
+  // 오디오 토글
+  const toggleAudio = () => {
+    if (publisher) {
+      const newAudioState = !isAudioEnabled;
+      publisher.publishAudio(newAudioState);
+      setIsAudioEnabled(newAudioState);
+
+      if (newAudioState) {
+        const audioStream = publisher.stream.getMediaStream();
+        const vad = new VoiceActivityDetector(audioStream);
+        
+        const stopRecording = vad.startRecording(async (blob) => {
+          await sendAudioData(blob);
+        });
+
+        if (vadRef.current) {
+          vadRef.current();
+        }
+        vadRef.current = stopRecording;
+      } else {
+        if (vadRef.current) {
+          vadRef.current();
+          vadRef.current = null;
+        }
+      }
+    }
+  };
+
+  // 비디오 토글
+  const toggleVideo = () => {
+    const newVideoState = !isVideoEnabled;
+    setIsVideoEnabled(newVideoState);
+    if (publisher) {
+      publisher.publishVideo(newVideoState);
+    }
+  };
+
+  // 나가기 처리
+  const handleLeave = useCallback(() => {
+    console.log("나가기 누름!!!!");
+    
+    const saveAndLeave = async () => {
+      try {
+        // VAD 녹음 중지
+        if (vadRef.current) {
+          vadRef.current(); 
+          vadRef.current = null;
+        }
   
-   if (vadRef.current) {
-     vadRef.current();
-   }
-   if (publisher && publisher.session) {
-     publisher.session.disconnect();
-   }
-   onLeave();
- };
+        // 오디오 트랙 중지
+        if (publisher?.stream) {
+          const mediaStream = publisher.stream.getMediaStream();
+          if (mediaStream) {
+            const audioTracks = mediaStream.getAudioTracks();
+            audioTracks.forEach(track => track.stop());
+          }
+        }
+  
+        // 회의록 저장
+        await createMeetingMinutes();
+  
+        // 세션 연결 해제를 최후에 수행
+        if (publisher?.session) {
+          return new Promise((resolve, reject) => {
+            // 타임아웃 설정
+            const timeout = setTimeout(() => {
+              console.log('세션 연결 해제 타임아웃');
+              resolve(); // 강제로 해결
+            }, 2000);
+  
+            publisher.session.disconnect({
+              onSuccess: () => {
+                clearTimeout(timeout);
+                resolve();
+              },
+              onFailure: (error) => {
+                clearTimeout(timeout);
+                console.error('세션 연결 해제 실패:', error);
+                resolve(); // 실패해도 계속 진행
+              }
+            });
+          });
+        }
+      } catch (error) {
+        console.error('나가기 중 오류:', error);
+      } finally {
+        // 항상 onLeave 호출
+        onLeave();
+      }
+    };
+  
+    // 비동기 함수 즉시 호출
+    saveAndLeave();
+  }, [vadRef, publisher, createMeetingMinutes, onLeave]);
+
  return (
   <Box sx={{ 
     display: 'flex', 
@@ -739,7 +785,7 @@ const toggleAudio = () => {
           <Button 
             variant="contained" 
             color="error" 
-            onClick={onLeave}
+            onClick={handleLeave}
             startIcon={<Logout />}
           >
             나가기

@@ -138,7 +138,8 @@ async def create_meeting_minutes(
         
         # 파일명 생성
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"meeting_{timestamp}_{meeting_data['id'][:8]}.json"
+        # filename = f"meeting_{timestamp}_{meeting_data['id'][:8]}.json"
+        filename = f"meeting_{timestamp}_{meeting_data['room_name']}.json"
         filepath = os.path.join('meeting_minutes', filename)
         
         # JSON 파일로 저장
