@@ -6,67 +6,73 @@ stages:
   - deploy
 
 services:
-  - name: docker:dind
-    alias: docker
+  - docker:dind  # Docker-in-Docker 실행
 
 variables:
   DOCKER_HOST: tcp://docker:2375
   DOCKER_TLS_CERTDIR: ""
-  ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+  IMAGE_BACKEND: kwon0528/b106-backend
+  IMAGE_FRONTEND: kwon0528/b106-frontend
+  TAG: $CI_COMMIT_REF_NAME  # 브랜치 이름을 태그로 사용
 
 before_script:
-  - mkdir -p ~/.ssh
-  - chmod 700 ~/.ssh
-  - ssh-keyscan -H i12b106.p.ssafy.io >> ~/.ssh/known_hosts
-  - chmod 400 I12B106T.pem
+  # # 이미 서버에 있으니까 필요 없지 않을까?
+  # - mkdir -p ~/.ssh
+  # - chmod 700 ~/.ssh
+  # - ssh-keyscan -H i12b106.p.ssafy.io >> ~/.ssh/known_hosts
+  # - chmod 400 I12B106T.pem
   - apk add --no-cache docker-compose
   - docker info
   
-  - echo SECRET_KEY=$SECRET_KEY >> .env
-  - echo ACCESS_TOKEN_EXPIRE_MINUTES=$ACCESS_TOKEN_EXPIRE_MINUTES >> .env
-  - echo DATABASE_URL=mysql+pymysql://root:root@localhost:3306/test?charset=utf8 >> .env
-  - echo ALGORITHM=SH256 >> .env
+  # # secret file로 관리
+  # - echo SECRET_KEY=$SECRET_KEY >> .env
+  # - echo ACCESS_TOKEN_EXPIRE_MINUTES=$ACCESS_TOKEN_EXPIRE_MINUTES >> .env
+  # - echo DATABASE_URL=mysql+pymysql://root:root@localhost:3306/test?charset=utf8 >> .env
+  # - echo ALGORITHM=SH256 >> .env
 
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
+# 1. Backend 빌드
 build_backend:
   stage: build
   script:
-    - docker build -t fastapi_backend ./backend
+    - docker build -t $IMAGE_BACKEND:$TAG -f Backend/Dockerfile.prod ./Backend
+    - docker push $IMAGE_BACKEND:$TAG
+  only:
+    - develop
+    - master
 
+# 2. Frontend 빌드
 build_frontend:
   stage: build
   script:
-    - docker build -t react_frontend ./frontend
+    - docker build -t $IMAGE_FRONTEND:$TAG -f Frontend/Dockerfile.prod ./Frontend
+    - docker push $IMAGE_FRONTEND:$TAG
+  only:
+    - develop
+    - master
 
+# 3. 테스트 실행
+test:
+  stage: test
+  script:
+    - echo "✅ Running unit tests..."
+    - pytest Backend/tests/
+    - echo "✅ Linting frontend..."
+    - cd Frontend && yarn lint
+  only:
+    - develop
 
-# test_frontend:
-#   stage: test
-#   script:
-#     - docker-compose -f docker-compose.yml build frontend
-#     - docker-compose -f docker-compose.yml up -d frontend
-#     - docker exec $(docker ps -qf "name=frontend") npm install
-#     - docker exec $(docker ps -qf "name=frontend") npm test -- --watchAll=false --ci --coverage
-#     - docker-compose -f docker-compose.yml down
-#   dependencies:
-#     - build_backend
-
-
-# test_backend:
-#   stage: test
-#   script:
-#     - docker-compose -f docker-compose.yml up -d db
-#     - docker-compose -f docker-compose.yml build backend
-#     - docker-compose -f docker-compose.yml run backend # pytest ./tests
-#     - docker-compose -f docker-compose.yml down
-#   dependencies:
-#     - build_backend
-
+# 4. 배포 실행 (운영 환경)
 deploy:
   stage: deploy
   script:
-    - scp -i I12B106T.pem -r ./nginx ubuntu@i12b106.p.ssafy.io:/home/ubuntu/nginx
-    - scp -i I12B106T.pem docker-compose.yml ubuntu@i12b106.p.ssafy.io:/home/ubuntu/docker-compose.yml
-    - ssh -i I12B106T.pem ubuntu@i12b106.p.ssafy.io "cd /home/ubuntu/test_repo/ci_cd_test && docker-compose -f 'docker-compose.yml' up -d --build"
+    - ssh -i I12B106T.pem ubuntu@i12b106.p.ssafy.io "docker pull $IMAGE_BACKEND:$TAG"
+    - ssh -i I12B106T.pem ubuntu@i12b106.p.ssafy.io "docker pull $IMAGE_FRONTEND:$TAG"
+    - ssh -i I12B106T.pem ubuntu@i12b106.p.ssafy.io "docker-compose -f docker-compose.yml up -d"
+    # - scp -i I12B106T.pem -r ./nginx ubuntu@i12b106.p.ssafy.io:/home/ubuntu/nginx
+    # - scp -i I12B106T.pem docker-compose.yml ubuntu@i12b106.p.ssafy.io:/home/ubuntu/docker-compose.yml
+    # - ssh -i I12B106T.pem ubuntu@i12b106.p.ssafy.io "cd /home/ubuntu/test_repo/ci_cd_test && docker-compose -f 'docker-compose.yml' up -d --build"
 
   only:
     - master

@@ -20,11 +20,8 @@ services:
       retries: 5
 
   backend:
-    # build:
-    #   context: ./Backend
-    #   dockerfile: Dockerfile.dev
-    image: kwon0528/b106-backend:develop
-    container_name: dev-backend
+    image: kwon0528/b106-backend:latest
+    container_name: prod-backend
     environment:
       DATABASE_URL: mysql+pymysql://root:961226@db:3306/test_db?charset=utf8
       # DEBUG: True
@@ -40,13 +37,8 @@ services:
     restart: unless-stopped
 
   frontend:
-    # build:
-    #   context: ./Frontend
-    #   dockerfile: Dockerfile.dev
-    image: kwon0528/b106-frontend:develop
-    container_name: dev-frontend
-    environment:
-      - NODE_ENV=development
+    image: kwon0528/b106-frontend:latest
+    container_name: prod-frontend
     ports:
       - "5173:5173"
     volumes:
@@ -54,6 +46,37 @@ services:
       - /app/node_modules  # 로컬의 node_modules가 container 내에 적용되지 않도록
     networks:
       - app_network
+
+    # Nginx (Reverse Proxy)
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app/frontend
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - app_network
+
+  # Certbot (SSL)
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 6h & wait $${!}; certbot renew --webroot -w /var/www/certbot --quiet; done'"
+    networks:
+      - app_network
+
 
 volumes:
   db_data:
