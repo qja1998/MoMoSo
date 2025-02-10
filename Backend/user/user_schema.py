@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, EmailStr, field_validator
 from fastapi import HTTPException
 from typing import List, Optional
+from datetime import datetime
 
 # 사용자 조회
 class User(BaseModel):
@@ -83,6 +84,21 @@ class UserDetail(BaseModel):
     liked_novels: List[UserNovel]
     liked_comments: List[UserComment]
     liked_cocomments: List[UserCocomment]
+
+    class Config:
+        from_attributes = True
+
+class UserWrittenNovel(BaseModel):
+    novel_pk: int
+    title: str
+    synopsis: str
+    novel_img: str
+    created_date: datetime
+    updated_date: datetime
+    num_episode: int
+    likes: int
+    views: int
+    is_completed: bool
 
     class Config:
         from_attributes = True

@@ -140,7 +140,7 @@ from models import User
 
 async def verify_user_pk(user_pk: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
-    특정 `user_pk`가 현재 로그인한 사용자와 동일한지
+    특정 `user_pk`가 현재 로그인한 사용자와 동일한지    
     """
     # DB에서 `user_pk`를 기반으로 유저 조회
     target_user = user_crud.get_user(db, user_pk)

@@ -125,7 +125,6 @@ def delete_user(db: Session, user: models.User):
     db.delete(user)
     db.commit()
 
-
 def save_recent_novel(db: Session, user_pk: int, novel_pk: int):
     """
     로그인한 사용자가 조회한 소설을 최근 본 소설 목록에 저장
