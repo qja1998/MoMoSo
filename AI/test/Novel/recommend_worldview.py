@@ -41,7 +41,6 @@ worldview_prompt_template = PromptTemplate(
     소설 제목: {{ title }}
 
     <출력 예시>
-    
 
     **소설 세계관**
     """
