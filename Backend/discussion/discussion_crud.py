@@ -7,7 +7,7 @@ from . import discussion_schema
 
 def get_discussions(db: Session) -> List[Discussion]:
     """
-    모든 토론 방 목록 조회 (관계 설정 없이 novel, episode 직접 조회)
+    모든 토론 방 목록 조회
     """
     discussions = db.query(Discussion).all()
 

@@ -1,6 +1,7 @@
 services:
   db:
     image: mysql:8.0
+    container_name: db
     environment:
       MYSQL_ROOT_PASSWORD: "961226"
       MYSQL_DATABASE: "test_db"
@@ -18,11 +19,12 @@ services:
       timeout: 5s
       retries: 5
 
-
   backend:
-    build: ./Backend
+    image: kwon0528/b106-backend:latest
+    container_name: prod-backend
     environment:
-      DATABASE_URL: mysql+pymysql://root:root@db:3306/test?charset=utf8
+      DATABASE_URL: mysql+pymysql://root:961226@db:3306/test_db?charset=utf8
+      # DEBUG: True
     ports:
       - "8000:8000"
     volumes:
@@ -35,40 +37,46 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./Frontend
-    environment:
-      - NODE_ENV=development
+    image: kwon0528/b106-frontend:latest
+    container_name: prod-frontend
     ports:
-      - "3000:3000"
+      - "5173:5173"
     volumes:
       - ./Frontend:/app  # 로컬 파일 시스템을 컨테이너에 마운트
       - /app/node_modules  # 로컬의 node_modules가 container 내에 적용되지 않도록
     networks:
       - app_network
 
+    # Nginx (Reverse Proxy)
   nginx:
     image: nginx:latest
+    container_name: nginx
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app/frontend
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
     ports:
       - "80:80"
       - "443:443"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/ssl:/etc/nginx/ssl
-      - ./nginx/letsencrypt:/etc/letsencrypt
-      - ./nginx/www:/var/www/certbot
-    networks:
-      - app_network
     depends_on:
       - backend
       - frontend
+    networks:
+      - app_network
 
+  # Certbot (SSL)
   certbot:
     image: certbot/certbot
+    container_name: certbot
     volumes:
-      - ./nginx/letsencrypt:/etc/letsencrypt
-      - ./nginx/www:/var/www/certbot
-    depends_on:
-      - nginx
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 6h & wait $${!}; certbot renew --webroot -w /var/www/certbot --quiet; done'"
+    networks:
+      - app_network
+
 
 volumes:
   db_data:
