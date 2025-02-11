@@ -1,65 +1,63 @@
 import os
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from langchain.prompts import PromptTemplate
+import google.generativeai as genai
 
-# 1. 환경변수 로드 및 OPENAI_API_KEY 가져오기
+# 환경변수 로드 및 GEMINI_API_KEY 가져오기
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=GEMINI_API_KEY)
 
-# 2. ChatOpenAI 모델 초기화 (CoT와 길이 조정을 위해 파라미터 설정)
-llm = ChatOpenAI(
-    openai_api_key=OPENAI_API_KEY,
-    model="gpt-4o",
-    temperature=0.7,
-    max_tokens=1024
+instruction = """
+당신은 전문적으로 소설 세계관을 만드는 작가입니다.
+주어진 장르, 제목을 기반으로 독창적이고 생동감 있는 소설 세계관을 만들어주세요.
+소설 세계관을 구성할 때, 아래의 항목들을 참고하여 상세하게 작성하세요. 각 항목별 작성 가이드라인을 참고하여 내용을 구성하면 더욱 풍부하고 체계적인 세계관을 만들 수 있습니다.
+
+1. 기본 설정
+    - 시대: (예: 과거, 현대, 미래 등) - 시대적 배경과 분위기를 구체적으로 설명해주세요.
+    - 핵심 테마: (예: 인간과 자연의 대립, 기술과 마법의 공존 등) - 세계관을 관통하는 핵심 주제를 명확히 제시하고, 다른 요소들과의 연관성을 설명해주세요.
+
+2. 지리적 배경
+    - 세계 전체의 구조(대륙, 국가, 도시, 마을 등) - 지리적 구조를 시각적으로 표현하고, 각 지역의 특징을 설명해주세요.
+    - 주요 지형 및 자연 환경(기후, 산맥, 강 등) - 자연 환경이 세계관에 미치는 영향을 설명하고, 상징적인 의미를 부여할 수 있습니다.
+    - 상징적이거나 중요한 장소(예: 전설적인 성, 신비로운 숲 등) - 각 장소의 역사, 특징, 중요성 등을 구체적으로 설명해주세요.
+
+3. 역사와 문화
+    - 세계의 건국 신화 및 주요 역사적 사건 - 역사적 사건이 세계관에 미친 영향과 현재 사회에 남은 유산을 설명해주세요.
+    - 사회 구조(정치 체제, 경제 시스템, 계층 구조 등) - 사회 구조가 세계관 구성원들의 삶에 미치는 영향을 설명해주세요.
+    - 문화와 종교(전통, 의식, 종교적 신념 등) - 문화와 종교가 세계관에 미치는 영향을 설명하고, 독특한 요소들을 강조해주세요.
+
+4. 기술 및 초자연적 요소
+    - 세계 내 기술 수준(과거, 현대, 미래 기술) - 기술 수준이 세계관에 미치는 영향과 특징을 설명해주세요.
+    - 만약 존재한다면 마법이나 초자연적 현상의 규칙과 한계 - 마법/초자연 현상이 세계관에 미치는 영향과 작동 방식을 구체적으로 설명해주세요.
+
+5. 인물 및 종족
+    - 주요 인물이나 집단, 종족의 특징과 역할 - 각 인물/종족의 개성과 세계관 내 역할을 명확하게 설명해주세요.
+    - 각 인물/종족이 속한 사회적, 문화적 배경 - 인물/종족의 배경이 그들의 행동 양식에 미치는 영향을 설명해주세요.
+
+6. 갈등 구조
+    - 사회 내부 혹은 외부의 갈등 요소(정치적 분쟁, 종족 간 충돌 등) - 갈등의 원인, 진행 과정, 결과를 구체적으로 설명해주세요.
+    - 이러한 갈등이 전체 세계관에 미치는 영향 - 갈등이 세계관의 다른 요소들에 미치는 영향을 설명해주세요.
+
+7. 세부 설정 및 고유 용어
+    - 세계관 내에서만 사용되는 독특한 용어나 법칙 정리 - 용어의 의미와 사용 예시를 설명하여 세계관의 현실성을 높여주세요.
+    - 설정의 일관성을 유지할 수 있도록 참고 자료 작성 - 필요한 경우, 추가적인 자료를 작성하여 세계관의 완성도를 높여주세요.
+
+이 정보를 바탕으로, 소설 세계관에 대해 상세한 설명을 작성해 주세요.
+"""
+
+model = genai.GenerativeModel(
+    "models/gemini-2.0-flash", 
+    system_instruction=instruction
 )
 
-# 3. PromptTemplate 객체 생성 (소설 줄거리 작성 프롬프트)
-synopsis_prompt_template = PromptTemplate(
-    input_variables=["genre", "title", "worldview"],
-    template="""
-    <역할>
-    당신은 창의적이고 독창적인 소설 줄거리 작가입니다.
-    주어진 소설 장르, 제목, 그리고 세계관 정보를 토대로 독자들이 몰입할 수 있는 줄거리를 작성하세요.
-    내부적으로 단계적인 사고(Chain-of-Thought)를 거쳐 아이디어를 구성하되, 최종 출력에는 정리된 줄거리만 나타나도록 합니다.
-    줄거리는 200~400자 내외로 작성하세요.
+prompt = f"""
+## 소설 장르: {genre}
+## 소설 제목: {title}
+## 소설 세계관: {worldview}
 
-    <목표>
-    - 입력된 장르, 제목, 세계관이 반드시 반영된 탄탄한 줄거리를 제시합니다.
-    - 문장은 자연스럽게 이어지며, 핵심 갈등이나 분위기를 암시할 수 있어야 합니다.
-    - 불필요하거나 관련 없는 설정을 넣지 마십시오.
+**소설 세계관**
+"""
 
-    <작성 지침>
-    - 다양한 감각적 표현과 함께, 스토리의 확장 가능성을 갖도록 구성합니다.
-    - 독자의 호기심을 자극하되, 스포일러가 되지 않도록 주의합니다.
-    - 최종 결과만 출력하며, 내부적인 사고 과정(CoT)은 공개하지 않습니다.
-
-    <입력 정보>
-    - 소설 장르: {{ genre }}
-    - 소설 제목: {{ title }}
-    - 소설 세계관: {{ worldview }}
-
-    **소설 줄거리**
-    """
-)
-
-# 4. PromptTemplate과 ChatOpenAI를 체인으로 연결
-recommend_synopsis_chain = synopsis_prompt_template | llm
-
-# 5. 사용자 입력 받기 (모두 필수로 처리)
-input_genre = input("소설 장르를 입력하세요: ")
-input_title = input("소설 제목을 입력하세요: ")
-input_worldview = input("소설 세계관을 입력하세요: ")
-
-input_json = {
-    "genre": input_genre.strip(),
-    "title": input_title.strip(),
-    "worldview": input_worldview.strip()
-}
-
-# 6. langchain 체인 실행
-recommend_synopsis = recommend_synopsis_chain.invoke(input_json)
-
-# 7. 결과 출력
-print(f"추천 줄거리:\n{recommend_synopsis.content}")
+response = model.generate_content(prompt)
+worldview = response.text
+print(worldview)
