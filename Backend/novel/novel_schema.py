@@ -2,27 +2,39 @@ from pydantic import BaseModel, field_validator, Field
 from typing import Optional
 from typing import List
 from datetime import datetime
+from user.user_schema import RecentNovel
 
-# 장르 선택
+# 메인 페이지 스키마
+class UserRecentNovel(BaseModel):
+    user_pk: int
+    name: str
+    nickname: str
+    recent_novels: Optional[List[RecentNovel]]
+
+    class Config:
+        from_attributes = True
+
+class MainPageResponse(BaseModel):
+    user: UserRecentNovel
+    recent_best: Optional[str]  # 최근 인기 소설
+    month_best: Optional[str]  # 한 달 동안 인기 소설
+
+    class Config:
+        from_attributes = True
 
 
-# 소설 생성 요청
-# class NovelCreateBase(BaseModel):
-#     title: str
-#     worldview: str
-#     synopsis: str
-#     genres: List[str] = Field(default_factory=list) 
-#     @field_validator("title")
-#     @classmethod
-#     def validate_not_empty(cls, v):
-#         if not v.strip():
-#             raise ValueError("이 필드는 비워둘 수 없습니다.")
-#         return v
-#     @field_validator("genres")
-#     @classmethod
-#     def validate_genre_not_empty(cls, v):
-#         if not v : 
-#             raise ValueError("이 필드는 비워둘 수 없습니다.")
+class CharacterBase(BaseModel) :
+    name : str
+    role : str
+    age : int 
+    sex : bool
+    job : str
+    profile : str
+
+
+
+
+
 
 class GenreGetBase(BaseModel) : 
     genre : str
@@ -149,8 +161,7 @@ class CharacterBase(BaseModel) :
     job : str
     profile : str
 
-class CharacterUpdateBase(BaseModel) : 
-    novel_pk: Optional[int] = None
+class CharacterUpdateBase(BaseModel) :
     name: Optional[str] = None
     role: Optional[str] = None
     age: Optional[int] = None
@@ -161,18 +172,20 @@ class CharacterUpdateBase(BaseModel) :
     @field_validator("name","role","job","profile")
     @classmethod
     def validate_not_empty(cls, v):
-        if v is not None and not v.strip():
+        if v is None and v.strip():
             raise ValueError("이 필드는 비워둘 수 없습니다.")
+        return v  # 값을 반환해야 함
     
     @field_validator("age")
     @classmethod
     def validate_age(cls, v) :
         if v < 0 : 
             raise ValueError("나이는 0살 이하일 수 없습니다.")
+        return v
     
     @field_validator("sex")
     @classmethod
     def validate_sex(cls, v) :
         if v > 2 or v < 0 : 
             raise ValueError("성별은 3가지 옵션 중 하나로 선택해주십시오.")
-    
+        return v
