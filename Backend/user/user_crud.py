@@ -4,6 +4,7 @@ from fastapi import HTTPException
 import models
 from models import User, Novel, Comment, CoComment
 from sqlalchemy.sql import func
+from sqlalchemy.orm import joinedload
 
 from passlib.context import CryptContext
 from . import user_schema
@@ -17,7 +18,7 @@ def get_users(db: Session):
     :param db: SQLAlchemy 세션
     :return: User 리스트
     """
-    return db.query(User).all()
+    return db.query(User).options(joinedload(User.oauth_accounts)).all()
 
 
 def get_user(db: Session, user_id: int):
