@@ -1,0 +1,16 @@
+@charset "utf-8";
+
+/* Common */
+.u_likeit_module div,.u_likeit_module ul,.u_likeit_module li,.u_likeit_module p,.u_likeit_module a,.u_likeit_module img,.u_likeit_module span,.u_likeit_module em,.u_likeit_module strong{float:none;position:static;margin:0;padding:0;border:0;background:transparent;letter-spacing:0;line-height:normal;text-align:left;text-decoration:none;text-indent:0;vertical-align:baseline;white-space:normal;list-style:none;font-style:normal;word-spacing:0;font-family:normal}
+
+/* background image */
+.u_likeit_module .u_likeit_btn .u_ico{background-repeat:no-repeat}
+
+/* 좋아요 버튼 */
+.u_likeit_module .u_likeit_btn{display:inline-block;min-width:58px;height:30px;margin:0;padding:0 15px;border:1px solid transparent;text-align:center;zoom:1;cursor:pointer}
+.u_likeit_module .u_likeit_btn .u_ico{display:inline-block;overflow:hidden;width:17px;height:15px;margin:7px 4px 0 0;vertical-align:top;line-height:0;font-size:0}
+.u_likeit_module .u_likeit_btn .u_cnt,.u_likeit_module .u_likeit_btn .u_txt{display:inline-block;line-height:28px;font-size:12px;font-weight:bold;font-family:verdana}
+.u_likeit_module .u_likeit_btn .u_txt{font-family:"나눔고딕",NanumGothic,"돋움",dotum,AppleSDGothicNeo-Regular,sans-serif}
+
+/* 블라인드 클래스 */
+.u_likeit_blind{overflow:hidden;position:absolute !important;top:0;left:0;margin:-1px !important;padding:0;width:1px;height:1px;border:0;clip:rect(0, 0, 0, 0)}

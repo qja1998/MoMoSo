@@ -1,7 +1,7 @@
 import styled from '@emotion/styled'
 import dayjs from 'dayjs'
 
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import AddIcon from '@mui/icons-material/Add'
 import FavoriteIcon from '@mui/icons-material/Favorite'
@@ -33,14 +33,6 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 
 import coverPlaceholder from '/src/assets/placeholder/cover-image-placeholder.png'
 
-// 스타일링된 컴포넌트
-const EpisodeContainer = styled(Box)({
-  padding: '24px',
-  maxWidth: '1200px',
-  margin: '0 auto',
-  width: '100%',
-})
-
 const NovelInfo = styled(Paper)({
   padding: '24px',
   display: 'flex',
@@ -51,33 +43,10 @@ const NovelInfo = styled(Paper)({
   boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
 })
 
-const CoverImage = styled('img')({
-  width: '200px',
-  height: '267px',
-  objectFit: 'cover',
-  borderRadius: '8px',
-  border: '1px solid #e0e0e0',
-})
-
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
   '&.MuiTableCell-head': {
     backgroundColor: theme.palette.grey[100],
     fontWeight: 700,
-  },
-}))
-
-const DiscussionSection = styled(Stack)({
-  flex: 4,
-  padding: '16px',
-  gap: '16px',
-})
-
-const DiscussionCard = styled(Paper)(({ theme }) => ({
-  padding: '16px',
-  borderRadius: '8px',
-  cursor: 'pointer',
-  '&:hover': {
-    backgroundColor: theme.palette.grey[50],
   },
 }))
 
@@ -93,86 +62,87 @@ const DiscussionBadge = styled(Box)(({ status }) => ({
 }))
 
 const NovelEpisodeList = () => {
-  const [episodes, setEpisodes] = useState([
-    {
-      id: 1,
-      title: '첫 만남',
-      views: 221,
-      likes: 31,
-      isLiked: false,
-      publishDate: '2024-01-01',
-    },
-    {
-      id: 2,
-      title: '시간의 흐름',
-      views: 222,
-      likes: 45,
-      isLiked: true,
-      publishDate: '2024-01-08',
-    },
-    {
-      id: 3,
-      title: '시간의 교차점',
-      views: 500,
-      likes: 67,
-      isLiked: false,
-      publishDate: '2024-01-15',
-    },
-    {
-      id: 4,
-      title: '변화의 시작',
-      views: 271,
-      likes: 89,
-      isLiked: true,
-      publishDate: '2024-01-22',
-    },
-    {
-      id: 5,
-      title: '시간의 무게',
-      views: 1023,
-      likes: 123,
-      isLiked: false,
-      publishDate: '2024-01-29',
-    },
-  ])
+  // episodes 상태를 useMemo로 최적화
+  const episodes = useMemo(
+    () => [
+      {
+        id: 1,
+        title: '첫 만남',
+        views: 221,
+        likes: 31,
+        isLiked: false,
+        publishDate: '2024-01-01',
+      },
+      {
+        id: 2,
+        title: '시간의 흐름',
+        views: 222,
+        likes: 45,
+        isLiked: true,
+        publishDate: '2024-01-08',
+      },
+      {
+        id: 3,
+        title: '시간의 교차점',
+        views: 500,
+        likes: 67,
+        isLiked: false,
+        publishDate: '2024-01-15',
+      },
+      {
+        id: 4,
+        title: '변화의 시작',
+        views: 271,
+        likes: 89,
+        isLiked: true,
+        publishDate: '2024-01-22',
+      },
+      {
+        id: 5,
+        title: '시간의 무게',
+        views: 1023,
+        likes: 123,
+        isLiked: false,
+        publishDate: '2024-01-29',
+      },
+    ],
+    []
+  )
 
-  // 총 조회수와 좋아요 수 계산
-  const totalViews = episodes.reduce((sum, episode) => sum + episode.views, 0)
-  const totalLikes = episodes.reduce((sum, episode) => sum + episode.likes, 0)
+  // 총 조회수/좋아요 계산을 useMemo로 최적화
+  const { totalViews, totalLikes } = useMemo(
+    () => ({
+      totalViews: episodes.reduce((sum, ep) => sum + ep.views, 0),
+      totalLikes: episodes.reduce((sum, ep) => sum + ep.likes, 0),
+    }),
+    [episodes]
+  )
 
-  // 토론방 목록 상태 관리
-  const [discussions, setDiscussions] = useState([])
-
-  const [openModal, setOpenModal] = useState(false)
-  const [discussionForm, setDiscussionForm] = useState({
+  // 토론방 생성 폼 초기값
+  const initialDiscussionForm = {
     type: 'default',
     dateTime: null,
     topic: '',
     maxParticipants: 5,
-  })
-
-  const handleOpenModal = () => {
-    setOpenModal(true)
   }
 
-  const handleCloseModal = () => {
+  const [discussions, setDiscussions] = useState([])
+  const [openModal, setOpenModal] = useState(false)
+  const [discussionForm, setDiscussionForm] = useState(initialDiscussionForm)
+
+  // 모달 핸들러 함수들
+  const handleOpenModal = useCallback(() => setOpenModal(true), [])
+  const handleCloseModal = useCallback(() => {
     setOpenModal(false)
-    setDiscussionForm({
-      type: 'default',
-      dateTime: null,
-      topic: '',
-      maxParticipants: 5,
-    })
-  }
+    setDiscussionForm(initialDiscussionForm)
+  }, [])
 
-  const handleCreateDiscussion = () => {
-    // 폼 데이터 유효성 검사
+  const handleCreateDiscussion = useCallback(() => {
     if (!discussionForm.dateTime || !discussionForm.topic || !discussionForm.maxParticipants) {
       alert('모든 필드를 입력해주세요.')
       return
     }
 
-    // 새로운 토론방 객체 생성
     const newDiscussion = {
       id: discussions.length + 1,
       ...discussionForm,
@@ -180,19 +150,27 @@ const NovelEpisodeList = () => {
       participants: [],
     }
 
-    // 토론방 목록에 추가
-    setDiscussions([...discussions, newDiscussion])
-
-    console.log('토론방 생성:', newDiscussion)
+    setDiscussions((prev) => [...prev, newDiscussion])
     handleCloseModal()
-  }
+  }, [discussionForm, discussions.length])
 
   return (
-    <EpisodeContainer>
-      {/* 소설 정보 섹션 */}
+    <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
       <NovelInfo>
         {/* 표지 섹션 */}
-        <CoverImage src={coverPlaceholder} alt="소설 표지" sx={{ flex: 2 }} />
+        <Box
+          component="img"
+          src={coverPlaceholder}
+          alt="소설 표지"
+          sx={{
+            width: 200,
+            height: 267,
+            objectFit: 'cover',
+            borderRadius: 1,
+            border: '1px solid #e0e0e0',
+            flex: 2,
+          }}
+        />
 
         {/* 소설 정보 섹션 */}
         <Stack direction="column" sx={{ flex: 4, justifyContent: 'space-between' }}>
@@ -203,7 +181,11 @@ const NovelEpisodeList = () => {
             <Typography variant="body1" color="text.secondary">
               김희진 작가
             </Typography>
-            <Typography variant="body1">서울의 한적한 골목길, 한 젊은 소녀가 운석은 오래된 골동품점에서 운석을 발견한다. 1920년대 여인의 손때 묻은 기록과 그를 시간의 흐름 속으로 이끌고, 그는 그 곳에서 보편적 동료 시점에서 만난 주인공 그때에 단순 이야기를 들려준다.</Typography>
+            <Typography variant="body1">
+              서울의 한적한 골목길, 한 젊은 소녀가 운석은 오래된 골동품점에서 운석을 발견한다.
+              1920년대 여인의 손때 묻은 기록과 그를 시간의 흐름 속으로 이끌고, 그는 그 곳에서 보편적
+              동료 시점에서 만난 주인공 그때에 단순 이야기를 들려준다.
+            </Typography>
             <Stack direction="row" spacing={2} alignItems="center">
               <Stack direction="row" spacing={1} alignItems="center">
                 <VisibilityIcon color="action" />
@@ -221,20 +203,19 @@ const NovelEpisodeList = () => {
           </Stack>
         </Stack>
 
-        {/* 토론방 생성 컴포넌트 섹션 */}
-        <DiscussionSection>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+        {/* 토론방 섹션 */}
+        <Stack sx={{ flex: 4, p: 2, gap: 2 }}>
+          <Typography variant="h6" fontWeight={700}>
             토론방
           </Typography>
+
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleOpenModal}
             sx={{
-              backgroundColor: '#FFA000',
-              '&:hover': {
-                backgroundColor: '#FF8F00',
-              },
+              bgcolor: '#FFA000',
+              '&:hover': { bgcolor: '#FF8F00' },
             }}
           >
             토론 생성
@@ -243,8 +224,19 @@ const NovelEpisodeList = () => {
           {/* 토론 목록 */}
           <Stack spacing={2}>
             {discussions.map((discussion) => (
-              <DiscussionCard key={discussion.id} elevation={1}>
-                <DiscussionBadge status={discussion.type === 'episode' ? '2화 토론' : '전체 토론'}>{discussion.type === 'episode' ? '2화 토론' : '전체 토론'}</DiscussionBadge>
+              <Paper
+                key={discussion.id}
+                elevation={1}
+                sx={{
+                  p: 2,
+                  borderRadius: 1,
+                  cursor: 'pointer',
+                  '&:hover': { bgcolor: 'grey.50' },
+                }}
+              >
+                <DiscussionBadge status={discussion.type === 'episode' ? '2화 토론' : '전체 토론'}>
+                  {discussion.type === 'episode' ? '2화 토론' : '전체 토론'}
+                </DiscussionBadge>
                 <Typography variant="h6" sx={{ mb: 1 }}>
                   {discussion.topic}
                 </Typography>
@@ -256,10 +248,10 @@ const NovelEpisodeList = () => {
                     참여 인원 {discussion.participants.length}/{discussion.maxParticipants}명
                   </Typography>
                 </Stack>
-              </DiscussionCard>
+              </Paper>
             ))}
           </Stack>
-        </DiscussionSection>
+        </Stack>
 
         {/* 토론방 생성 모달 */}
         <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
@@ -307,7 +299,9 @@ const NovelEpisodeList = () => {
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
                   <DateTimePicker
                     value={discussionForm.dateTime}
-                    onChange={(newValue) => setDiscussionForm({ ...discussionForm, dateTime: newValue })}
+                    onChange={(newValue) =>
+                      setDiscussionForm({ ...discussionForm, dateTime: newValue })
+                    }
                     minDateTime={dayjs()}
                     format="YYYY/MM/DD HH:mm"
                     ampm={false}
@@ -350,7 +344,9 @@ const NovelEpisodeList = () => {
                       shrink: true,
                     },
                   }}
-                  onChange={(e) => setDiscussionForm({ ...discussionForm, maxParticipants: e.target.value })}
+                  onChange={(e) =>
+                    setDiscussionForm({ ...discussionForm, maxParticipants: e.target.value })
+                  }
                 />
               </FormControl>
             </Stack>
@@ -408,7 +404,7 @@ const NovelEpisodeList = () => {
           </TableBody>
         </Table>
       </TableContainer>
-    </EpisodeContainer>
+    </Box>
   )
 }
 
