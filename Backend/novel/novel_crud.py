@@ -70,11 +70,20 @@ def get_all_novel(db: Session):
                 novel_schema.GenreGetBase(
                     genre_pk=genre.genre_pk,
                     name=genre.name
+<<<<<<< HEAD
                 ) for genre in novel.genres  # 필수값 유지
+=======
+                ) for genre in novel.genres  # 🔥 필수값 유지
+>>>>>>> 912a3a8d02bda9d3a08ba036a52e152d2540750c
             ]
         )
         for novel in novels
     ]
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 912a3a8d02bda9d3a08ba036a52e152d2540750c
 
 
 # 소설 검색 (pk 기반, 테스트 용도라 추후 삭제)
@@ -199,7 +208,7 @@ def recent_hit(days : int, db : Session) :
     
     if not recent_hit : 
         raise HTTPException(status_code=status.HTTP_204_NO_CONTENT, detail="최근 선호작이 없습니다.")
-       
+    
     novel_pks = [like[0] for like in recent_hit]  # 각 튜플의 첫 번째 요소(novel_pk) 추출
 
     # Counter를 사용하여 가장 흔한 novel_pk 찾기
@@ -552,3 +561,7 @@ def delete_image(file_id, drive_folder_id):
         print(f"파일(ID: {file_id})이 성공적으로 삭제되었습니다.")
     except Exception as e:
         print(f"파일 삭제 중 오류 발생: {e}")
+
+
+def generate_novel()
+    pass

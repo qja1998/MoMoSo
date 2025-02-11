@@ -1,5 +1,7 @@
 import { createTheme } from '@mui/material/styles'
 
+import '/src/styles/fonts/pretendardvariable.css'
+
 const theme = createTheme({
   palette: {
     primary: {
@@ -12,9 +14,24 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: 'Pretendard-Regular, Roboto, Helvetica, sans-serif',
+    fontFamily: '"Pretendard Variable", system-ui, -apple-system, sans-serif',
+    fontWeightLight: 300,
+    fontWeightRegular: 400,
+    fontWeightMedium: 500,
+    fontWeightBold: 700,
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: `
+        @font-face {
+          font-family: 'Pretendard Variable';
+          font-weight: 45 920;
+          font-style: normal;
+          font-display: swap;
+          src: url('./fonts/woff2/PretendardVariable.woff2') format('woff2-variations');
+        }
+      `,
+    },
     MuiButton: {
       styleOverrides: {
         root: {
@@ -22,7 +39,15 @@ const theme = createTheme({
         },
       },
     },
+    MuiTypography: {
+      styleOverrides: {
+        root: {
+          WebkitFontSmoothing: 'antialiased',
+          MozOsxFontSmoothing: 'grayscale',
+        },
+      },
+    },
   },
 })
 
-export default theme 
+export default theme

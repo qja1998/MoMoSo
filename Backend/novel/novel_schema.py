@@ -49,6 +49,7 @@ class NovelShowBase(BaseModel) :
     likes : int
     is_completed : bool
     genre: List[GenreGetBase] 
+    
     class Config:
         from_attributes = True
 
