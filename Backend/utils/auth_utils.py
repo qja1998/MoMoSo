@@ -92,7 +92,7 @@ def save_verification_code(email: str, code: str, name: str, expiration: int = 6
 
 # ================================== 로그인 여부 확인 ===============================================
 
-from fastapi import Depends, HTTPException, status, Header, Response
+from fastapi import Depends, HTTPException, status, Header, Response, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError, ExpiredSignatureError
 from sqlalchemy.orm import Session
@@ -101,13 +101,14 @@ from user import user_crud
 import os
 from auth.auth_router import create_access_token
 from datetime import timedelta
+from typing import Optional
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
 
-# Bearer 인증 설정
-security = HTTPBearer()
+# Bearer 인증 설정 : auto_error=False 비로그인 사용자 refresh_token 미입력
+security = HTTPBearer(auto_error=False)
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -116,7 +117,7 @@ async def get_current_user(
     refresh_token: str = Header(None)
 ):
     """
-    현재 로그인된 사용자 검증
+    현재 로그인된 사용자 검증.
     Access Token이 만료된 경우 Refresh Token을 이용하여 자동으로 재발급
     """
     token = credentials.credentials  # Authorization 헤더에서 Access Token 추출
@@ -185,22 +186,67 @@ async def get_current_user(
     return user  # 유저 객체 반환
 
 
-
-from models import User
-
-async def verify_user_pk(user_pk: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def get_optional_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    response: Response = None,
+    request: Request = None,
+    db: Session = Depends(get_db)
+):  
     """
-    특정 `user_pk`가 현재 로그인한 사용자와 동일한지    
+    로그인하지 않은 사용자도 허용하는 인증 함수
     """
-    # DB에서 `user_pk`를 기반으로 유저 조회
-    target_user = user_crud.get_user(db, user_pk)
-    
-    if target_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+    if credentials is None:
+        return None  # 토큰이 없으면 비로그인 사용자로 처리
 
-    # 본인이 아닌 경우 권한 없음 (403 Forbidden)
-    if current_user.user_pk != target_user.user_pk:
-        raise HTTPException(status_code=403, detail="You do not have permission to access this resource.")
-    
-    return target_user
+    token = credentials.credentials  # Authorization 헤더에서 Access Token 추출
+    refresh_token = request.headers.get("refresh_token")  # request 객체에서 직접 refresh_token 추출
 
+    try:
+        # Access Token 검증
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+
+        if email is None:
+            return None  # 비로그인 처리
+
+    except ExpiredSignatureError:
+        if not refresh_token:
+            return None  # Refresh Token도 없으면 비로그인 처리
+
+        try:
+            # Refresh Token 검증 및 새로운 Access Token 발급
+            payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+            email = payload.get("sub")
+
+            if email is None:
+                return None  # 비로그인 처리
+
+            stored_token = redis_client.get(f"refresh_token:{email}")
+            if stored_token != refresh_token:
+                return None  # Refresh Token이 유효하지 않으면 비로그인 처리
+
+            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            access_token = create_access_token(data={"sub": email}, expires_delta=access_token_expires)
+
+            if response:
+                response.set_cookie(
+                    key="access_token",
+                    value=access_token,
+                    httponly=True,
+                    max_age=int(access_token_expires.total_seconds())
+                )
+
+            return user_crud.get_user_by_email(db, email)
+
+        except JWTError:
+            return None  # Refresh Token이 유효하지 않으면 비로그인 처리
+
+    except JWTError:
+        return None  # 토큰이 잘못되었으면 비로그인 처리
+
+    # DB에서 사용자 정보 가져오기
+    user = user_crud.get_user_by_email(db, email)
+    if user is None:
+        return None  # 사용자가 존재하지 않으면 비로그인 처리
+
+    return user  # 유저 객체 반환
