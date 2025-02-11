@@ -100,22 +100,22 @@ const Navbar = () => {
               onClose={handleClose}
               onClick={handleClose}
             >
-              <MenuItem component={Link} to="/editor">
+              <MenuItem component={Link} to="/novel/edit">
                 AI소설 에디터
               </MenuItem>
               <MenuItem component={Link} to="/community">
                 그룹 토론
               </MenuItem>
-              <MenuItem component={Link} to="/novels">
+              <MenuItem component={Link} to="/novel/viewer/list">
                 소설 게시판
               </MenuItem>
             </Menu>
           </>
         ) : (
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <NavLink to="/editor">AI소설 에디터</NavLink>
+            <NavLink to="/novel/edit">AI소설 에디터</NavLink>
             <NavLink to="/community">그룹 토론</NavLink>
-            <NavLink to="/novels">소설 게시판</NavLink>
+            <NavLink to="/novel/viewer/list">소설 게시판</NavLink>
             <IconButton onClick={handleUserMenuOpen} sx={{ marginLeft: '1rem' }}>
               <Avatar sx={{ width: 32, height: 32, bgcolor: '#FFA726' }}>
                 <AccountCircleIcon />

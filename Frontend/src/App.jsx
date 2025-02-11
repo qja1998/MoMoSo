@@ -11,6 +11,8 @@ import Login from '/src/pages/Login'
 import NovelBackgroundEditor from '/src/pages/NovelBackgroundEditor'
 import NovelEditor from '/src/pages/NovelEditor'
 import NovelEpisodeEditor from '/src/pages/NovelEpisodeEditor'
+import NovelEpisodeList from '/src/pages/NovelEpisodeList'
+import NotFound from '/src/pages/NotFound'
 import SignUp from '/src/pages/SignUp'
 import theme from '/src/styles/theme'
 
@@ -37,10 +39,17 @@ function App() {
           <Route element={<SidebarLayout />}>
             <Route path="/novel">
               <Route path="edit/background" element={<NovelBackgroundEditor />} />
-              <Route path="edit/episode" element={<NovelEpisodeEditor />} />
+              <Route path="edit/episode/:episodeId" element={<NovelEpisodeEditor />} />
               <Route path="viewer/list" element={<div>작품 리스트 페이지</div>} />
+              {/* 작품 상세 페이지의 실제 주소 스타일 */}
+              {/* <Route path="viewer/:novelId" element={<NovelEpisodeList />} /> */}
+              {/* 디버그를 위한 작품 상세 페이지 */}
+              <Route path="viewer/detail" element={<NovelEpisodeList />} />
             </Route>
           </Route>
+
+          {/* Not Found Page - 모든 정의되지 않은 경로에 대해 */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
     </ThemeProvider>

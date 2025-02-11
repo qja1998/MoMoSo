@@ -52,8 +52,8 @@ const Sidebar = () => {
 
   const menuItems = [
     { text: 'Dashboard', icon: <Home fontSize="large" />, path: '/' },
-    { text: 'Editor', icon: <Edit fontSize="large" />, path: '/editor' },
-    { text: 'Viewer', icon: <MenuBook fontSize="large" />, path: '/viewer' },
+    { text: 'Editor', icon: <Edit fontSize="large" />, path: '/novel/edit' },
+    { text: 'Viewer', icon: <MenuBook fontSize="large" />, path: '/novel/viewer/list' },
     { text: 'Conference', icon: <VideoCall fontSize="large" />, path: '/conference' },
   ]
 
