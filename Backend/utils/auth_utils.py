@@ -89,3 +89,90 @@ def save_verification_code(email: str, code: str, name: str, expiration: int = 6
     """Redis에 인증번호 저장 (10분 유효)"""
     redis_client.setex(f"email_verification:{email}", expiration, code)
     redis_client.setex(f"email_verification_name:{email}", expiration, name)  # 이름도 저장
+
+# ================================== 로그인 여부 확인 ===============================================
+# from fastapi import Depends, HTTPException, status
+# from database import get_db
+# from jose import jwt
+# from jose.exceptions import JWTClaimsError, JWTError, ExpiredSignatureError
+# from sqlalchemy.orm import Session
+# from user import user_crud
+# from typing import Optional
+# from fastapi.security import OAuth2PasswordBearer, SecurityScopes
+# from auth.auth_router import oauth2_scheme
+
+# from dotenv import load_dotenv
+# import os
+
+# from fastapi import Header
+
+# load_dotenv()
+
+# SECRET_KEY = os.getenv("SECRET_KEY")
+# ALGORITHM = os.getenv("ALGORITHM")
+
+
+# # 로그인 유저의 Access Token 검증
+# async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+#     try:
+#         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+#         email: str = payload.get("sub")
+#         if email is None:
+#             raise HTTPException(
+#                 status_code=status.HTTP_401_UNAUTHORIZED,
+#                 detail="Invalid token payload",
+#             )
+#     except JWTError:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+#     # DB에서 사용자 정보 가져오기
+#     user = user_crud.get_user_by_email(db, email)
+#     if user is None:
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+#     return user
+
+
+from fastapi import Depends, HTTPException, status, Header
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, JWTError
+from sqlalchemy.orm import Session
+from database import get_db
+from user import user_crud
+import os
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
+
+# Bearer 인증 설정
+security = HTTPBearer()
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """
+    현재 로그인된 사용자 검증
+    """
+    token = credentials.credentials  # Authorization 헤더에서 Bearer 토큰 추출
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token payload",
+            )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
+    # DB에서 사용자 정보 가져오기
+    user = user_crud.get_user_by_email(db, email)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    return user  # 유저 객체 반환  

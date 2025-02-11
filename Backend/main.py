@@ -38,8 +38,6 @@ app.include_router(google_oauth_router, tags=["oauth"], prefix="/api/v1")
 # novel 라우터
 app.include_router(novel_router.app, tags=["novel"])
 
-# novel 라우터
-app.include_router(novel_router.app, tags=["novel"])
 
 @app.get("/")
 def read_root():
