@@ -1,6 +1,5 @@
 from pydantic import BaseModel, field_validator, Field
-from typing import Optional
-from typing import List
+from typing import Optional, Dict, List
 from datetime import datetime
 from user.user_schema import RecentNovel
 
@@ -37,6 +36,7 @@ class CharacterBase(BaseModel) :
 
 
 class GenreGetBase(BaseModel) : 
+    genre_pk: int
     genre : str
 
 class NovelShowBase(BaseModel) : 
@@ -190,3 +190,41 @@ class CharacterUpdateBase(BaseModel) :
         if v > 2 or v < 0 : 
             raise ValueError("성별은 3가지 옵션 중 하나로 선택해주십시오.")
         return v
+    
+
+
+# 소설 생성 AI 모델 응답용 스키마
+
+class WorldviewRequest(BaseModel):
+    genre: str
+    title: str
+
+class SynopsisRequest(BaseModel):
+    genre: str
+    title: str
+    worldview: str
+
+class CharacterModel(BaseModel):
+    name: str
+    sex: str
+    age: str
+    role: str
+    job: str
+    profile: str
+    특징: str
+
+class CharacterRequest(BaseModel):
+    genre: str
+    title: str
+    worldview: str
+    synopsis: str
+    characters: List[CharacterModel] = []  # 기존 캐릭터가 있으면 함께 전달 가능
+
+
+class CreateChapterRequest(BaseModel):
+    novel_pk: Optional[int] = None 
+    title: str
+    genre: str
+    synopsis: str
+    worldview: str
+    characters: List[Dict] = []
