@@ -552,3 +552,7 @@ def delete_image(file_id, drive_folder_id):
         print(f"파일(ID: {file_id})이 성공적으로 삭제되었습니다.")
     except Exception as e:
         print(f"파일 삭제 중 오류 발생: {e}")
+
+
+def generate_novel()
+    pass
