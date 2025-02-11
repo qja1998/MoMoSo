@@ -22,7 +22,30 @@ from google.oauth2 import service_account
 # 모든 소설 가져오기
 # 장르가 여러개가 되니까 이걸 같이 가져와야 함
 def get_all_novel(db: Session):
-    return db.query(Novel).all()
+    novels = db.query(Novel).options(joinedload(Novel.genres)).all()
+    
+    # SQLAlchemy 객체를 Pydantic 모델로 변환
+    return [
+        novel_schema.NovelShowBase(
+            novel_pk=novel.novel_pk,
+            title=novel.title,
+            created_date=novel.created_date,
+            updated_date=novel.updated_date,
+            novel_img=novel.novel_img,
+            views=novel.views,
+            likes=novel.likes,
+            is_completed=novel.is_completed,
+            genre=[
+                novel_schema.GenreGetBase(
+                    genre_pk=genre.genre_pk,
+                    name=genre.name
+                ) for genre in novel.genres  # 🔥 필수값 유지
+            ]
+        )
+        for novel in novels
+    ]
+
+
 
 
 # 소설 검색 (pk 기반, 테스트 용도라 추후 삭제)
@@ -147,7 +170,7 @@ def recent_hit(days : int, db : Session) :
     
     if not recent_hit : 
         raise HTTPException(status_code=status.HTTP_204_NO_CONTENT, detail="최근 선호작이 없습니다.")
-       
+    
     novel_pks = [like[0] for like in recent_hit]  # 각 튜플의 첫 번째 요소(novel_pk) 추출
 
     # Counter를 사용하여 가장 흔한 novel_pk 찾기

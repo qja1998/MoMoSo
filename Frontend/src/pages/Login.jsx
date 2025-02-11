@@ -1,6 +1,10 @@
-import { styled } from '@mui/material/styles'
-import { Box, TextField, Button, Typography, Divider } from '@mui/material'
+import { Link } from 'react-router-dom'
 
+import { Email, Lock } from '@mui/icons-material'
+import { Box, Button, Divider, InputAdornment, TextField, Typography } from '@mui/material'
+import { styled } from '@mui/material/styles'
+
+import { PrimaryButton, SocialLoginButton } from '../components/common/buttons'
 import graphicLogo from '/src/assets/logo/graphic-logo.svg'
 
 const LoginContainer = styled(Box)({
@@ -22,29 +26,6 @@ const LoginBox = styled(Box)({
   gap: '1rem',
 })
 
-const StyledButton = styled(Button)({
-  backgroundColor: '#FFA726',
-  color: 'white',
-  '&:hover': {
-    backgroundColor: '#FB8C00',
-  },
-})
-
-const SocialLoginButton = styled(Button)({
-  width: '48px',
-  height: '48px',
-  minWidth: '48px',
-  borderRadius: '50%',
-  padding: 0,
-  overflow: 'hidden',
-  '& img': {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-    borderRadius: '50%',
-  },
-})
-
 const Login = () => {
   const handleSocialLogin = (provider) => {
     // TODO: 소셜 로그인 구현
@@ -55,7 +36,7 @@ const Login = () => {
     <LoginContainer>
       <LoginBox>
         {/* 헤더 섹션 */}
-        <Typography variant="h4" align="center" color="#FFA726" gutterBottom>
+        <Typography variant="h4" align="center" gutterBottom fontWeight={950}>
           로그인
         </Typography>
         <Typography variant="body1" align="center" gutterBottom>
@@ -69,14 +50,40 @@ const Login = () => {
           fullWidth
           placeholder="이메일을 입력해주세요"
           variant="outlined"
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Email sx={{ color: '#c9c9c9' }} />
+              </InputAdornment>
+            ),
+          }}
         />
         <TextField
           fullWidth
           type="password"
           placeholder="비밀번호를 입력해주세요"
           variant="outlined"
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Lock sx={{ color: '#c9c9c9' }} />
+              </InputAdornment>
+            ),
+          }}
         />
-        <StyledButton variant="contained" fullWidth>
+
+        {/* 계정 찾기 섹션 */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button component={Link} to="/find-id">
+            아이디 찾기
+          </Button>
+          <Button component={Link} to="/find-password">
+            비밀번호 찾기
+          </Button>
+        </Box>
+
+        {/* 로그인 버튼 섹션 */}
+        <PrimaryButton fullWidth>
           <img
             src={graphicLogo}
             alt="모모소 로그인"
@@ -88,37 +95,28 @@ const Login = () => {
             }}
           />
           모모소 로그인
-        </StyledButton>
-
-        {/* 계정 찾기 섹션 */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-          <Button>아이디 찾기</Button>
-          <Button>비밀번호 찾기</Button>
-        </Box>
+        </PrimaryButton>
 
         {/* 소셜 로그인 섹션 */}
         <Divider sx={{ my: 2 }}>간편 로그인</Divider>
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
-          <SocialLoginButton onClick={() => handleSocialLogin('Google')}>
-            <img
-              src="/src/assets/social-login/google-G.png"
-              alt="Google 로그인"
-            />
-          </SocialLoginButton>
+          <SocialLoginButton
+            imgSrc="/src/assets/social-login/google-G.png"
+            provider="Google"
+            onClick={() => handleSocialLogin('Google')}
+          />
 
-          <SocialLoginButton onClick={() => handleSocialLogin('Naver')}>
-            <img
-              src="/src/assets/social-login/naver-circle.png"
-              alt="Naver 로그인"
-            />
-          </SocialLoginButton>
+          <SocialLoginButton
+            imgSrc="/src/assets/social-login/naver-circle.png"
+            provider="Naver"
+            onClick={() => handleSocialLogin('Naver')}
+          />
 
-          <SocialLoginButton onClick={() => handleSocialLogin('Kakao')}>
-            <img
-              src="/src/assets/social-login/kakaotalk-rectangle.png"
-              alt="Kakao 로그인"
-            />
-          </SocialLoginButton>
+          <SocialLoginButton
+            imgSrc="/src/assets/social-login/kakaotalk-rectangle.png"
+            provider="Kakao"
+            onClick={() => handleSocialLogin('Kakao')}
+          />
         </Box>
       </LoginBox>
     </LoginContainer>

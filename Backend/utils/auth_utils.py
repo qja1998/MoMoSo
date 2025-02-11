@@ -92,41 +92,89 @@ def save_verification_code(email: str, code: str, name: str, expiration: int = 6
 
 # ================================== 로그인 여부 확인 ===============================================
 
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, HTTPException, status, Header, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
+from jose import jwt, JWTError, ExpiredSignatureError
 from sqlalchemy.orm import Session
 from database import get_db
 from user import user_crud
 import os
+from auth.auth_router import create_access_token
+from datetime import timedelta
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
+ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
 
 # Bearer 인증 설정
 security = HTTPBearer()
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    response: Response = None,
+    db: Session = Depends(get_db),
+    refresh_token: str = Header(None)
 ):
     """
     현재 로그인된 사용자 검증
+    Access Token이 만료된 경우 Refresh Token을 이용하여 자동으로 재발급
     """
-    token = credentials.credentials  # Authorization 헤더에서 Bearer 토큰 추출
+    token = credentials.credentials  # Authorization 헤더에서 Access Token 추출
 
     try:
+        # Access Token 검증
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
+
         if email is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token payload",
             )
+        
+    except ExpiredSignatureError:
+        # **Access Token이 만료된 경우 → Refresh Token을 사용하여 새 Access Token 발급**
+        if not refresh_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Access token expired. Please login again."
+            )
+
+        try:
+            # Refresh Token 검증
+            payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+            email = payload.get("sub")
+
+            if email is None:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+            # Redis에서 저장된 Refresh Token 검증
+            stored_token = redis_client.get(f"refresh_token:{email}")
+            if stored_token != refresh_token:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
+
+            # 새로운 Access Token 발급
+            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            access_token = create_access_token(data={"sub": email}, expires_delta=access_token_expires)
+
+            # **쿠키에 새로운 Access Token 저장**
+            if response:
+                response.set_cookie(
+                    key="access_token",
+                    value=access_token,
+                    httponly=True,
+                    max_age=int(access_token_expires.total_seconds())
+                )
+
+            return user_crud.get_user_by_email(db, email)
+
+        except JWTError:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
+
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
+            detail="Invalid access token",
         )
 
     # DB에서 사용자 정보 가져오기
@@ -135,6 +183,8 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     return user  # 유저 객체 반환
+
+
 
 from models import User
 

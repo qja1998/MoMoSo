@@ -54,24 +54,16 @@ print("app has started")
 
 # 모든 소설을 가져오기 에러 잡는 중
 # 장르도 같이 제공해줘야 함.
-@app.get("/novel", response_model=List[novel_schema.NovelShowBase])
+@app.get("/novels", response_model=List[novel_schema.NovelShowBase])
 def all_novel(db: Session = Depends(get_db)):
     return novel_crud.get_all_novel(db)
 
-
-# 특정 소설 검색 왜 안돌가가지... ㅠㅠ 테스트 용도이긴 한데 좀 슬프군
-@app.get("/novel/{novel_pk}")
-def search_novel(novel_pk: int, db: Session = Depends(get_db)):
-    novel = novel_crud.search_novel(novel_pk, db)
-    if not novel:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="소설을 찾을 수 없습니다.")
-    return novel
 
 # 에디터 페이지 아주 많은걸 인풋으로 받아야 하겠네. 일단 나누자고 얘기해보자. 
 
 # 에디터 페이지 정보 가져오기.
 
-@app.get("/novel") 
+@app.get("/novel/{novel_pk}") 
 def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
     # novel정보 
     novel = novel_crud.search_novel(novel_pk, db)
@@ -81,15 +73,15 @@ def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
 
 #등장인물 CUD
 
-@app.post("/api/v1/novel/character/{novel_pk}")
+@app.post("/novel/character/{novel_pk}")
 def save_character(novel_pk : int, character_info : novel_schema.CharacterBase, db: Session = Depends(get_db)) :
     return novel_crud.save_character(novel_pk, character_info ,db)
 
-@app.put("/api/v1/novel/character/{novel_pk}/{character_pk}")
+@app.put("/novel/character/{novel_pk}/{character_pk}")
 def update_character(character_pk : int, update_data: novel_schema.CharacterUpdateBase, db: Session = Depends(get_db)) : 
     return novel_crud.update_character(character_pk,update_data, db)
 
-@app.delete("/api/v1/novel/character/{novel_pk}")
+@app.delete("/novel/character/{novel_pk}")
 def delete_character(character_pk : int, db: Session = Depends(get_db)) : 
     return novel_crud.delete_character(character_pk, db )
 
@@ -116,12 +108,6 @@ def delete_novel(novel_pk: int, db: Session = Depends(get_db)):
 """
 디버깅 필요, 에피소드 가져오는 기능도 없음.
 """
-#소설의 detail 정보 확인 용도. search novel은 내가 알기로 좀 디버깅이 필요함.
-@app.get("/novel/{novel_pk}") 
-def get_detail_page(novel_pk : int, db: Session = Depends(get_db)) :
-    return novel_crud.search_novel(novel_pk, db)
-
-
 #소설 좋아요 
 @app.put("/novel/{novel_pk}/{user_pk}")
 def like_novel(novel_pk: int, user_pk: int, db: Session = Depends(get_db)):
