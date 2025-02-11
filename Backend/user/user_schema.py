@@ -88,6 +88,7 @@ class UserDetail(BaseModel):
     class Config:
         from_attributes = True
 
+
 class UserWrittenNovel(BaseModel):
     novel_pk: int
     title: str
@@ -102,3 +103,5 @@ class UserWrittenNovel(BaseModel):
 
     class Config:
         from_attributes = True
+
+

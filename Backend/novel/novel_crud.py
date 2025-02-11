@@ -4,25 +4,54 @@ from fastapi import HTTPException, status, Request
 from sqlalchemy import select
 from . import novel_schema
 from models import Novel, Episode, Comment, CoComment, Character, Genre, novel_genre_table, user_like_table, User, user_recent_novel_table
-from novel.novel_schema import RecentNovel, CharacterResponse, CharacterUpdateBase
+from user.user_schema import RecentNovel
+
 # from sqlalchemy import select
 from datetime import datetime, timedelta
 from collections import Counter
 import os 
-from typing import Optional
+from dotenv import load_dotenv
 
+# .env 파일 로드
+load_dotenv()
 
 # 구글 드라이브에 저장하는 기능 
-from fastapi import File, UploadFile
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
 from googleapiclient.http import MediaFileUpload
 from google.oauth2 import service_account
+import os
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 
-# 모든 소설 가져오기
-# 장르가 여러개가 되니까 이걸 같이 가져와야 함
+
+# main page
+def get_recent_novels(db: Session, user_pk: int) -> list[RecentNovel]:
+    """
+    주어진 user_pk에 대한 최근 본 소설 목록을 반환
+    """
+    recent_novels = (
+        db.execute(
+            select(
+                Novel.novel_pk, Novel.title, Novel.novel_img, Novel.is_completed, user_recent_novel_table.c.viewed_date
+            )
+            .join(user_recent_novel_table, Novel.novel_pk == user_recent_novel_table.c.novel_pk)
+            .filter(user_recent_novel_table.c.user_pk == user_pk)
+            .order_by(user_recent_novel_table.c.viewed_date.desc())
+        )
+        .fetchall()
+    )
+
+    return [
+        RecentNovel(
+            novel_pk=row.novel_pk,
+            title=row.title,
+            novel_img=row.novel_img,
+            is_completed=row.is_completed
+        )
+        for row in recent_novels
+    ]
+
+
 def get_all_novel(db: Session):
     novels = db.query(Novel).options(joinedload(Novel.genres)).all()
     
@@ -41,13 +70,11 @@ def get_all_novel(db: Session):
                 novel_schema.GenreGetBase(
                     genre_pk=genre.genre_pk,
                     name=genre.name
-                ) for genre in novel.genres  # 필수값 유지
+                ) for genre in novel.genres  # 🔥 필수값 유지
             ]
         )
         for novel in novels
     ]
-
-
 
 
 # 소설 검색 (pk 기반, 테스트 용도라 추후 삭제)
@@ -161,60 +188,27 @@ def like_novel(novel_pk: int, user_pk: int, db: Session):
 
 # 메인 화면 추천 서비스 
 
-# 실시간 인기 : days에 2를 넣으면 지금뜨는 선호작, 30을넣으면 이번달 선호작
-def recent_hit(days: int, db: Session) -> Optional[str]: 
-    """
-    최근 N일 동안 가장 많이 좋아요를 받은 소설 1개의 제목 반환
-    """
+# 실시간 인기
+# 최근 이틀간 가장 선호작 수가 많은 책
+#days에 2를 넣으면 지금뜨는 선호작, 30을넣으면 이번달 선호작
+def recent_hit(days : int, db : Session) : 
     today = datetime.now()
     day_2_back = today - timedelta(days=days)
 
-    # 좋아요 데이터를 필터링
-    recent_hit = db.query(user_like_table).filter(user_like_table.c.liked_date >= day_2_back).all()
+    recent_hit = db.query(user_like_table).filter(user_like_table.liked_date >= day_2_back).all()
     
-    if not recent_hit: 
+    if not recent_hit : 
+        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT, detail="최근 선호작이 없습니다.")
+    
+    novel_pks = [like[0] for like in recent_hit]  # 각 튜플의 첫 번째 요소(novel_pk) 추출
+
+    # Counter를 사용하여 가장 흔한 novel_pk 찾기
+    if not novel_pks:
+        most_common_novel_pk = Counter(novel_pks).most_common(1)[0][0]
+        return most_common_novel_pk
+    else:
         return None
-
-    novel_pks = [like[0] for like in recent_hit]  # 좋아요 받은 novel_pk 리스트 추출
-
-    # 가장 많이 좋아요 받은 novel_pk 찾기
-    most_common_novel_pk = Counter(novel_pks).most_common(1)  # 최상위 1개만 가져오기
-
-    if not most_common_novel_pk:
-        return None
-
-    most_popular_novel_pk = most_common_novel_pk[0][0]
-
-    # novel_pk에 해당하는 소설 제목 반환
-    hit_novel = db.query(Novel.title).filter(Novel.novel_pk == most_popular_novel_pk).first()
-
-    return hit_novel.title if hit_novel else None
-
-def get_recent_novels(db: Session, user_pk: int) -> list[RecentNovel]:
-    """
-    주어진 user_pk에 대한 최근 본 소설 목록을 반환
-    """
-    recent_novels = (
-        db.execute(
-            select(
-                Novel.novel_pk, Novel.title, Novel.novel_img, Novel.is_completed, user_recent_novel_table.c.viewed_date
-            )
-            .join(user_recent_novel_table, Novel.novel_pk == user_recent_novel_table.c.novel_pk)
-            .filter(user_recent_novel_table.c.user_pk == user_pk)
-            .order_by(user_recent_novel_table.c.viewed_date.desc())
-        )
-        .fetchall()
-    )
-
-    return [
-        RecentNovel(
-            novel_pk=row.novel_pk,
-            title=row.title,
-            novel_img=row.novel_img,
-            is_completed=row.is_completed
-        )
-        for row in recent_novels
-    ]
+    
 
 #추천 작품
 def momoso_recommend(db : Session) :
@@ -279,12 +273,6 @@ def delete_episode(novel_pk: int, episode_pk : int, db: Session) :
     db.delete(episode)
     db.commit()
     return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
-
-
-# =========================================================================================================
-
-
-
 
 # 특정 에피소드의 모든 댓글 조회
 def get_all_ep_comment(novel_pk: int, ep_pk: int, db: Session):
@@ -440,42 +428,31 @@ def save_character(novel_pk: int, character_info : novel_schema.CharacterBase, d
     db.commit()
     return new_character
 
-def update_character(character_pk: int, update_data: CharacterUpdateBase, db: Session) -> CharacterResponse:
-    """
-    특정 캐릭터 정보 수정
-    """
+# 특정 등장인물 정보 수정
+def update_character(character_pk : int, update_data: novel_schema.CharacterUpdateBase, db: Session) : 
     character = db.query(Character).filter(Character.character_pk == character_pk).first()
-
     if not character:
-        raise HTTPException(status_code=404, detail="등장 인물을 찾을 수 없습니다.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="등장 인물을 찾을 수 없습니다.")
 
-    # 필수 값이 None인 경우 기존 값 유지 (선택적 업데이트)
-    if update_data.name is not None:
-        character.name = update_data.name
-    if update_data.role is not None:
-        character.role = update_data.role
-    if update_data.age is not None:
-        character.age = update_data.age
-    if update_data.sex is not None:
-        character.sex = update_data.sex
-    if update_data.job is not None:
-        character.job = update_data.job
-    if update_data.profile is not None:
-        character.profile = update_data.profile
+    update_data_dict = update_data.model_dump(exclude_unset=True)  # 변경된 데이터만 가져오기
+
+    print(update_data_dict)
+    for key, value in update_data_dict.items():
+        setattr(character, key, value)  # 필드 업데이트
 
     db.commit()
     db.refresh(character)
-
-    return CharacterResponse.model_validate(character)
-
+    return character
 
 #등장인물 삭제
 def delete_character(character_pk : int, db: Session) : 
-    character = db.query(Character).filter(Character.character_pk == character_pk)
-    db.delete(character)
-    db.commit()
-    db.refresh()
-    return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+    character = db.query(Character).filter(Character.character_pk == character_pk).first()
+    if not character : 
+        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="존재하지 않는 캐릭터입니다.")
+    else :
+        db.delete(character)
+        db.commit()
+        return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
 
 
 #등장인물 AI 생성
@@ -484,10 +461,11 @@ def delete_character(character_pk : int, db: Session) :
 def generate_cover() : 
     pass
 
-
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
-#표지 저장
-def save_cover(image_path, drive_folder_id):
+
+# 표지 저장
+def save_cover(file_name : str, drive_folder_id : str) : 
+    image_path = os.path.join(os.getcwd(), "static", file_name+".jpg")
     """
     이미지를 Google Drive에 업로드합니다.
 
@@ -499,31 +477,25 @@ def save_cover(image_path, drive_folder_id):
         dict: 업로드 성공 시 파일 ID를 포함한 결과 반환.
         None: 업로드 실패 시 None 반환.
     """
-    # .env에서 서비스 계정 정보 로드
-    credentials_info = {
-        "type": os.getenv("GOOGLE_TYPE"),
-        "project_id": os.getenv("GOOGLE_PROJECT_ID"),
-        "private_key_id": os.getenv("GOOGLE_PRIVATE_KEY_ID"),
-        "private_key": os.getenv("GOOGLE_PRIVATE_KEY").replace('\\n', '\n'),
-        "client_email": os.getenv("GOOGLE_CLIENT_EMAIL"),
-        "client_id": os.getenv("GOOGLE_CLIENT_ID"),
-        "auth_uri": os.getenv("GOOGLE_AUTH_URI"),
-        "token_uri": os.getenv("GOOGLE_TOKEN_URI"),
-        "auth_provider_x509_cert_url": os.getenv("GOOGLE_AUTH_PROVIDER_X509_CERT_URL"),
-        "client_x509_cert_url": os.getenv("GOOGLE_CLIENT_X509_CERT_URL"),
-        "universe_domain": "googleapis.com"
-    }
+    # JSON 파일 절대 경로로 변환
+    json_key_path = os.path.abspath("momoso-450108-0d3ffb86c6ef.json")
 
-    # Credentials 객체 생성
-    creds = service_account.Credentials.from_service_account_info(credentials_info)
-
-    # 파일 존재 여부 확인
-    if not os.path.exists(image_path):
-        print(f"파일이 존재하지 않습니다: {image_path}")
-
+    # JSON 파일 존재 여부 확인
+    if not os.path.exists(json_key_path):
+        print(f"JSON 키 파일이 존재하지 않습니다: {json_key_path}")
+        return None
     try:
+        print("Json 파일 인식 완료함. ")
+        # Credentials 객체 생성 (from_service_account_file 사용)
+        creds = service_account.Credentials.from_service_account_file(json_key_path, scopes=SCOPES)
+
         # Google Drive API 서비스 객체 생성
         service = build('drive', 'v3', credentials=creds)
+
+        # 파일 존재 여부 확인
+        if not os.path.exists(image_path):
+            print(f"파일이 존재하지 않습니다: {image_path}")
+            return None
 
         # 파일 메타데이터 설정
         file_metadata = {
@@ -536,10 +508,34 @@ def save_cover(image_path, drive_folder_id):
 
         # 파일 업로드 요청 실행
         file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+
+        print(f"파일이 업로드되었습니다. File ID: {file.get('id')}")
+
+        #statuc 폴더 데이터 삭제
+        # os.remove(image_path)
+
+        return file.get("id")
         
-        print(f'파일이 업로드되었습니다. File ID: {file.get("id")}')
-        return {"file_id": file.get("id")}
-    
+
     except Exception as e:
         print(f"업로드 실패: {e}")
         return None
+
+def delete_image(file_id, drive_folder_id):
+    # JSON 파일 절대 경로로 변환
+    json_key_path = os.path.abspath("momoso-450108-0d3ffb86c6ef.json")
+
+    print(f"JSON 키 파일이 존재하지 않습니다: {json_key_path}")
+
+    creds = service_account.Credentials.from_service_account_file(json_key_path, scopes=SCOPES)
+
+    service = build('drive', 'v3', credentials=creds)
+    try:
+        service.files().delete(fileId=file_id).execute()
+        print(f"파일(ID: {file_id})이 성공적으로 삭제되었습니다.")
+    except Exception as e:
+        print(f"파일 삭제 중 오류 발생: {e}")
+
+
+def generate_novel()
+    pass

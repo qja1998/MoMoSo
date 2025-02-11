@@ -2,24 +2,20 @@ from fastapi import Depends, HTTPException, status, APIRouter
 from sqlalchemy.orm import Session
 from database import get_db
 from novel import novel_crud, novel_schema
-from models import Novel
+from models import Novel, User
 import secrets
 from typing import List, Optional
-
+from utils.auth_utils import get_optional_user
 from fastapi import Request # 삭제 예정 
 import os # 삭제 예정
 
-from .novel_schema import MainPageResponse
-from utils.auth_utils import get_optional_user
-from models import User
+
 
 app = APIRouter(
     prefix='/api/v1',
 )
 
-# 메인 페이지 Router
-
-@app.get("/main", response_model=MainPageResponse)
+@app.get("/main", response_model=novel_schema.MainPageResponse)
 def main_page(
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_user)  # 로그인 검증만 수행
@@ -57,8 +53,8 @@ def main_page(
         }
 
     return response_data
-
-# 영상 재생은 Backend static 폴더에 넣어두고, 별개의 router 로 프단에 전송
+# 영상 재생은 별개의 router 로 보여줌
+# 아래가 예시임. 
 """
 import React from 'react';
 
@@ -76,84 +72,45 @@ export default VideoPlayer;
 
 """
 
+
+# 소설(Novel) CRUD
+print("app has started")
+
+# 모든 소설을 가져오기 에러 잡는 중
+# 장르도 같이 제공해줘야 함.
 @app.get("/novels", response_model=List[novel_schema.NovelShowBase])
 def all_novel(db: Session = Depends(get_db)):
     return novel_crud.get_all_novel(db)
 
 
+# 에디터 페이지 아주 많은걸 인풋으로 받아야 하겠네. 일단 나누자고 얘기해보자. 
+
 # 에디터 페이지 정보 가져오기.
+
 @app.get("/novel/{novel_pk}") 
-def get_novel_info(novel_pk : int, db: Session = Depends(get_db)):
-    novel = novel_crud.search_novel(novel_pk, db) # novel정보 
-    character = novel_crud.get_character(novel_pk, db) # 등장인물 정보
+def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
+    # novel정보 
+    novel = novel_crud.search_novel(novel_pk, db)
+    # 등장인물 정보
+    character = novel_crud.get_character(novel_pk, db)
     return {"novel" : novel, "character" : character} 
 
+#등장인물 CUD
+# 등장인물 완성함
 
 #등장인물 CUD
 @app.post("/novel/character/{novel_pk}", response_model=novel_schema.CharacterBase)
 def save_character(novel_pk : int, character_info : novel_schema.CharacterBase, db: Session = Depends(get_db)) :
     return novel_crud.save_character(novel_pk, character_info ,db)
 
-# ======================= 코드 고침 =====================
+
+@app.put("/api/v1/novel/character/{character_pk}")
+def update_character(request : Request, character_pk : int, update_data: novel_schema.CharacterUpdateBase, db: Session = Depends(get_db)) : 
+    return novel_crud.update_character(request, character_pk,update_data, db)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@app.patch("/novel/character/{character_pk}", response_model=novel_schema.CharacterResponse)
-def update_character(character_pk : int, update_data: novel_schema.CharacterUpdateBase, db: Session = Depends(get_db)) : 
-    """
-    특정 캐릭터 정보 수정
-    """
-    return novel_crud.update_character(character_pk,update_data, db)
-
-@app.delete("/novel/character/{character_pk}")
+@app.delete("/api/v1/novel/character/{character_pk}")
 def delete_character(character_pk : int, db: Session = Depends(get_db)) : 
     return novel_crud.delete_character(character_pk, db )
 
@@ -198,19 +155,14 @@ def create_episode(novel_pk: int, episode_data: novel_schema.EpisodeCreateBase, 
     return novel_crud.save_episode(novel_pk, episode_data, db)
 
 # 에피소드 변경
-@app.post("/novel/{novel_pk}/{episode_pk}",response_model=novel_schema.EpisodeCreateBase)
-def change_episode(novel_pk: int, update_data: novel_schema.EpisodeUpdateBase,episode_pk : int, db: Session = Depends(get_db)) : 
-    return novel_crud.change_episode(novel_pk, update_data, episode_pk, db)
+@app.post("/novel/{novel_pk}/{ep_pk}",response_model=novel_schema.EpisodeCreateBase)
+def change_episode(novel_pk: int, update_data: novel_schema.EpisodeUpdateBase, ep_pk : int, db: Session = Depends(get_db)) : 
+    return novel_crud.change_episode(novel_pk, update_data, ep_pk, db)
 
 #에피소드 삭제
-@app.delete("/novel/{novel_pk}/{episode_pk}")
-def delete_episode(novel_pk: int, episode_pk : int, db: Session = Depends(get_db)) : 
-    return novel_crud.delete_episode(novel_pk,episode_pk,db)
-
-
-# ================================================================================================================
-
-
+@app.delete("/novel/{novel_pk}/{ep_pk}")
+def delete_episode(novel_pk: int, ep_pk : int, db: Session = Depends(get_db)) : 
+    return novel_crud.delete_episode(novel_pk,ep_pk,db)
 
 # 특정 에피소드의 댓글 조회
 @app.get("/novel/{novel_pk}/episode/{ep_pk}/comments")
@@ -227,7 +179,7 @@ def write_comment(comment_info: novel_schema.CommentBase, novel_pk: int, ep_pk: 
     return comment
 
 # 댓글 수정
-@app.put("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}")
+@app.put("/novel/comment/{comment_pk}")
 def change_comment(content: str, comment_pk: int, db: Session = Depends(get_db)):
     comment = novel_crud.update_comment(content, comment_pk, db)
     if not comment:
@@ -235,24 +187,24 @@ def change_comment(content: str, comment_pk: int, db: Session = Depends(get_db))
     return comment
 
 # 댓글 삭제
-@app.delete("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}")
+@app.delete("/novel/comment/{comment_pk}")
 def delete_comment(comment_pk: int, db: Session = Depends(get_db)):
     return novel_crud.delete_comment(comment_pk, db)
 
 # 댓글 좋아요
-@app.put("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/like")
+@app.put("/novel/comment/{comment_pk}/like")
 def like_comment(comment_pk: int, user_pk : int,db: Session = Depends(get_db)):
     return novel_crud.like_comment(comment_pk, user_pk,db)
 
 # 대댓글 CRUD
 
 # 대댓글 작성
-@app.post("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment", response_model=novel_schema.CoComentBase)
+@app.post("/novel/{comment_pk}/cocomment", response_model=novel_schema.CoComentBase)
 def create_cocoment(comment_pk: int, user_pk: int, cocoment_info: novel_schema.CoComentBase, db: Session = Depends(get_db)):
     return novel_crud.create_cocoment(comment_pk, user_pk, cocoment_info, db)
 
 # 대댓글 수정
-@app.put("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment/{cocomment_pk}")
+@app.put("/novel/cocomment/{cocomment_pk}")
 def update_cocomment(content: str, cocoment_pk: int, db: Session = Depends(get_db)):
     cocomment = novel_crud.update_cocomment(content, cocoment_pk, db)
     if not cocomment:
@@ -260,23 +212,36 @@ def update_cocomment(content: str, cocoment_pk: int, db: Session = Depends(get_d
     return cocomment
 
 # 대댓글 삭제
-@app.delete("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment/{cocomment_pk}")
+@app.delete("/novel/cocomment/{cocomment_pk}")
 def delete_cocomment(cocomment_pk: int, db: Session = Depends(get_db)):
     novel_crud.delete_cocomment(cocomment_pk, db)
     return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # 대댓글 좋아요
-@app.put("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment/{cocomment_pk}/like")
+@app.put("/novel/cocomment/{cocomment_pk}/like")
 def like_cocomment(cocomment_pk: int, user_pk: int, db: Session = Depends(get_db)):
     return novel_crud.like_cocomment(cocomment_pk, user_pk, db)
 
 
 # 표지 이미지
 
+
+
 import os
 @app.post("/image")
-def save_cover(image_path : str, drive_folder_id : str) : 
-    image_path = os.path.join(os.getcwd(), "static", "test.jpg")
-    drive_folder_id = "1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N"
-    return novel_crud.save_cover(image_path, drive_folder_id)
+
+#아래 리턴되는 값은 드라이브 내부의 img id임. 수정이 필요한경우 해당 걸로 하면 됨.
+def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session = Depends(get_db)) : 
+    img_id = novel_crud.save_cover(file_name, drive_folder_id)
+    # if img_id : 
+    #     novel = db.query(Novel).filter(Novel.novel_pk == novel_pk)
+    #     if not novel : 
+    #         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="존재하지 않는 소설입니다.")
+    #     setattr(novel, "novel_img", img_id)
+    # else :
+    #     HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="존재하지 않는 이미지입니다.")
+    
+    return HTTPException(status_code=status.HTTP_200_OK)
+
+# 1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N
