@@ -4,33 +4,61 @@ from database import get_db
 from novel import novel_crud, novel_schema
 from models import Novel
 import secrets
-from typing import List
+from typing import List, Optional
 
 from fastapi import Request # 삭제 예정 
 import os # 삭제 예정
 
-
+from .novel_schema import MainPageResponse
+from utils.auth_utils import get_optional_user
+from models import User
 
 app = APIRouter(
     prefix='/api/v1',
 )
 
-# 메인 페이지 Router 
+# 메인 페이지 Router
 
-@app.get("/main")
-def main_page(db: Session = Depends(get_db)) : 
-    
-    # 실시간 인기 
-    recent_best = novel_crud.recent_hit(2, db)
-    # 한달간 인기
-    month_best =  novel_crud.recent_hit(30, db)
-    # 최근 본 작품 
-    recent_view = " "
-    return {"recent_best" : recent_best, "month_best" : month_best, "recent_view" : recent_view}
+@app.get("/main", response_model=MainPageResponse)
+def main_page(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user)  # 로그인 검증만 수행
+):
+    """
+    메인 페이지: 최근 인기 소설, 최근 본 소설 정보 반환
+    """
+    recent_best = novel_crud.recent_hit(2, db)  # 최근 좋아요 많은 소설
+    month_best = novel_crud.recent_hit(30, db)  # 한 달 동안 좋아요 많은 소설
 
+    if current_user:
+        # 로그인한 경우, 최근 본 소설을 조회 (CRUD 호출)
+        recent_novels = novel_crud.get_recent_novels(db, current_user.user_pk)
+        response_data = {
+            "user": {
+                "user_pk": current_user.user_pk,
+                "name": current_user.name,
+                "nickname": current_user.nickname,
+                "recent_novels": recent_novels
+            },
+            "recent_best": recent_best,
+            "month_best": month_best
+        }
+    else:
+        # 비로그인 사용자는 기본값(`Guest`)을 반환
+        response_data = {
+            "user": {
+                "user_pk": 0,
+                "name": "Guest",
+                "nickname": "Guest",
+                "recent_novels": None
+            },
+            "recent_best": recent_best,
+            "month_best": month_best
+        }
 
-# 영상 재생은 별개의 router 로 보여줌
-# 아래가 예시임. 
+    return response_data
+
+# 영상 재생은 Backend static 폴더에 넣어두고, 별개의 router 로 프단에 전송
 """
 import React from 'react';
 
@@ -48,40 +76,84 @@ export default VideoPlayer;
 
 """
 
-
-# 소설(Novel) CRUD
-print("app has started")
-
-# 모든 소설을 가져오기 에러 잡는 중
-# 장르도 같이 제공해줘야 함.
 @app.get("/novels", response_model=List[novel_schema.NovelShowBase])
 def all_novel(db: Session = Depends(get_db)):
     return novel_crud.get_all_novel(db)
 
 
-# 에디터 페이지 아주 많은걸 인풋으로 받아야 하겠네. 일단 나누자고 얘기해보자. 
-
 # 에디터 페이지 정보 가져오기.
-
 @app.get("/novel/{novel_pk}") 
-def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
-    # novel정보 
-    novel = novel_crud.search_novel(novel_pk, db)
-    # 등장인물 정보
-    character = novel_crud.get_character(novel_pk, db)
+def get_novel_info(novel_pk : int, db: Session = Depends(get_db)):
+    novel = novel_crud.search_novel(novel_pk, db) # novel정보 
+    character = novel_crud.get_character(novel_pk, db) # 등장인물 정보
     return {"novel" : novel, "character" : character} 
 
-#등장인물 CUD
 
-@app.post("/novel/character/{novel_pk}")
+#등장인물 CUD
+@app.post("/novel/character/{novel_pk}", response_model=novel_schema.CharacterBase)
 def save_character(novel_pk : int, character_info : novel_schema.CharacterBase, db: Session = Depends(get_db)) :
     return novel_crud.save_character(novel_pk, character_info ,db)
 
-@app.put("/novel/character/{novel_pk}/{character_pk}")
+# ======================= 코드 고침 =====================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@app.patch("/novel/character/{character_pk}", response_model=novel_schema.CharacterResponse)
 def update_character(character_pk : int, update_data: novel_schema.CharacterUpdateBase, db: Session = Depends(get_db)) : 
+    """
+    특정 캐릭터 정보 수정
+    """
     return novel_crud.update_character(character_pk,update_data, db)
 
-@app.delete("/novel/character/{novel_pk}")
+@app.delete("/novel/character/{character_pk}")
 def delete_character(character_pk : int, db: Session = Depends(get_db)) : 
     return novel_crud.delete_character(character_pk, db )
 
@@ -134,6 +206,11 @@ def change_episode(novel_pk: int, update_data: novel_schema.EpisodeUpdateBase,ep
 @app.delete("/novel/{novel_pk}/{episode_pk}")
 def delete_episode(novel_pk: int, episode_pk : int, db: Session = Depends(get_db)) : 
     return novel_crud.delete_episode(novel_pk,episode_pk,db)
+
+
+# ================================================================================================================
+
+
 
 # 특정 에피소드의 댓글 조회
 @app.get("/novel/{novel_pk}/episode/{ep_pk}/comments")

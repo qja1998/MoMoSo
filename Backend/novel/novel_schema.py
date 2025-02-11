@@ -141,8 +141,7 @@ class CoComentBase(BaseModel):
             raise ValueError("대댓글 내용을 입력하세요.")
         return v
 
-class CharacterBase(BaseModel) : 
-    novel_pk : int
+class CharacterBase(BaseModel) :
     name : str
     role : str
     age : int 
@@ -151,29 +150,66 @@ class CharacterBase(BaseModel) :
     profile : str
 
 class CharacterUpdateBase(BaseModel) : 
-    novel_pk: Optional[int] = None
-    name: Optional[str] = None
-    role: Optional[str] = None
-    age: Optional[int] = None
-    sex: Optional[bool] = None
-    job: Optional[str] = None
-    profile: Optional[str] = None
+    name: Optional[str] = Field(None, description="캐릭터 이름")
+    role: Optional[str] = Field(None, description="캐릭터 역할")
+    age: Optional[int] = Field(None, description="캐릭터 나이")
+    sex: Optional[int] = Field(None, description="0: 남성, 1: 여성, 2: 기타")
+    job: Optional[str] = Field(None, description="캐릭터 직업")
+    profile: Optional[str] = Field(None, description="캐릭터 설명")
+
+    class Config:
+        from_attributes = True
 
     @field_validator("name","role","job","profile")
     @classmethod
     def validate_not_empty(cls, v):
-        if v is not None and not v.strip():
+        if v is None and not v.strip():
             raise ValueError("이 필드는 비워둘 수 없습니다.")
-    
+        return v
+
     @field_validator("age")
     @classmethod
     def validate_age(cls, v) :
         if v < 0 : 
             raise ValueError("나이는 0살 이하일 수 없습니다.")
+        return v
     
     @field_validator("sex")
     @classmethod
     def validate_sex(cls, v) :
         if v > 2 or v < 0 : 
             raise ValueError("성별은 3가지 옵션 중 하나로 선택해주십시오.")
-    
+        return v
+
+class CharacterResponse(BaseModel):
+    character_pk: int
+    novel_pk: int
+    name: str
+    role: str
+    age: int
+    sex: int
+    job: str
+    profile: str
+
+    class Config:
+        from_attributes = True 
+
+from user.user_schema import RecentNovel
+
+# 메인 페이지 스키마
+class UserRecentNovel(BaseModel):
+    user_pk: int
+    name: str
+    nickname: str
+    recent_novels: Optional[List[RecentNovel]]
+
+    class Config:
+        from_attributes = True
+
+class MainPageResponse(BaseModel):
+    user: UserRecentNovel
+    recent_best: Optional[str]  # 최근 인기 소설
+    month_best: Optional[str]  # 한 달 동안 인기 소설
+
+    class Config:
+        from_attributes = True
