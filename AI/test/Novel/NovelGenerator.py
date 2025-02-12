@@ -192,8 +192,7 @@ class NovelGenerator:
                 "나이": "20",
                 "역할": "주인공",
                 "직업": "무사",
-                "프로필": "활달한 성격",
-                "특징": "뛰어난 검술"
+                "프로필": "활달한 성격"
             }
         ]
         """
@@ -215,30 +214,80 @@ class NovelGenerator:
         print("Characters:\n", self.characters)
         return self.characters
 
+    def add_new_characters(self) -> str:
+        """
+        기존 등장인물에 추가로 새로운 등장인물을 생성하는 함수.
+        기존 캐릭터와 차별화된 새로운 인물들을 생성하여 기존 목록에 덧붙입니다.
+        """
+        instruction = """
+        당신은 전문적으로 등장인물을 생성성하는 소설 작가입니다. 
+        주어진 장르, 제목, 세계관, 줄거리, 기존 소설 등장인물들을 기반으로 기존과 다른 새로운 소설 등장인물을 만들어주세요.
+
+        각 등장인물은 다음 속성을 포함하는 JSON 형태(dict)로 표현해야 합니다.
+
+        * 이름: (예: 홍길동, 춘향이 등) - 등장인물의 이름 (필수)
+        * 성별: (예: 남, 여, 기타) - 등장인물의 성별 (필수)
+        * 나이: (예: 20세, 30대 초반 등) - 등장인물의 나이 (필수)
+        * 역할: (예: 주인공, 조력자, 악당 등) - 이야기 속 역할 (필수)
+        * 직업: (예: 의사, 학생, 무사 등) - 등장인물의 직업 (필수)
+        * 프로필:
+            - (예: 키 180cm, 날카로운 눈매, 과묵한 성격 등) - 외모, 성격, 능력 등 세부 묘사 (선택)
+            - (예: 특정 능력, 습관, 버릇, 가치관 등) - 등장인물의 개성을 드러내는 특징 (선택)
+            - (예: 가문, 출신, 과거 등) - 등장인물의 과거와 배경 (선택)
+            - (예: 주인공과 친구, 연인 관계 등) - 다른 등장인물과의 관계 (선택)
+
+        등장인물은 1명만 추가로 생성되어야 하며, 아래와 같은 형태로 표현해야 합니다.
+
+        {
+            "이름": "홍길동",
+            "성별": "남",
+            "나이": "20",
+            "역할": "주인공",
+            "직업": "무사",
+            "프로필": "활달한 성격"
+        }
+        """
+        model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)
+        prompt = (
+            f"## 소설 장르: {self.genre}\n"
+            f"## 소설 제목: {self.title}\n"
+            f"## 소설 세계관: {self.worldview}\n"
+            f"## 소설 줄거리: {self.synopsis}\n"
+            f"## 기존 소설 등장인물: {self.characters}\n\n"
+            "**추가 생성된 소설 등장인물**\n"
+        )
+        response = model.generate_content(prompt)
+        additional_characters = response.text
+        if self.characters:
+            self.characters += "\n" + additional_characters
+        else:
+            self.characters = additional_characters
+        print("Updated Characters:\n", additional_characters)
+        return self.characters
+
     def create_chapter(self) -> str:
         """
         DB에 저장된 이전 챕터들을 모두 불러와서, 
         이를 기반으로 새 챕터(초안 또는 다음 화)를 생성합니다.
         각 챕터는 500-1000자 정도로 작성합니다.
         """
-        # DB에서 이전 챕터들을 모두 불러옵니다.
         previous_chapters = self.get_previous_chapters()
         
         if not previous_chapters:
             # 이전 챕터가 없다면 첫 번째 장(초안) 생성
             instruction = """
-        당신은 창의적이고 독창적인 소설 작가입니다. 
-        주어진 장르, 제목, 세계관, 줄거리, 등장인물을 기반으로 소설의 초안을 작성해야 합니다.
-        장르의 분위기에 맞게 전개하되, 500-1000자 정도의 내용을 작성해야 합니다.
-        """
+            당신은 창의적이고 독창적인 소설 작가입니다. 
+            주어진 장르, 제목, 세계관, 줄거리, 등장인물을 기반으로 소설의 초안을 작성해야 합니다.
+            장르의 분위기에 맞게 전개하되, 500-1000자 정도의 내용을 작성해야 합니다.
+            """
             chapter_label = "**소설 초안**\n"
         else:
             # 이전 챕터가 있다면 DB의 모든 내용을 기반으로 다음 화 생성
             instruction = """
-        당신은 창의적이고 독창적인 소설 작가입니다. 
-        주어진 장르, 제목, 세계관, 줄거리, 등장인물, 소설 이전화를 기반으로 소설의 다음화를 작성해야 합니다.
-        장르의 분위기에 맞게 전개하되, 500-1000자 정도의 내용을 작성해야 합니다.
-        """
+            당신은 창의적이고 독창적인 소설 작가입니다. 
+            주어진 장르, 제목, 세계관, 줄거리, 등장인물, 소설 이전화를 기반으로 소설의 다음화를 작성해야 합니다.
+            장르의 분위기에 맞게 전개하되, 500-1000자 정도의 내용을 작성해야 합니다.
+            """
             chapter_label = "**소설 다음화**\n"
         
         model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)
@@ -266,7 +315,6 @@ class NovelGenerator:
         # 새로 생성된 챕터를 DB에 저장
         self.insert_chapter(chapter_number, chapter_text)
 
-        # 첫 번째 장과 이후 장을 구분하여 인스턴스 변수에 저장
         if chapter_number == 1:
             self.first_chapter = chapter_text
             print("Novel Draft:\n", chapter_text)
@@ -290,6 +338,10 @@ if __name__ == "__main__":
     novel_gen.recommend_synopsis()
     input("등장인물 생성을 시작합니다. 엔터를 눌러주세요.")
     novel_gen.recommend_characters()
+    
+    # 추가 등장인물 생성을 위한 기능 호출
+    input("추가 등장인물 생성을 시작합니다. 엔터를 눌러주세요.")
+    novel_gen.add_new_characters()
     
     # 첫 번째 장(초안) 생성
     input("첫 번째 장(초안) 생성을 시작합니다. 엔터를 눌러주세요.")
