@@ -228,3 +228,11 @@ class CreateChapterRequest(BaseModel):
     synopsis: str
     worldview: str
     characters: List[Dict] = []
+
+
+class ImageRequest(BaseModel):
+    genre: str
+    style: str
+    title: str
+    worldview: str
+    keywords: List[str]

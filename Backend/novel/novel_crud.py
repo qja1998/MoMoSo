@@ -618,3 +618,4 @@ def get_previous_chapters(db: Session, novel_pk: int) -> str:
         .all()
     )
     return "\n\n---\n\n".join([ep.ep_content for ep in episodes]) if episodes else ""
+
