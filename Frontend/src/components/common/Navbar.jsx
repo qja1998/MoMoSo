@@ -1,7 +1,10 @@
 import { useState } from 'react'
+
 import { Link } from 'react-router-dom'
 
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
+import HowToRegIcon from '@mui/icons-material/HowToReg'
+import LoginIcon from '@mui/icons-material/Login'
 import LogoutIcon from '@mui/icons-material/Logout'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import MenuIcon from '@mui/icons-material/Menu'
@@ -19,6 +22,7 @@ import useMediaQuery from '@mui/material/useMediaQuery'
 const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState(null)
   const [userMenuAnchorEl, setUserMenuAnchorEl] = useState(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
@@ -39,10 +43,8 @@ const Navbar = () => {
   }
 
   const handleLogout = () => {
+    setIsLoggedIn(false)
     // TODO: 로그아웃 로직 구현
-    // - 로그인 상태 초기화
-    // - 토큰 제거
-    // - 로그인 페이지로 리다이렉트
     handleUserMenuClose()
   }
 
@@ -56,6 +58,40 @@ const Navbar = () => {
     // TODO: 설정 페이지 이동 로직 구현
     // - 사용자 설정 페이지로 이동
     // - 현재 설정 상태 로드
+  }
+
+  const renderMenuItems = () => {
+    if (isLoggedIn) {
+      return (
+        <>
+          <MenuItem component={Link} to="/auth/mypage" onClick={handleProfileClick}>
+            <PersonIcon sx={{ mr: 1 }} />
+            마이페이지
+          </MenuItem>
+          <MenuItem component={Link} to="/auth/change-info" onClick={handleSettingsClick}>
+            <ManageAccountsIcon sx={{ mr: 1 }} />
+            회원정보 수정
+          </MenuItem>
+          <MenuItem onClick={handleLogout}>
+            <LogoutIcon sx={{ mr: 1 }} />
+            로그아웃
+          </MenuItem>
+        </>
+      )
+    } else {
+      return (
+        <>
+          <MenuItem component={Link} to="/auth/login">
+            <LoginIcon sx={{ mr: 1 }} />
+            로그인
+          </MenuItem>
+          <MenuItem component={Link} to="/auth/signup">
+            <HowToRegIcon sx={{ mr: 1 }} />
+            회원가입
+          </MenuItem>
+        </>
+      )
+    }
   }
 
   return (
@@ -150,18 +186,7 @@ const Navbar = () => {
               onClose={handleUserMenuClose}
               onClick={handleUserMenuClose}
             >
-              <MenuItem component={Link} to="/auth/mypage" onClick={handleProfileClick}>
-                <PersonIcon sx={{ mr: 1 }} />
-                마이페이지
-              </MenuItem>
-              <MenuItem component={Link} to="/auth/change-info" onClick={handleSettingsClick}>
-                <ManageAccountsIcon sx={{ mr: 1 }} />
-                회원정보 수정
-              </MenuItem>
-              <MenuItem onClick={handleLogout}>
-                <LogoutIcon sx={{ mr: 1 }} />
-                로그아웃
-              </MenuItem>
+              {renderMenuItems()}
             </Menu>
           </Stack>
         )}
