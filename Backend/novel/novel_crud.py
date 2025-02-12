@@ -67,7 +67,7 @@ def get_all_novel(db: Session):
             views=novel.views,
             likes=novel.likes,
             is_completed=novel.is_completed,
-            genre=[novel_schema.GenreGetBase(genre=g.genre) for g in novel.genres]
+            genre=[novel_schema.GenreGetBase(genre=g.genre) for g in novel.genres],
             genre=[
                 novel_schema.GenreGetBase(
                     genre_pk=genre.genre_pk,
@@ -555,7 +555,6 @@ def delete_image(file_id, drive_folder_id):
         print(f"파일 삭제 중 오류 발생: {e}")
 
 
-def generate_novel():
 def generate_novel():
     pass
 

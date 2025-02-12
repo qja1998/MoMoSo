@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from uuid import uuid4
 
 from models import Discussion, Novel, User, Episode, user_discussion_table
 from . import discussion_schema
@@ -80,6 +81,12 @@ def get_discussion(db: Session, discussion_pk: int):
     }
 
 
+def generate_session_id():
+    """
+    토론방 참여를 위한 세션 ID를 생성하는 함수
+    """
+    return str(uuid4())
+
 
 def create_discussion(db: Session, discussion: discussion_schema.NewDiscussionForm, current_user: User) -> Discussion:
     """
@@ -100,10 +107,13 @@ def create_discussion(db: Session, discussion: discussion_schema.NewDiscussionFo
         if not episode:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Episode not found")
 
+    session_id = generate_session_id()
+
     # 2. Discussion 생성
     new_discussion = Discussion(
         novel_pk=discussion.novel_pk,
         ep_pk=discussion.ep_pk if discussion.ep_pk else None,
+        session_id=session_id,
         topic=discussion.topic,
         category=discussion.category,
         start_time=discussion.start_time,
