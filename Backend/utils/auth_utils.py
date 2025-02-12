@@ -110,16 +110,28 @@ ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
 # Bearer 인증 설정 : auto_error=False 비로그인 사용자 refresh_token 미입력
 security = HTTPBearer(auto_error=False)
 
+async def get_refresh_token(request: Request) -> str:
+    """요청 헤더에서 refresh_token을 추출 (Swagger에서 감춤)"""
+    return request.headers.get("refresh_token")  # 없으면 None 반환
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     response: Response = None,
     db: Session = Depends(get_db),
-    refresh_token: str = Header(None)
+    refresh_token: str = Depends(get_refresh_token)
 ):
     """
     현재 로그인된 사용자 검증.
     Access Token이 만료된 경우 Refresh Token을 이용하여 자동으로 재발급
     """
+
+    # Access Token이 `None`이면 예외 발생 방지
+    if credentials is None or credentials.credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token is missing."
+        )
+
     token = credentials.credentials  # Authorization 헤더에서 Access Token 추출
 
     try:
@@ -164,6 +176,8 @@ async def get_current_user(
                     key="access_token",
                     value=access_token,
                     httponly=True,
+                    secure=True,
+                    samesite="Strict",
                     max_age=int(access_token_expires.total_seconds())
                 )
 

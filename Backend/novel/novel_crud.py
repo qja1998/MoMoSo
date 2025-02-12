@@ -5,6 +5,7 @@ from sqlalchemy import select
 from . import novel_schema
 from models import Novel, Episode, Comment, CoComment, Character, Genre, novel_genre_table, user_like_table, User, user_recent_novel_table
 from user.user_schema import RecentNovel
+from typing import Optional
 
 # from sqlalchemy import select
 from datetime import datetime, timedelta
@@ -67,6 +68,12 @@ def get_all_novel(db: Session):
             likes=novel.likes,
             is_completed=novel.is_completed,
             genre=[novel_schema.GenreGetBase(genre=g.genre) for g in novel.genres]
+            genre=[
+                novel_schema.GenreGetBase(
+                    genre_pk=genre.genre_pk,
+                    genre=genre.genre
+                ) for genre in novel.genres  # 필수값 유지
+            ]
         )
         for novel in novels
     ]
@@ -182,25 +189,34 @@ def like_novel(novel_pk: int, user_pk: int, db: Session):
 # 메인 화면 추천 서비스 
 
 # 실시간 인기
-# 최근 이틀간 가장 선호작 수가 많은 책
-#days에 2를 넣으면 지금뜨는 선호작, 30을넣으면 이번달 선호작
-def recent_hit(days : int, db : Session) : 
+
+def recent_hit(days: int, db: Session) -> Optional[str]: 
+    """
+    최근 N일 동안 가장 많이 좋아요를 받은 소설 1개의 제목 반환
+    """
     today = datetime.now()
     day_2_back = today - timedelta(days=days)
 
-    recent_hit = db.query(user_like_table.c.liked_date).filter(user_like_table.c.liked_date >= day_2_back).all()
+    # 좋아요 데이터를 필터링
+    recent_hit = db.query(user_like_table.c.liked_date).filter(user_like_table.c.c.liked_date >= day_2_back).all()
     
-    if not recent_hit : 
-        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT, detail="최근 선호작이 없습니다.")
-    
-    novel_pks = [like[0] for like in recent_hit]  # 각 튜플의 첫 번째 요소(novel_pk) 추출
-
-    # Counter를 사용하여 가장 흔한 novel_pk 찾기
-    if not novel_pks:
-        most_common_novel_pk = Counter(novel_pks).most_common(1)[0][0]
-        return most_common_novel_pk
-    else:
+    if not recent_hit: 
         return None
+
+    novel_pks = [like[0] for like in recent_hit]  # 좋아요 받은 novel_pk 리스트 추출
+
+    # 가장 많이 좋아요 받은 novel_pk 찾기
+    most_common_novel_pk = Counter(novel_pks).most_common(1)  # 최상위 1개만 가져오기
+
+    if not most_common_novel_pk:
+        return None
+
+    most_popular_novel_pk = most_common_novel_pk[0][0]
+
+    # novel_pk에 해당하는 소설 제목 반환
+    hit_novel = db.query(Novel.title).filter(Novel.novel_pk == most_popular_novel_pk).first()
+
+    return hit_novel.title if hit_novel else None
     
 
 #추천 작품
@@ -540,7 +556,21 @@ def delete_image(file_id, drive_folder_id):
 
 
 def generate_novel():
+def generate_novel():
     pass
+
+
+
+def get_previous_chapters(db: Session, novel_pk: int) -> str:
+    """DB에서 해당 소설의 모든 챕터 내용을 불러와 하나의 문자열로 합칩니다."""
+    episodes = (
+        db.query(Episode)
+        .filter(Episode.novel_pk == novel_pk)
+        .order_by(Episode.ep_pk.asc())  # 챕터 순서대로 정렬
+        .all()
+    )
+    return "\n\n---\n\n".join([ep.ep_content for ep in episodes]) if episodes else ""
+
 
 
 

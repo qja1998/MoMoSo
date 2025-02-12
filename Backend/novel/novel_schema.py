@@ -36,6 +36,7 @@ class CharacterBase(BaseModel) :
 
 
 class GenreGetBase(BaseModel) : 
+    genre_pk: int
     genre : str
 
 class NovelShowBase(BaseModel) : 
