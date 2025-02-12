@@ -97,18 +97,14 @@ def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
 
 #등장인물 CUD
 # 등장인물 완성함
-
 #등장인물 CUD
 @app.post("/novel/character/{novel_pk}", response_model=novel_schema.CharacterBase)
 def save_character(novel_pk : int, character_info : novel_schema.CharacterBase, db: Session = Depends(get_db)) :
     return novel_crud.save_character(novel_pk, character_info ,db)
 
-
 @app.put("/api/v1/novel/character/{character_pk}")
-def update_character(request : Request, character_pk : int, update_data: novel_schema.CharacterUpdateBase, db: Session = Depends(get_db)) : 
-    return novel_crud.update_character(request, character_pk,update_data, db)
-
-
+def update_character(character_pk : int, update_data: novel_schema.CharacterUpdateBase, db: Session = Depends(get_db)) : 
+    return novel_crud.update_character(character_pk,update_data, db)
 
 @app.delete("/api/v1/novel/character/{character_pk}")
 def delete_character(character_pk : int, db: Session = Depends(get_db)) : 
@@ -179,7 +175,7 @@ def write_comment(comment_info: novel_schema.CommentBase, novel_pk: int, ep_pk: 
     return comment
 
 # 댓글 수정
-@app.put("/novel/comment/{comment_pk}")
+@app.put("/novel/{novel_pk}/episode/{ep_pk}/comment")
 def change_comment(content: str, comment_pk: int, db: Session = Depends(get_db)):
     comment = novel_crud.update_comment(content, comment_pk, db)
     if not comment:
@@ -187,7 +183,7 @@ def change_comment(content: str, comment_pk: int, db: Session = Depends(get_db))
     return comment
 
 # 댓글 삭제
-@app.delete("/novel/comment/{comment_pk}")
+@app.delete("/novel/{novel_pk}/episode/{ep_pk}/comment")
 def delete_comment(comment_pk: int, db: Session = Depends(get_db)):
     return novel_crud.delete_comment(comment_pk, db)
 
@@ -199,7 +195,7 @@ def like_comment(comment_pk: int, user_pk : int,db: Session = Depends(get_db)):
 # 대댓글 CRUD
 
 # 대댓글 작성
-@app.post("/novel/{comment_pk}/cocomment", response_model=novel_schema.CoComentBase)
+@app.post("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment", response_model=novel_schema.CoComentBase)
 def create_cocoment(comment_pk: int, user_pk: int, cocoment_info: novel_schema.CoComentBase, db: Session = Depends(get_db)):
     return novel_crud.create_cocoment(comment_pk, user_pk, cocoment_info, db)
 
@@ -226,8 +222,6 @@ def like_cocomment(cocomment_pk: int, user_pk: int, db: Session = Depends(get_db
 
 # 표지 이미지
 
-
-
 import os
 @app.post("/image")
 
@@ -245,3 +239,67 @@ def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session
     return HTTPException(status_code=status.HTTP_200_OK)
 
 # 1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N
+
+
+from .novel_generator import NovelGenerator
+from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
+from .novel_crud import get_previous_chapters
+from utils.auth_utils import get_current_user
+
+@app.post("/ai/worldview")
+def recommend_worldview(request: WorldviewRequest) : 
+    novel_gen = NovelGenerator(request.genre, request.title)
+    worldview = novel_gen.recommend_worldview()
+    return {"worldview": worldview}
+
+@app.post("/ai/synopsis")
+def recommend_synopsis(request: SynopsisRequest) : 
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview)
+    synopsis = novel_gen.recommend_synopsis()
+    return {"synopsis": synopsis}
+
+@app.post("/ai/characters")
+def recommend_characters(request: CharacterRequest):
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.characters)
+    updated_characters = novel_gen.recommend_characters()
+    return {"characters": updated_characters}
+
+@app.post("/ai/episode")
+def create_episode(request: CreateChapterRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    novel = None
+    if request.novel_pk:
+        novel = db.query(Novel).filter(Novel.novel_pk == request.novel_pk).first()
+        if not novel:
+            raise HTTPException(status_code=404, detail="해당 novel_pk에 대한 소설을 찾을 수 없습니다.")
+        
+        # 소설 작성자가 현재 로그인된 사용자인지 검증
+        if novel.user_pk != current_user.user_pk:
+            raise HTTPException(status_code=403, detail="이 소설을 수정할 권한이 없습니다.")
+
+    # novel_pk가 없으면 새로운 소설 생성
+    else:
+        novel = Novel(
+            user_pk=current_user.user_pk,
+            title=request.title,
+            worldview=request.worldview,
+            synopsis=request.synopsis,
+            num_episode=0
+        )
+        db.add(novel)
+        db.commit()
+        db.refresh(novel)
+    
+    previous_chapters = get_previous_chapters(db, novel.novel_pk)
+
+    generator = NovelGenerator(
+        genre=request.genre,
+        title=request.title,
+        worldview=request.worldview,
+        synopsis=request.synopsis,
+        characters=request.characters,
+        previous_chapters=previous_chapters
+    )
+
+    new_chapter = generator.create_chapter()
+
+    return {"title": request.title, "genre": request.genre, "new_chapter": new_chapter}

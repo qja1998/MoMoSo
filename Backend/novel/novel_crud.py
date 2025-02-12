@@ -93,10 +93,8 @@ def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Ses
     db.add(novel)
     db.flush()  # 이 시점에서 novel_pk가 생성됩니다.
     
-    print("_____________thisistochecknovelgenre_______________________")
-    print(f"Received novel_info: {novel_info}")
     for genre_name in novel_info.genres:
-        print("genre_name_is",type(genre_name))
+        print("genre_name_is",genre_name)
         genre_data = db.query(Genre).filter(Genre.genre == genre_name).first()
         if genre_data:
             db.execute(novel_genre_table.insert().values(
@@ -270,6 +268,8 @@ def change_episode(novel_pk: int, update_data: novel_schema.EpisodeUpdateBase, e
 # 에피소드 삭제
 def delete_episode(novel_pk: int, episode_pk : int, db: Session) :
     episode = db.query(Episode).filter(Episode.ep_pk == episode_pk).first()
+    if not episode : 
+        return HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     db.delete(episode)
     db.commit()
     return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
@@ -537,5 +537,17 @@ def delete_image(file_id, drive_folder_id):
         print(f"파일 삭제 중 오류 발생: {e}")
 
 
-def generate_novel()
+def generate_novel():
     pass
+
+
+
+def get_previous_chapters(db: Session, novel_pk: int) -> str:
+    """DB에서 해당 소설의 모든 챕터 내용을 불러와 하나의 문자열로 합칩니다."""
+    episodes = (
+        db.query(Episode)
+        .filter(Episode.novel_pk == novel_pk)
+        .order_by(Episode.ep_pk.asc())  # 챕터 순서대로 정렬
+        .all()
+    )
+    return "\n\n---\n\n".join([ep.ep_content for ep in episodes]) if episodes else ""
