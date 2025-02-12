@@ -421,11 +421,6 @@ async def AI_img_generate(req: novel_schema.ImageRequest, payload_, delete_files
     if response.status_code == 200:
         print("✅ 이미지 생성 성공!")
 
-    # 응답된 이미지 데이터를 BytesIO 객체로 변환
-    img_data = BytesIO(response.content)
-
-    # PIL로 이미지 열기
-    image = Image.open(img_data)
 
     # 🖼️ 이미지 띄우기
     # image.show()
@@ -459,7 +454,7 @@ async def generate_image(req: novel_schema.ImageRequest):
         image.save(img_buffer, format="PNG")
         img_buffer.seek(0)  # 버퍼의 시작 위치로 이동
 
-        return Response(content=img_buffer.getvalue(), media_type="image/png")
+#         return Response(content=img_buffer.getvalue(), media_type="image/png")
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

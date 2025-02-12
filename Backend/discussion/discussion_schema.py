@@ -32,12 +32,26 @@ class DiscussionNovel(BaseModel):
 # 토론 조회
 class Discussion(BaseModel):
     discussion_pk: int
+    session_id: Optional[str]
     novel: DiscussionNovel
     episode: Optional[DiscussionEpisode] = None
     topic: str
     start_time: datetime
     end_time: Optional[datetime] = None
     participants: List[DiscussionUser]
+
+    class Config:
+        from_attributes = True
+
+# 토론 생성 후 조회
+class GetNewDiscussion(BaseModel):
+    novel_pk: int
+    ep_pk: Optional[int] = None
+    session_id: str
+    category: bool
+    topic: str
+    start_time: datetime
+    max_participants: int
 
     class Config:
         from_attributes = True

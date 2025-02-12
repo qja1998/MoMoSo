@@ -195,7 +195,7 @@ def recent_hit(days: int, db: Session) -> Optional[str]:
     day_2_back = today - timedelta(days=days)
 
     # 좋아요 데이터를 필터링
-    recent_hit = db.query(user_like_table.c.liked_date).filter(user_like_table.c.c.liked_date >= day_2_back).all()
+    recent_hit = db.query(user_like_table.c.liked_date).filter(user_like_table.c.liked_date >= day_2_back).all()
     
     if not recent_hit: 
         return None

@@ -68,10 +68,6 @@ class OAuthAccount(SQLAlchemyBaseOAuthAccountTable, Base):
     id = Column(Integer, primary_key=True, index=True)  # 기본 키 추가
     user_id = Column(Integer, ForeignKey("users.user_pk", ondelete="CASCADE"), nullable=False)
 
-from sqlalchemy.inspection import inspect
-
-print(inspect(OAuthAccount).columns.keys())
-
 # User Model
 class User(Base):
     __tablename__ = "users"
