@@ -20,10 +20,10 @@ services:
       retries: 5
 
   backend:
-    # build:
-    #   context: ./Backend
-    #   dockerfile: Dockerfile.dev
-    image: kwon0528/b106-backend:develop
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile.dev
+    # image: kwon0528/b106-backend:develop
     container_name: dev-backend
     environment:
       DATABASE_URL: mysql+pymysql://root:961226@db:3306/test_db?charset=utf8

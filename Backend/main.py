@@ -3,6 +3,9 @@ from sqlalchemy.orm import Session
 # from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+# 영상 보여주기 
+from fastapi.staticfiles import StaticFiles
+
 # 데이터베이스 연결
 from database import engine
 from models import Base
@@ -11,6 +14,10 @@ app = FastAPI()
 
 # 테이블 자동 생성
 Base.metadata.create_all(bind=engine)
+
+# app.mount("/static", StaticFiles(path="static"), name="static")
+
+
 
 # 라우터 연결
 from user import user_router
