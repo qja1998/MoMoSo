@@ -26,3 +26,8 @@ h11==0.14.0
 starlette==0.45.3
 itsdangerous==2.2.0
 PyYAML==6.0.2
+aiofiles==24.1.0
+audioop-lts==0.2.1
+SpeechRecognition==3.14.1
+standard-aifc==3.13.0
+standard-chunk==3.13.0
