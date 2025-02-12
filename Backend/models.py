@@ -138,8 +138,8 @@ class Character(Base):
     novel_pk = Column(Integer, ForeignKey("novel.novel_pk", ondelete="CASCADE"), nullable=False)
     name = Column(String(20), nullable=False)
     role = Column(String(20), nullable=False)
-    age = Column(Integer, nullable=False)
-    sex = Column(Boolean, nullable=False)  # 0 for male, 1 for  female, 2 for somethingelse
+    age = Column(String(40), nullable=False)
+    sex = Column(String(20), nullable=False)  # 0 for male, 1 for  female, 2 for somethingelse
     job = Column(String(20), nullable=False)
     profile = Column(Text, nullable=False)
 
@@ -205,6 +205,7 @@ class Discussion(Base):
     discussion_pk = Column(Integer, primary_key=True, autoincrement=True)
     novel_pk = Column(Integer, ForeignKey("novel.novel_pk", ondelete="CASCADE"), nullable=False)
     ep_pk = Column(Integer, ForeignKey("episode.ep_pk"), nullable=True)
+    session_id = Column(Text, nullable=False)
     topic = Column(Text, nullable=False)
     category = Column(Boolean, nullable=False) # category 0이면 전체에 대한 토론, 1이면 회차별 토론
     start_time = Column(DateTime, default=func.now())
