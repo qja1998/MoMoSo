@@ -220,10 +220,32 @@ class NovelGenerator:
         기존 캐릭터와 차별화된 새로운 인물들을 생성하여 기존 목록에 덧붙입니다.
         """
         instruction = """
-        당신은 창의적이고 독창적인 소설 작가입니다.
-        주어진 소설 세계관, 줄거리 및 기존 등장인물들을 참고하여,
-        기존과 다른 새로운 등장인물을 만들어주세요.
-        각 등장인물은 반드시 이름, 성별, 나이, 역할, 직업 등의 필수 속성을 포함해야 합니다.
+        당신은 전문적으로 등장인물을 생성성하는 소설 작가입니다. 
+        주어진 장르, 제목, 세계관, 줄거리, 기존 소설 등장인물들을 기반으로 기존과 다른 새로운 소설 등장인물을 만들어주세요.
+
+        각 등장인물은 다음 속성을 포함하는 JSON 형태(dict)로 표현해야 합니다.
+
+        * 이름: (예: 홍길동, 춘향이 등) - 등장인물의 이름 (필수)
+        * 성별: (예: 남, 여, 기타) - 등장인물의 성별 (필수)
+        * 나이: (예: 20세, 30대 초반 등) - 등장인물의 나이 (필수)
+        * 역할: (예: 주인공, 조력자, 악당 등) - 이야기 속 역할 (필수)
+        * 직업: (예: 의사, 학생, 무사 등) - 등장인물의 직업 (필수)
+        * 프로필:
+            - (예: 키 180cm, 날카로운 눈매, 과묵한 성격 등) - 외모, 성격, 능력 등 세부 묘사 (선택)
+            - (예: 특정 능력, 습관, 버릇, 가치관 등) - 등장인물의 개성을 드러내는 특징 (선택)
+            - (예: 가문, 출신, 과거 등) - 등장인물의 과거와 배경 (선택)
+            - (예: 주인공과 친구, 연인 관계 등) - 다른 등장인물과의 관계 (선택)
+
+        등장인물은 1명만 추가로 생성되어야 하며, 아래와 같은 형태로 표현해야 합니다.
+
+        {
+            "이름": "홍길동",
+            "성별": "남",
+            "나이": "20",
+            "역할": "주인공",
+            "직업": "무사",
+            "프로필": "활달한 성격"
+        }
         """
         model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)
         prompt = (
@@ -240,7 +262,7 @@ class NovelGenerator:
             self.characters += "\n" + additional_characters
         else:
             self.characters = additional_characters
-        print("Updated Characters:\n", self.characters)
+        print("Updated Characters:\n", additional_characters)
         return self.characters
 
     def create_chapter(self) -> str:
