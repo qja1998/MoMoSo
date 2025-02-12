@@ -3,6 +3,7 @@ import { Route, BrowserRouter as Router, Routes } from 'react-router-dom'
 import { CssBaseline } from '@mui/material'
 import { ThemeProvider } from '@mui/material/styles'
 
+import DiscussionRoom from './pages/DiscussionRoom'
 import NavbarLayout from '/src/components/layout/NavbarLayout'
 import SidebarLayout from '/src/components/layout/SidebarLayout'
 import ChangeUserInfo from '/src/pages/ChangeUserInfo'
@@ -51,6 +52,7 @@ function App() {
               {/* 디버그를 위한 에피소드 뷰어 페이지 */}
               <Route path="" element={<NovelEpisodeViewer />} />
             </Route>
+            <Route path="/discussion-room" element={<DiscussionRoom />} />
           </Route>
 
           {/* Sidebar Layout */}

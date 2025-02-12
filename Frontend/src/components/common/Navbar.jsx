@@ -107,11 +107,11 @@ const Navbar = () => {
       }}
     >
       <Toolbar sx={{ justifyContent: 'space-between' }}>
-        <Link to="/" style={{ textDecoration: 'none', width: '120px' }}>
+        <Link to="/" style={{ textDecoration: 'none', height: '30px' }}>
           <img
             src="/src/assets/logo/text-logo.svg"
             alt="MOMOSO"
-            style={{ height: '24px', width: '120px' }}
+            style={{ height: '30px', width: 'auto' }}
           />
         </Link>
         {isMobile ? (

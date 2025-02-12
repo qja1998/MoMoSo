@@ -166,7 +166,7 @@ const SignUp = () => {
       <Typography variant="h4" align="center" fontWeight={950}>
         회원가입
       </Typography>
-      <Typography variant="body1" align="center" sx={{ mb: 2 }}>
+      <Typography variant="body1" align="center" sx={{ pb: 2 }}>
         모두 모여 소설을 만드는 공간 모모소
         <br />
         함께 모여 소설을 창작해보세요!
