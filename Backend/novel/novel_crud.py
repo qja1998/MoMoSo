@@ -67,7 +67,10 @@ def get_all_novel(db: Session):
             views=novel.views,
             likes=novel.likes,
             is_completed=novel.is_completed,
-            genre=[novel_schema.GenreGetBase(genre=g.genre) for g in novel.genres],
+            genre=[novel_schema.GenreGetBase(
+                genre_pk=genre.genre_pk,
+                genre=genre.genre
+                ) for genre  in novel.genres]
         )
         for novel in novels
     ]
