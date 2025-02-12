@@ -68,6 +68,10 @@ class OAuthAccount(SQLAlchemyBaseOAuthAccountTable, Base):
     id = Column(Integer, primary_key=True, index=True)  # 기본 키 추가
     user_id = Column(Integer, ForeignKey("users.user_pk", ondelete="CASCADE"), nullable=False)
 
+from sqlalchemy.inspection import inspect
+
+print(inspect(OAuthAccount).columns.keys())
+
 # User Model
 class User(Base):
     __tablename__ = "users"
@@ -82,7 +86,7 @@ class User(Base):
     is_oauth_user = Column(Boolean, default=False)  # OAuth2 로그인 여부
 
     # OAuth2 계정과 연결
-    oauth_accounts: Mapped[list[OAuthAccount]] = relationship("OAuthAccount", lazy="joined", cascade="all, delete, delete-orphan", passive_deletes=True)
+    oauth_accounts: Mapped[list[OAuthAccount]] = relationship("OAuthAccount", lazy="select", cascade="all, delete, delete-orphan", passive_deletes=True)
 
     recent_novels = relationship("Novel", secondary=user_recent_novel_table, back_populates="recent_viewers", passive_deletes=True, lazy="subquery") # 최근에 본 소설 (1:N 관계)
     liked_novels = relationship("Novel", secondary=user_like_table, back_populates="liked_users", passive_deletes=True)# M:N 관계 설정 (소설 좋아요) 

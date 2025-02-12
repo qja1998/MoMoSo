@@ -66,12 +66,7 @@ def get_all_novel(db: Session):
             views=novel.views,
             likes=novel.likes,
             is_completed=novel.is_completed,
-            genre=[
-                novel_schema.GenreGetBase(
-                    genre_pk=genre.genre_pk,
-                    name=genre.name
-                ) for genre in novel.genres  # 🔥 필수값 유지
-            ]
+            genre=[novel_schema.GenreGetBase(genre=g.genre) for g in novel.genres]
         )
         for novel in novels
     ]
@@ -193,7 +188,7 @@ def recent_hit(days : int, db : Session) :
     today = datetime.now()
     day_2_back = today - timedelta(days=days)
 
-    recent_hit = db.query(user_like_table).filter(user_like_table.liked_date >= day_2_back).all()
+    recent_hit = db.query(user_like_table.c.liked_date).filter(user_like_table.c.liked_date >= day_2_back).all()
     
     if not recent_hit : 
         raise HTTPException(status_code=status.HTTP_204_NO_CONTENT, detail="최근 선호작이 없습니다.")
@@ -319,7 +314,6 @@ def delete_comment(comment_pk: int, db: Session):
 
 """
 여기서 부터 만들면 됨.
-
 """
 
 # 댓글 좋아요 및 좋아요 취소
@@ -397,6 +391,8 @@ def update_cocomment(content: str, cocoment_pk: int, db: Session):
     db.refresh(cocomment)
     return cocomment
 
+
+
 # 대댓글 삭제
 # 여기에 그 소설 댓글의 대댓글 갯수를 -1하는걸 만들어야 함
 # 흠 왜 안될까?
@@ -408,6 +404,11 @@ def delete_cocomment(cocomment_pk: int, db: Session):
     db.delete(cocomment)
     db.commit()
     return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def get_cocoment(comment_pk : int,db: Session ) : 
+    return db.query(CoComment).filter(CoComment.comment_pk == comment_pk).all()
+
 
 # 전체 등장인물 불러오기
 def get_character(novel_pk: int, db: Session):
@@ -490,6 +491,7 @@ def save_cover(file_name : str, drive_folder_id : str) :
         creds = service_account.Credentials.from_service_account_file(json_key_path, scopes=SCOPES)
 
         # Google Drive API 서비스 객체 생성
+        print("객체 생성함. ")
         service = build('drive', 'v3', credentials=creds)
 
         # 파일 존재 여부 확인

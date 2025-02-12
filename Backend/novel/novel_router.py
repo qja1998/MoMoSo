@@ -53,6 +53,7 @@ def main_page(
         }
 
     return response_data
+
 # 영상 재생은 별개의 router 로 보여줌
 # 아래가 예시임. 
 """
@@ -200,7 +201,7 @@ def create_cocoment(comment_pk: int, user_pk: int, cocoment_info: novel_schema.C
     return novel_crud.create_cocoment(comment_pk, user_pk, cocoment_info, db)
 
 # 대댓글 수정
-@app.put("/novel/cocomment/{cocomment_pk}")
+@app.put("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment")
 def update_cocomment(content: str, cocoment_pk: int, db: Session = Depends(get_db)):
     cocomment = novel_crud.update_cocomment(content, cocoment_pk, db)
     if not cocomment:
@@ -208,17 +209,20 @@ def update_cocomment(content: str, cocoment_pk: int, db: Session = Depends(get_d
     return cocomment
 
 # 대댓글 삭제
-@app.delete("/novel/cocomment/{cocomment_pk}")
+@app.delete("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment")
 def delete_cocomment(cocomment_pk: int, db: Session = Depends(get_db)):
     novel_crud.delete_cocomment(cocomment_pk, db)
     return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # 대댓글 좋아요
-@app.put("/novel/cocomment/{cocomment_pk}/like")
+@app.put("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment/like")
 def like_cocomment(cocomment_pk: int, user_pk: int, db: Session = Depends(get_db)):
     return novel_crud.like_cocomment(cocomment_pk, user_pk, db)
 
+@app.get("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment")
+def get_cocoment(comment_pk : int, db: Session = Depends(get_db) ) : 
+    return novel_crud.get_cocoment(comment_pk,db)
 
 # 표지 이미지
 
