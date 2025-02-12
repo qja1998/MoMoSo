@@ -68,6 +68,7 @@ openai==0.27.10
 packaging==24.2
 parso==0.8.4
 passlib==1.7.4
+pillow==11.1.0
 prompt_toolkit==3.0.50
 propcache==0.2.1
 proto-plus==1.26.0
@@ -114,11 +115,3 @@ urllib3==2.3.0
 uvicorn==0.34.0
 wcwidth==0.2.13
 yarl==1.18.3
-=========
-PyYAML==6.0.2
-aiofiles==24.1.0
-audioop-lts==0.2.1
-SpeechRecognition==3.14.1
-standard-aifc==3.13.0
-standard-chunk==3.13.0
->>>>>>>>> Temporary merge branch 2

@@ -78,3 +78,4 @@ def create_discussion_summary(db:Session=Depends(get_db)):
     AI 쪽에서 정보 받아와서 저장 필요
     """
     pass
+
