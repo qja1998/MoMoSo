@@ -13,6 +13,7 @@ import NovelBackgroundEditor from '/src/pages/NovelBackgroundEditor'
 import NovelEditor from '/src/pages/NovelEditor'
 import NovelEpisodeEditor from '/src/pages/NovelEpisodeEditor'
 import NovelEpisodeList from '/src/pages/NovelEpisodeList'
+import NovelList from '/src/pages/NovelList'
 import SignUp from '/src/pages/SignUp'
 import theme from '/src/styles/theme'
 
@@ -25,7 +26,7 @@ function App() {
           {/* Navbar Layout */}
           <Route element={<NavbarLayout />}>
             {/* Auth routes */}
-            <Route path="/" element={<div>대시보드</div>} />
+            <Route path="/" element={<NovelList />} />
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/signup" element={<SignUp />} />
             <Route path="/auth/find-id" element={<FindId />} />
@@ -37,7 +38,7 @@ function App() {
           <Route element={<SidebarLayout />}>
             <Route path="/novel/edit/background" element={<NovelBackgroundEditor />} />
             <Route path="/novel/edit/episode/:episodeId" element={<NovelEpisodeEditor />} />
-            <Route path="/novel/viewer/list" element={<div>작품 리스트 페이지</div>} />
+            {/* <Route path="/novel/viewer/list" element={<div>작품 리스트 페이지</div>} /> */}
             {/* 작품 상세 페이지의 실제 주소 스타일 */}
             {/* <Route path="viewer/:novelId" element={<NovelEpisodeList />} /> */}
             {/* 디버그를 위한 작품 상세 페이지 */}

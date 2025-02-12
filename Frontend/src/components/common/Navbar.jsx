@@ -24,6 +24,9 @@ const StyledAppBar = styled(AppBar)({
   boxShadow: 'none',
   borderBottom: '1px solid #E5E5E5',
   fontFamily: 'Pretendard-Regular, sans-serif',
+  position: 'sticky',
+  top: 0,
+  zIndex: 1100,
 })
 
 const NavLink = styled(Link)({
@@ -64,7 +67,7 @@ const Navbar = () => {
   }
 
   return (
-    <StyledAppBar position="static">
+    <StyledAppBar>
       <Toolbar>
         <Box
           component={Link}

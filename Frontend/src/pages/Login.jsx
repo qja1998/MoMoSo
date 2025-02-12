@@ -74,10 +74,10 @@ const Login = () => {
 
         {/* 계정 찾기 섹션 */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button component={Link} to="/find-id">
+          <Button component={Link} to="/auth/find-id">
             아이디 찾기
           </Button>
-          <Button component={Link} to="/find-password">
+          <Button component={Link} to="/auth/find-password">
             비밀번호 찾기
           </Button>
         </Box>
