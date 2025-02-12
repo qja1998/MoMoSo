@@ -233,19 +233,14 @@ import os
 
 #아래 리턴되는 값은 드라이브 내부의 img id임. 수정이 필요한경우 해당 걸로 하면 됨.
 def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session = Depends(get_db)) : 
-    img_id = novel_crud.save_cover(file_name, drive_folder_id)
-    # if img_id : 
-    #     novel = db.query(Novel).filter(Novel.novel_pk == novel_pk)
-    #     if not novel : 
-    #         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="존재하지 않는 소설입니다.")
-    #     setattr(novel, "novel_img", img_id)
-    # else :
-    #     HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="존재하지 않는 이미지입니다.")
+    novel = novel_crud.save_cover(novel_pk, file_name, drive_folder_id, db)
     
-    return HTTPException(status_code=status.HTTP_200_OK)
+    return novel
 
 # 1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N
-
+@app.delete("/image")
+def delete_img(file_id : str, drive_folder_id : str, novel_pk : int , db: Session = Depends(get_db)) :
+    return novel_crud.delete_image(file_id, drive_folder_id)
 
 from .novel_generator import NovelGenerator
 from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
@@ -310,6 +305,10 @@ def create_episode(request: CreateChapterRequest, current_user: User = Depends(g
 
     return {"title": request.title, "genre": request.genre, "new_chapter": new_chapter}
 
+from fastapi import File, UploadFile
+@app.post("/upload")
+async def upload_image(imgpath : str, pk : int, file: UploadFile = File(...)):
+    return await novel_crud.image_upload(imgpath, pk, file)
 
 
 from .novel_generator import NovelGenerator

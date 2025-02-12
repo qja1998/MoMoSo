@@ -475,7 +475,7 @@ def generate_cover() :
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 # 표지 저장
-def save_cover(file_name : str, drive_folder_id : str) : 
+def save_cover(novel_pk : int, file_name : str, drive_folder_id : str, db: Session) : 
     image_path = os.path.join(os.getcwd(), "static", file_name+".jpg")
     """
     이미지를 Google Drive에 업로드합니다.
@@ -521,25 +521,41 @@ def save_cover(file_name : str, drive_folder_id : str) :
         print("업로드 객체 생성 시작")
         media = MediaFileUpload(image_path, mimetype='image/jpg', resumable=False)
 
+
+        # folder = service.files().get(fileId=drive_folder_id, fields="id, name").execute()
+        # print(f"폴더 존재 확인 완료: {folder}")
+
         # 파일 업로드 요청 실행
         print("업로드 실행 시작")
-        file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-        print(f"파일이 업로드되었습니다. 응답 데이터: {file}")
-
-
-        print(f"파일이 업로드되었습니다. File ID: {file.get('id')}")
-
-        #statuc 폴더 데이터 삭제
-        # os.remove(image_path)
-
-        return file.get("id")
         
+        file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        
+
+        print(f"파일이 업로드되었습니다. 응답 데이터: {file}")
+        file_id = file.get('id')
+
+        # print(f"파일이 업로드되었습니다. File ID: {file.get('id')}")
+        #1EiNEqQqTOJUaklXfPI5wTD1jJSOVHFk7
+        # file = service.files().get(fileId=file_id, fields="id, name, parents").execute()
+        # print(f"파일이 존재합니다: {file}")
+
+        novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+        novel.novel_img = file_id
+        
+        db.commit()
+        db.refresh(novel)
+        
+        os.remove(image_path)
+
+        return novel
 
     except Exception as e:
         print(f"업로드 실패: {e}")
         return None
 
-def delete_image(file_id, drive_folder_id):
+# 프론트 단에 기능이 없어서 일단 - 
+
+def delete_image(file_id : str, drive_folder_id : str):
     # JSON 파일 절대 경로로 변환
     json_key_path = os.path.abspath("momoso-450108-0d3ffb86c6ef.json")
 
@@ -554,11 +570,28 @@ def delete_image(file_id, drive_folder_id):
     except Exception as e:
         print(f"파일 삭제 중 오류 발생: {e}")
 
+from fastapi import File, UploadFile
+#로컬에서 파일 업로드 하는 기능
+async def image_upload(imgpath : str, pk : int, file: UploadFile = File(...)):
+    
+    if not file:
+        raise HTTPException(status_code=400, detail="No file provided")
 
-def generate_novel():
-    pass
+    try:
+        filename = file.filename
+        filepath = os.path.join(os.getcwd(), "static", filename)
+        # filepath = os.path.join("/tmp", filename)  # 임시 저장 경로
 
+        # 파일 저장
+        with open(filepath, "wb") as f:
+            contents = await file.read()  # 파일 내용을 읽음 (await 사용!)
+            f.write(contents)
 
+    except Exception as e:
+        #  os.remove(filepath)  <- 파일이 없는 경우 에러 발생 가능성
+        if os.path.exists(filepath): # 파일이 존재하는지 확인
+            os.remove(filepath)
+        raise HTTPException(status_code=500, detail=str(e))
 
 def get_previous_chapters(db: Session, novel_pk: int) -> str:
     """DB에서 해당 소설의 모든 챕터 내용을 불러와 하나의 문자열로 합칩니다."""
