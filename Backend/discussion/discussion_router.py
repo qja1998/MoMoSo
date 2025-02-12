@@ -26,7 +26,7 @@ def get_discussion(discussion_pk: int, db: Session = Depends(get_db)):
     """
     return discussion_crud.get_discussion(db, discussion_pk)
 
-@app.post("/", response_model=discussion_schema.NewDiscussionForm, status_code=status.HTTP_201_CREATED)
+@app.post("/", response_model=discussion_schema.GetNewDiscussion, status_code=status.HTTP_201_CREATED)
 def create_discussion(
     discussion: discussion_schema.NewDiscussionForm,
     db: Session = Depends(get_db),
@@ -36,6 +36,7 @@ def create_discussion(
     새로운 토론 방 생성 (로그인한 사용자만 가능)
     """
     new_discussion = discussion_crud.create_discussion(db, discussion, current_user)
+
     return new_discussion
 
 
