@@ -82,10 +82,11 @@ const App = () => {
   const joinRoom = async (roomData) => {
     const { roomName, userName } = roomData;
 
-
+    const sessionId = roomName
 
     try {
       const OV = new OpenVidu();
+      OV.enableProdMode();
       const session = OV.initSession();
 
       session.on('streamCreated', (event) => {
