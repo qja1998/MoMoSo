@@ -68,12 +68,6 @@ def get_all_novel(db: Session):
             likes=novel.likes,
             is_completed=novel.is_completed,
             genre=[novel_schema.GenreGetBase(genre=g.genre) for g in novel.genres],
-            genre=[
-                novel_schema.GenreGetBase(
-                    genre_pk=genre.genre_pk,
-                    genre=genre.genre
-                ) for genre in novel.genres  # 필수값 유지
-            ]
         )
         for novel in novels
     ]
@@ -511,21 +505,27 @@ def save_cover(file_name : str, drive_folder_id : str) :
         service = build('drive', 'v3', credentials=creds)
 
         # 파일 존재 여부 확인
+        print("파일 존재 여부 확인")
         if not os.path.exists(image_path):
             print(f"파일이 존재하지 않습니다: {image_path}")
             return None
 
         # 파일 메타데이터 설정
+        print("파일 메타 데이터 설정시작")
         file_metadata = {
             'name': os.path.basename(image_path),
             'parents': [drive_folder_id]
         }
 
-        # 미디어 파일 업로드 객체 생성
-        media = MediaFileUpload(image_path, mimetype='image/jpeg', resumable=False)
+        # 미디어 파일 업로드 객체 생성]
+        print("업로드 객체 생성 시작")
+        media = MediaFileUpload(image_path, mimetype='image/jpg', resumable=False)
 
         # 파일 업로드 요청 실행
+        print("업로드 실행 시작")
         file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        print(f"파일이 업로드되었습니다. 응답 데이터: {file}")
+
 
         print(f"파일이 업로드되었습니다. File ID: {file.get('id')}")
 
