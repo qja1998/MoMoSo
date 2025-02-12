@@ -154,7 +154,7 @@ class CoComentBase(BaseModel):
         return v
 
 class CharacterBase(BaseModel) : 
-    novel_pk : int
+    # novel_pk : int
     name : str
     role : str
     age : int 

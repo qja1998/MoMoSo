@@ -67,6 +67,7 @@ def get_all_novel(db: Session):
             views=novel.views,
             likes=novel.likes,
             is_completed=novel.is_completed,
+            genre=[novel_schema.GenreGetBase(genre=g.genre) for g in novel.genres]
             genre=[
                 novel_schema.GenreGetBase(
                     genre_pk=genre.genre_pk,
@@ -94,10 +95,8 @@ def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Ses
     db.add(novel)
     db.flush()  # 이 시점에서 novel_pk가 생성됩니다.
     
-    print("_____________thisistochecknovelgenre_______________________")
-    print(f"Received novel_info: {novel_info}")
     for genre_name in novel_info.genres:
-        print("genre_name_is",type(genre_name))
+        print("genre_name_is",genre_name)
         genre_data = db.query(Genre).filter(Genre.genre == genre_name).first()
         if genre_data:
             db.execute(novel_genre_table.insert().values(
@@ -199,7 +198,7 @@ def recent_hit(days: int, db: Session) -> Optional[str]:
     day_2_back = today - timedelta(days=days)
 
     # 좋아요 데이터를 필터링
-    recent_hit = db.query(user_like_table).filter(user_like_table.c.liked_date >= day_2_back).all()
+    recent_hit = db.query(user_like_table.c.liked_date).filter(user_like_table.c.c.liked_date >= day_2_back).all()
     
     if not recent_hit: 
         return None
@@ -280,6 +279,8 @@ def change_episode(novel_pk: int, update_data: novel_schema.EpisodeUpdateBase, e
 # 에피소드 삭제
 def delete_episode(novel_pk: int, episode_pk : int, db: Session) :
     episode = db.query(Episode).filter(Episode.ep_pk == episode_pk).first()
+    if not episode : 
+        return HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     db.delete(episode)
     db.commit()
     return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
@@ -329,7 +330,6 @@ def delete_comment(comment_pk: int, db: Session):
 
 """
 여기서 부터 만들면 됨.
-
 """
 
 # 댓글 좋아요 및 좋아요 취소
@@ -407,6 +407,8 @@ def update_cocomment(content: str, cocoment_pk: int, db: Session):
     db.refresh(cocomment)
     return cocomment
 
+
+
 # 대댓글 삭제
 # 여기에 그 소설 댓글의 대댓글 갯수를 -1하는걸 만들어야 함
 # 흠 왜 안될까?
@@ -418,6 +420,11 @@ def delete_cocomment(cocomment_pk: int, db: Session):
     db.delete(cocomment)
     db.commit()
     return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def get_cocoment(comment_pk : int,db: Session ) : 
+    return db.query(CoComment).filter(CoComment.comment_pk == comment_pk).all()
+
 
 # 전체 등장인물 불러오기
 def get_character(novel_pk: int, db: Session):
@@ -500,6 +507,7 @@ def save_cover(file_name : str, drive_folder_id : str) :
         creds = service_account.Credentials.from_service_account_file(json_key_path, scopes=SCOPES)
 
         # Google Drive API 서비스 객체 생성
+        print("객체 생성함. ")
         service = build('drive', 'v3', credentials=creds)
 
         # 파일 존재 여부 확인
@@ -548,7 +556,20 @@ def delete_image(file_id, drive_folder_id):
 
 
 def generate_novel():
+def generate_novel():
     pass
+
+
+
+def get_previous_chapters(db: Session, novel_pk: int) -> str:
+    """DB에서 해당 소설의 모든 챕터 내용을 불러와 하나의 문자열로 합칩니다."""
+    episodes = (
+        db.query(Episode)
+        .filter(Episode.novel_pk == novel_pk)
+        .order_by(Episode.ep_pk.asc())  # 챕터 순서대로 정렬
+        .all()
+    )
+    return "\n\n---\n\n".join([ep.ep_content for ep in episodes]) if episodes else ""
 
 
 
