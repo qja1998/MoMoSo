@@ -33,6 +33,7 @@ def get_discussions(db: Session) -> List[Discussion]:
 
         discussion_list.append({
             "discussion_pk": discussion.discussion_pk,
+            "session_id" : discussion.session_id,
             "novel": {"novel_pk": novel.novel_pk, "title": novel.title},  # ✅ novel 정보 포함
             "episode": {"ep_pk": episode.ep_pk, "ep_title": episode.ep_title} if episode else None,
             "topic": discussion.topic,
@@ -78,6 +79,38 @@ def get_discussion(db: Session, discussion_pk: int):
         "start_time": discussion.start_time,
         "end_time": discussion.end_time,
         "participants": [{"user_pk": user.user_pk, "name": user.name, "nickname": user.nickname} for user in participants]
+    }
+
+
+def get_discussion_sessionid(db: Session, discussion_pk: int, user_pk:int):
+    """
+    특정 토론 방 접속 : user가 해당 토론 방에 예약된 participant인지 확인 후, 예약된 방의 session_id 반환
+    """
+    # 1. 해당 discussion 조회
+    discussion = db.query(Discussion).filter(Discussion.discussion_pk == discussion_pk).first()
+    if not discussion:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Discussion not found")
+
+    # 2. user 조회
+    user = db.query(User).filter(User.user_pk == user_pk).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # 3. 유저가 해당 토론에 참여 중인지 확인
+    if user not in discussion.participants:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not a participant in this discussion")
+
+    # 4. session_id 반환
+    return {
+        "discussion_pk": discussion.discussion_pk,
+        "session_id": discussion.session_id,
+        "topic": discussion.topic,
+        "start_time": discussion.start_time,
+        "user": {
+            "user_pk": user.user_pk,
+            "nickname": user.nickname,
+            "email": user.email
+        }
     }
 
 

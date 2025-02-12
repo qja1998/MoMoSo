@@ -377,63 +377,63 @@ def create_episode(request: CreateChapterRequest, current_user: User = Depends(g
 
 
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List
-from fastapi.responses import Response
+# from fastapi import FastAPI, HTTPException
+# from pydantic import BaseModel
+# from typing import List
+# from fastapi.responses import Response
 
-from gen_func.gen_image import ImageGenerator
+# from gen_func.gen_image import ImageGenerator
 
-generator = ImageGenerator()
-generator.gen_image_pipline
-JUPYTER_URL = os.environ["JUPYTER_URL"]
+# generator = ImageGenerator()
+# generator.gen_image_pipline
+# JUPYTER_URL = os.environ["JUPYTER_URL"]
 
-payload = {
-    "genre": "fantasy",
-    "style": "watercolor",
-    "title": "The Last Dragon",
-    "worldview": "high",
-    "keywords": ["dragon", "knight", "adventure"]
-}
-import requests
-import os
-from io import BytesIO
-from PIL import Image
+# payload = {
+#     "genre": "fantasy",
+#     "style": "watercolor",
+#     "title": "The Last Dragon",
+#     "worldview": "high",
+#     "keywords": ["dragon", "knight", "adventure"]
+# }
+# import requests
+# import os
+# from io import BytesIO
+# from PIL import Image
 
 
-@app.post("/image/generate")
-async def AI_img_generate(payload) :
-    headers = {"Content-Type": "application/json"}
-    response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=payload, headers=headers)
-    if response.status_code == 200:
-        print("✅ 이미지 생성 성공!")
+# @app.post("/image/generate")
+# async def AI_img_generate(payload) :
+#     headers = {"Content-Type": "application/json"}
+#     response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=payload, headers=headers)
+#     if response.status_code == 200:
+#         print("✅ 이미지 생성 성공!")
 
-    # 응답된 이미지 데이터를 BytesIO 객체로 변환
-    img_data = BytesIO(response.content)
+#     # 응답된 이미지 데이터를 BytesIO 객체로 변환
+#     img_data = BytesIO(response.content)
 
-    # PIL로 이미지 열기
-    image = Image.open(img_data)
+#     # PIL로 이미지 열기
+#     image = Image.open(img_data)
 
-    # 🖼️ 이미지 띄우기
-    image.show()
+#     # 🖼️ 이미지 띄우기
+#     image.show()
 
-    # 💾 이미지 저장
-    image.save(f"/static/{payload["title"]}.png", format="PNG")
-    print("📸 이미지가 'generated_image.png'로 저장되었습니다.")
+#     # 💾 이미지 저장
+#     image.save(f"/static/{payload["title"]}.png", format="PNG")
+#     print("📸 이미지가 'generated_image.png'로 저장되었습니다.")
 
     
-@app.post("/api/v1/editor/image_ai")    
-async def generate_image(req: novel_schema.ImageRequest):
-    try:
-        image = generator.gen_image_pipeline(
-            req.genre, req.style, req.title, req.worldview, req.keywords
-        )
-        # ✅ BytesIO 버퍼 생성 후 이미지 변환
-        img_buffer = BytesIO()
-        image.save(img_buffer, format="PNG")
-        img_buffer.seek(0)  # 버퍼의 시작 위치로 이동
+# @app.post("/api/v1/editor/image_ai")    
+# async def generate_image(req: novel_schema.ImageRequest):
+#     try:
+#         image = generator.gen_image_pipeline(
+#             req.genre, req.style, req.title, req.worldview, req.keywords
+#         )
+#         # ✅ BytesIO 버퍼 생성 후 이미지 변환
+#         img_buffer = BytesIO()
+#         image.save(img_buffer, format="PNG")
+#         img_buffer.seek(0)  # 버퍼의 시작 위치로 이동
 
-        return Response(content=img_buffer.getvalue(), media_type="image/png")
+#         return Response(content=img_buffer.getvalue(), media_type="image/png")
         
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))

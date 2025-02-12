@@ -32,7 +32,7 @@ class DiscussionNovel(BaseModel):
 # 토론 조회
 class Discussion(BaseModel):
     discussion_pk: int
-    session_id: Optional[str] = None
+    session_id: Optional[str]
     novel: DiscussionNovel
     episode: Optional[DiscussionEpisode] = None
     topic: str
