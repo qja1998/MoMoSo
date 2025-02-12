@@ -3,11 +3,10 @@ from sqlalchemy.orm import Session
 from database import get_db
 from novel import novel_crud, novel_schema
 from models import Novel, User
-import secrets
 from typing import List, Optional
 from utils.auth_utils import get_optional_user
 from fastapi import Request # 삭제 예정 
-import os # 삭제 예정
+import os
 
 
 
@@ -233,18 +232,82 @@ import os
 
 #아래 리턴되는 값은 드라이브 내부의 img id임. 수정이 필요한경우 해당 걸로 하면 됨.
 def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session = Depends(get_db)) : 
-    img_id = novel_crud.save_cover(file_name, drive_folder_id)
-    # if img_id : 
-    #     novel = db.query(Novel).filter(Novel.novel_pk == novel_pk)
-    #     if not novel : 
-    #         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="존재하지 않는 소설입니다.")
-    #     setattr(novel, "novel_img", img_id)
-    # else :
-    #     HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="존재하지 않는 이미지입니다.")
+    novel = novel_crud.save_cover(novel_pk, file_name, drive_folder_id, db)
     
-    return HTTPException(status_code=status.HTTP_200_OK)
+    return novel
 
 # 1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N
+@app.delete("/image")
+def delete_img(file_id : str, drive_folder_id : str, novel_pk : int , db: Session = Depends(get_db)) :
+    return novel_crud.delete_image(file_id, drive_folder_id)
+
+from .novel_generator import NovelGenerator
+from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
+from .novel_crud import get_previous_chapters
+from utils.auth_utils import get_current_user
+
+@app.post("/ai/worldview")
+def recommend_worldview(request: WorldviewRequest) : 
+    novel_gen = NovelGenerator(request.genre, request.title)
+    worldview = novel_gen.recommend_worldview()
+    return {"worldview": worldview}
+
+@app.post("/ai/synopsis")
+def recommend_synopsis(request: SynopsisRequest) : 
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview)
+    synopsis = novel_gen.recommend_synopsis()
+    return {"synopsis": synopsis}
+
+@app.post("/ai/characters")
+def recommend_characters(request: CharacterRequest):
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.characters)
+    updated_characters = novel_gen.recommend_characters()
+    return {"characters": updated_characters}
+
+@app.post("/ai/episode")
+def create_episode(request: CreateChapterRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    novel = None
+    if request.novel_pk:
+        novel = db.query(Novel).filter(Novel.novel_pk == request.novel_pk).first()
+        if not novel:
+            raise HTTPException(status_code=404, detail="해당 novel_pk에 대한 소설을 찾을 수 없습니다.")
+        
+        # 소설 작성자가 현재 로그인된 사용자인지 검증
+        if novel.user_pk != current_user.user_pk:
+            raise HTTPException(status_code=403, detail="이 소설을 수정할 권한이 없습니다.")
+
+    # novel_pk가 없으면 새로운 소설 생성
+    else:
+        novel = Novel(
+            user_pk=current_user.user_pk,
+            title=request.title,
+            worldview=request.worldview,
+            synopsis=request.synopsis,
+            num_episode=0
+        )
+        db.add(novel)
+        db.commit()
+        db.refresh(novel)
+    
+    previous_chapters = get_previous_chapters(db, novel.novel_pk)
+
+    generator = NovelGenerator(
+        genre=request.genre,
+        title=request.title,
+        worldview=request.worldview,
+        synopsis=request.synopsis,
+        characters=request.characters,
+        previous_chapters=previous_chapters
+    )
+
+    new_chapter = generator.create_chapter()
+
+    return {"title": request.title, "genre": request.genre, "new_chapter": new_chapter}
+
+from fastapi import File, UploadFile
+@app.post("/upload")
+async def upload_image(imgpath : str, pk : int, file: UploadFile = File(...)):
+    return await novel_crud.image_upload(imgpath, pk, file)
 
 
 from .novel_generator import NovelGenerator
@@ -312,67 +375,65 @@ def create_episode(request: CreateChapterRequest, current_user: User = Depends(g
 
 
 
-from .novel_generator import NovelGenerator
-from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
-from .novel_crud import get_previous_chapters
-from utils.auth_utils import get_current_user
 
-@app.post("/ai/worldview")
-def recommend_worldview(request: WorldviewRequest) : 
-    novel_gen = NovelGenerator(request.genre, request.title)
-    worldview = novel_gen.recommend_worldview()
-    return {"worldview": worldview}
 
-@app.post("/ai/synopsis")
-def recommend_synopsis(request: SynopsisRequest) : 
-    novel_gen = NovelGenerator(request.genre, request.title, request.worldview)
-    synopsis = novel_gen.recommend_synopsis()
-    return {"synopsis": synopsis}
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List
+from fastapi.responses import Response
 
-@app.post("/ai/characters")
-def recommend_characters(request: CharacterRequest):
-    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.characters)
-    updated_characters = novel_gen.recommend_characters()
-    return {"characters": updated_characters}
+from gen_func.gen_image import ImageGenerator
 
-@app.post("/ai/episode")
-def create_episode(request: CreateChapterRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    novel = None
-    if request.novel_pk:
-        novel = db.query(Novel).filter(Novel.novel_pk == request.novel_pk).first()
-        if not novel:
-            raise HTTPException(status_code=404, detail="해당 novel_pk에 대한 소설을 찾을 수 없습니다.")
-        
-        # 소설 작성자가 현재 로그인된 사용자인지 검증
-        if novel.user_pk != current_user.user_pk:
-            raise HTTPException(status_code=403, detail="이 소설을 수정할 권한이 없습니다.")
+generator = ImageGenerator()
+generator.gen_image_pipline
+JUPYTER_URL = os.environ["JUPYTER_URL"]
 
-    # novel_pk가 없으면 새로운 소설 생성
-    else:
-        novel = Novel(
-            user_pk=current_user.user_pk,
-            title=request.title,
-            worldview=request.worldview,
-            synopsis=request.synopsis,
-            num_episode=0
-        )
-        db.add(novel)
-        db.commit()
-        db.refresh(novel)
+payload = {
+    "genre": "fantasy",
+    "style": "watercolor",
+    "title": "The Last Dragon",
+    "worldview": "high",
+    "keywords": ["dragon", "knight", "adventure"]
+}
+import requests
+import os
+from io import BytesIO
+from PIL import Image
+
+
+@app.post("/image/generate")
+async def AI_img_generate(payload) :
+    headers = {"Content-Type": "application/json"}
+    response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=payload, headers=headers)
+    if response.status_code == 200:
+        print("✅ 이미지 생성 성공!")
+
+    # 응답된 이미지 데이터를 BytesIO 객체로 변환
+    img_data = BytesIO(response.content)
+
+    # PIL로 이미지 열기
+    image = Image.open(img_data)
+
+    # 🖼️ 이미지 띄우기
+    image.show()
+
+    # 💾 이미지 저장
+    image.save(f"/static/{payload["title"]}.png", format="PNG")
+    print("📸 이미지가 'generated_image.png'로 저장되었습니다.")
+
     
-    previous_chapters = get_previous_chapters(db, novel.novel_pk)
+@app.post("/api/v1/editor/image_ai")    
+async def generate_image(req: novel_schema.ImageRequest):
+    try:
+        image = generator.gen_image_pipeline(
+            req.genre, req.style, req.title, req.worldview, req.keywords
+        )
+        # ✅ BytesIO 버퍼 생성 후 이미지 변환
+        img_buffer = BytesIO()
+        image.save(img_buffer, format="PNG")
+        img_buffer.seek(0)  # 버퍼의 시작 위치로 이동
 
-    generator = NovelGenerator(
-        genre=request.genre,
-        title=request.title,
-        worldview=request.worldview,
-        synopsis=request.synopsis,
-        characters=request.characters,
-        previous_chapters=previous_chapters
-    )
-
-    new_chapter = generator.create_chapter()
-
-    return {"title": request.title, "genre": request.genre, "new_chapter": new_chapter}
-
-
+        return Response(content=img_buffer.getvalue(), media_type="image/png")
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
