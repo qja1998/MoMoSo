@@ -2,49 +2,24 @@ import { useState } from 'react'
 
 import { useNavigate } from 'react-router-dom'
 
-import {
-  Edit,
-  Home,
-  KeyboardDoubleArrowLeft,
-  KeyboardDoubleArrowRight,
-  MenuBook,
-  VideoCall,
-} from '@mui/icons-material'
-import {
-  Avatar,
-  Box,
-  Divider,
-  Drawer,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  styled,
-} from '@mui/material'
+import Edit from '@mui/icons-material/Edit'
+import Home from '@mui/icons-material/Home'
+import KeyboardDoubleArrowLeft from '@mui/icons-material/KeyboardDoubleArrowLeft'
+import KeyboardDoubleArrowRight from '@mui/icons-material/KeyboardDoubleArrowRight'
+import MenuBook from '@mui/icons-material/MenuBook'
+import VideoCall from '@mui/icons-material/VideoCall'
+import Avatar from '@mui/material/Avatar'
+import Divider from '@mui/material/Divider'
+import Drawer from '@mui/material/Drawer'
+import IconButton from '@mui/material/IconButton'
+import List from '@mui/material/List'
+import ListItem from '@mui/material/ListItem'
+import ListItemButton from '@mui/material/ListItemButton'
+import ListItemIcon from '@mui/material/ListItemIcon'
+import ListItemText from '@mui/material/ListItemText'
+import Stack from '@mui/material/Stack'
 
 const drawerWidth = 240
-
-const HeaderContainer = styled('div')(({ theme, open }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: open ? 'space-between' : 'center',
-  flexDirection: open ? 'row' : 'column',
-  padding: theme.spacing(0, 1),
-  height: open ? '64px' : '128px',
-  gap: open ? theme.spacing(2) : theme.spacing(3),
-}))
-
-const Logo = styled('div')({
-  display: 'flex',
-  alignItems: 'center',
-  '& img': {
-    height: '32px',
-    width: 'auto',
-    maxWidth: '100%',
-  },
-})
 
 const Sidebar = () => {
   const [open, setOpen] = useState(true)
@@ -58,7 +33,20 @@ const Sidebar = () => {
   ]
 
   const handleDrawerToggle = () => {
+    // TODO: Add animation effect when toggling drawer
     setOpen(!open)
+  }
+
+  const handleNavigate = (path) => {
+    // TODO: Add loading state while navigating
+    // TODO: Add route transition animation
+    navigate(path)
+  }
+
+  const handleProfileClick = () => {
+    // TODO: Add profile menu popup
+    // TODO: Add user authentication check
+    navigate('/auth/mypage')
   }
 
   return (
@@ -77,20 +65,21 @@ const Sidebar = () => {
         },
       }}
     >
-      <HeaderContainer open={open}>
+      <Stack
+        direction={open ? 'row' : 'column'}
+        alignItems="center"
+        justifyContent={open ? 'space-between' : 'center'}
+        sx={{
+          p: (theme) => theme.spacing(0, 1),
+          height: open ? '64px' : '128px',
+          gap: (theme) => (open ? theme.spacing(2) : theme.spacing(3)),
+        }}
+      >
         {open ? (
           <>
-            <Logo>
-              <img
-                src="/src/assets/logo/text-logo.svg"
-                alt="MOMOSO"
-                style={{
-                  paddingLeft: '16px',
-                  height: '24px',
-                  width: 'auto',
-                }}
-              />
-            </Logo>
+            <Stack sx={{ alignItems: 'center', '& img': { pl: 2, height: '24px', width: 'auto' } }}>
+              <img src="/src/assets/logo/text-logo.svg" alt="MOMOSO" />
+            </Stack>
             <IconButton
               onClick={handleDrawerToggle}
               sx={{
@@ -99,9 +88,7 @@ const Sidebar = () => {
                 borderRadius: '50%',
                 height: '28px',
                 width: '28px',
-                '&:hover': {
-                  backgroundColor: '#FFA022',
-                },
+                '&:hover': { backgroundColor: '#FFA022' },
               }}
             >
               <KeyboardDoubleArrowLeft />
@@ -117,33 +104,34 @@ const Sidebar = () => {
                 borderRadius: '50%',
                 height: '30px',
                 width: '30px',
-                '&:hover': {
-                  backgroundColor: '#FFA022',
-                },
+                '&:hover': { backgroundColor: '#FFA022' },
               }}
             >
               <KeyboardDoubleArrowRight />
             </IconButton>
-            <Logo>
+            <Stack
+              sx={{
+                alignItems: 'center',
+                '& img': { height: '32px', width: 'auto', maxWidth: '100%' },
+              }}
+            >
               <img src="/src/assets/logo/graphic-logo.svg" alt="MOMOSO" />
-            </Logo>
+            </Stack>
           </>
         )}
-      </HeaderContainer>
+      </Stack>
       <Divider />
 
       <List>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton
-              onClick={() => navigate(item.path)}
+              onClick={() => handleNavigate(item.path)}
               sx={{
                 minHeight: 48,
                 justifyContent: open ? 'initial' : 'center',
                 px: 2.5,
-                '&:hover': {
-                  backgroundColor: '#FFE5CC',
-                },
+                '&:hover': { backgroundColor: '#FFE5CC' },
               }}
             >
               <ListItemIcon
@@ -158,13 +146,15 @@ const Sidebar = () => {
               </ListItemIcon>
               <ListItemText
                 primary={item.text}
-                sx={{
-                  opacity: open ? 1 : 0,
-                  '& .MuiTypography-root': {
-                    color: '#1E1E1E',
-                    fontFamily: '"Poppins", "Pretendard"',
-                    fontSize: open ? '20px' : '16px',
-                    fontWeight: open ? 'bold' : 'normal',
+                slotProps={{
+                  primary: {
+                    sx: {
+                      color: '#1E1E1E',
+                      fontFamily: '"Poppins", "Pretendard"',
+                      fontSize: open ? '20px' : '16px',
+                      fontWeight: open ? 'bold' : 'normal',
+                      opacity: open ? 1 : 0,
+                    },
                   },
                 }}
               />
@@ -173,18 +163,16 @@ const Sidebar = () => {
         ))}
       </List>
 
-      <Box sx={{ position: 'absolute', bottom: 0, width: '100%' }}>
+      <Stack sx={{ position: 'absolute', bottom: 0, width: '100%' }}>
         <Divider />
         <ListItem disablePadding>
           <ListItemButton
-            onClick={() => navigate('/mypage')}
+            onClick={handleProfileClick}
             sx={{
               justifyContent: open ? 'initial' : 'center',
               alignItems: 'center',
               px: 2.5,
-              '&:hover': {
-                backgroundColor: '#FFE5CC',
-              },
+              '&:hover': { backgroundColor: '#FFE5CC' },
             }}
           >
             <ListItemIcon
@@ -195,41 +183,25 @@ const Sidebar = () => {
                 justifyContent: 'center',
               }}
             >
-              <Avatar
-                sx={{
-                  width: 32,
-                  height: 32,
-                  border: '2px solid #FFB347',
-                }}
-              />
+              <Avatar sx={{ width: 32, height: 32, border: '2px solid #FFB347' }} />
             </ListItemIcon>
             {open && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+              <Stack sx={{ flex: 1 }}>
                 <ListItemText
                   primary="UserName"
-                  secondary="UserEmail@domain.com"
+                  secondary="UserEmail@example.com"
                   slotProps={{
                     primary: {
-                      sx: {
-                        color: '#1E1E1E',
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        mb: 0,
-                      },
+                      sx: { color: '#1E1E1E', fontSize: '16px', fontWeight: 'bold', mb: 0 },
                     },
-                    secondary: {
-                      sx: {
-                        color: '#666666',
-                        fontSize: 'auto',
-                      },
-                    },
+                    secondary: { sx: { color: '#666666', fontSize: 'auto' } },
                   }}
                 />
-              </Box>
+              </Stack>
             )}
           </ListItemButton>
         </ListItem>
-      </Box>
+      </Stack>
     </Drawer>
   )
 }

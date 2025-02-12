@@ -30,6 +30,17 @@ import Typography from '@mui/material/Typography'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
+import IconButton from '@mui/material/IconButton'
+import RefreshIcon from '@mui/icons-material/Refresh'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import InsertEmoticonIcon from '@mui/icons-material/InsertEmoticon'
+import ImageIcon from '@mui/icons-material/Image'
+import SendIcon from '@mui/icons-material/Send'
+import SmartToyIcon from '@mui/icons-material/SmartToy'
+import SettingsIcon from '@mui/icons-material/Settings'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
+import ThumbUpIcon from '@mui/icons-material/ThumbUp'
+import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 
 import coverPlaceholder from '/src/assets/placeholder/cover-image-placeholder.png'
 
@@ -153,6 +164,62 @@ const NovelEpisodeList = () => {
     setDiscussions((prev) => [...prev, newDiscussion])
     handleCloseModal()
   }, [discussionForm, discussions.length])
+
+  const [comments, setComments] = useState([
+    {
+      id: 1,
+      author: '밍(dkgk****)',
+      date: '2024-10-06 13:55',
+      content: '너무 재미있습니다! 볼까말까 고민 중이시라면 보세요!',
+      likes: 19,
+      dislikes: 2,
+      isBest: true,
+    },
+    {
+      id: 2,
+      author: 'nv_(nv_w****)',
+      date: '18시간 전',
+      content: 'ㅎㅎ',
+      likes: 0,
+      dislikes: 0,
+      isBest: false,
+    },
+  ])
+
+  // 댓글 좋아요/싫어요 핸들러
+  const handleLike = useCallback((commentId) => {
+    // TODO: 좋아요 기능 구현
+    console.log('Like comment:', commentId)
+  }, [])
+
+  const handleDislike = useCallback((commentId) => {
+    // TODO: 싫어요 기능 구현
+    console.log('Dislike comment:', commentId)
+  }, [])
+
+  const [commentInput, setCommentInput] = useState('')
+
+  // 댓글 작성 핸들러
+  const handleSubmitComment = useCallback(() => {
+    if (!commentInput.trim()) return
+
+    setComments(prev => [...prev, {
+      id: prev.length + 1,
+      author: '사용자',
+      date: new Date().toLocaleString(),
+      content: commentInput,
+      likes: 0,
+      dislikes: 0,
+      isBest: false
+    }])
+    setCommentInput('')
+  }, [commentInput])
+
+  // 댓글 삭제 핸들러
+  const handleDeleteComment = useCallback((commentId) => {
+    // TODO: 댓글 삭제 기능 구현
+    console.log('Delete comment:', commentId)
+  }, [])
 
   return (
     <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
@@ -404,6 +471,176 @@ const NovelEpisodeList = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* 댓글 섹션 */}
+      <Paper sx={{ mt: 3, p: 3, borderRadius: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="h6" fontWeight={700}>
+              작품리뷰
+            </Typography>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                backgroundColor: 'grey.100', 
+                px: 1, 
+                py: 0.5, 
+                borderRadius: 1,
+                color: 'text.secondary' 
+              }}
+            >
+              26
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <IconButton size="small">
+              <RefreshIcon />
+            </IconButton>
+            <IconButton size="small">
+              <InfoOutlinedIcon />
+            </IconButton>
+          </Stack>
+        </Box>
+
+        {/* 댓글 입력 영역 */}
+        <Paper 
+          variant="outlined" 
+          sx={{ 
+            p: 2, 
+            mb: 3,
+            borderRadius: 2
+          }}
+        >
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            value={commentInput}
+            onChange={(e) => setCommentInput(e.target.value)}
+            placeholder="댓글을 남기려면 로그인이 필요합니다."
+            disabled
+            sx={{ mb: 2 }}
+          />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Stack direction="row" spacing={1}>
+              <IconButton>
+                <InsertEmoticonIcon />
+              </IconButton>
+              <IconButton>
+                <ImageIcon />
+              </IconButton>
+            </Stack>
+            <Button 
+              variant="contained" 
+              disabled
+              onClick={handleSubmitComment}
+              startIcon={<SendIcon />}
+              sx={{
+                bgcolor: '#FFA000',
+                '&:hover': { bgcolor: '#FF8F00' },
+              }}
+            >
+              등록하기
+            </Button>
+          </Box>
+        </Paper>
+
+        {/* 클린봇 알림 */}
+        <Paper 
+          variant="outlined" 
+          sx={{ 
+            p: 2, 
+            mb: 3, 
+            display: 'flex', 
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderRadius: 2,
+            bgcolor: '#F5F5F5'
+          }}
+        >
+          <Stack direction="row" spacing={1} alignItems="center">
+            <SmartToyIcon sx={{ color: '#00DC64' }} />
+            <Typography>
+              <Typography component="span" fontWeight={700}>클린봇</Typography>이 악성댓글을 감지합니다.
+            </Typography>
+          </Stack>
+          <Button 
+            startIcon={<SettingsIcon />}
+            sx={{ color: 'text.secondary' }}
+          >
+            설정
+          </Button>
+        </Paper>
+
+        {/* 댓글 목록 */}
+        <Stack spacing={2}>
+          {comments.map((comment) => (
+            <Paper
+              key={comment.id}
+              variant="outlined"
+              sx={{
+                p: 2,
+                borderRadius: 2
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography fontWeight={700}>{comment.author}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {comment.date}
+                  </Typography>
+                </Stack>
+                <IconButton size="small">
+                  <MoreVertIcon />
+                </IconButton>
+              </Box>
+              {comment.isBest && (
+                <Box 
+                  sx={{ 
+                    display: 'inline-block',
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: 2,
+                    bgcolor: '#E3F2FD',
+                    color: '#1976D2',
+                    mb: 1
+                  }}
+                >
+                  <Typography variant="caption" fontWeight={700}>
+                    BEST
+                  </Typography>
+                </Box>
+              )}
+              <Typography>{comment.content}</Typography>
+              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                <Button 
+                  startIcon={<ThumbUpIcon />} 
+                  size="small"
+                  onClick={() => handleLike(comment.id)}
+                  sx={{ color: 'text.secondary' }}
+                >
+                  {comment.likes}
+                </Button>
+                <Button 
+                  startIcon={<ThumbDownIcon />} 
+                  size="small"
+                  onClick={() => handleDislike(comment.id)}
+                  sx={{ color: 'text.secondary' }}
+                >
+                  {comment.dislikes}
+                </Button>
+              </Stack>
+              <IconButton 
+                size="small" 
+                onClick={() => handleDeleteComment(comment.id)}
+                sx={{ position: 'absolute', top: 8, right: 8 }}
+              >
+                <MoreVertIcon />
+              </IconButton>
+            </Paper>
+          ))}
+        </Stack>
+      </Paper>
     </Box>
   )
 }
