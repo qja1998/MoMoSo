@@ -10,6 +10,7 @@ import uuid
 import speech_recognition as sr
 from pydantic import BaseModel
 from typing import List
+import asyncio
 
 app = FastAPI()
 
@@ -32,17 +33,15 @@ class MeetingMinutesData(BaseModel):
     participants: List[str]
     messages: List[dict]
 
-
 async def process_audio_to_text(file_path):
     recognizer = sr.Recognizer()
     try:
+        # `AudioFile` 객체를 with 문 안에서 사용해야 함
         with sr.AudioFile(str(file_path)) as source:
-            # 주변 노이즈 처리
-            # recognizer.adjust_for_ambient_noise(source, duration=1)
-            # recognizer.adjust_for_ambient_noise(source)
+            # `recognizer.record`를 비동기로 처리
             audio_data = recognizer.record(source)
-            text = recognizer.recognize_google(audio_data, language='ko-KR')
-            return text
+            text = await asyncio.to_thread(recognizer.recognize_google, audio_data, language='ko-KR')
+        return text
     except sr.UnknownValueError:
         print(f"음성을 인식할 수 없습니다: {file_path}")
         return ""
@@ -57,7 +56,7 @@ async def process_audio_to_text(file_path):
 async def receive_audio(
     audio: UploadFile = File(...),
     roomName: str = Form(...),
-    userName: str = Form(...)
+    userName: str = Form(...),
 ):
     try:
         # 방 폴더 생성
@@ -105,7 +104,6 @@ async def receive_audio(
         print(f"Error processing audio: {e}")
         return {"error": str(e)}
 
-
 @app.post("/api/meeting-minutes")
 async def create_meeting_minutes(
     room_name: str = Form(...),
@@ -114,7 +112,7 @@ async def create_meeting_minutes(
     end_time: str = Form(...),
     duration: float = Form(...),
     participants: str = Form(...),
-    messages: str = Form(...)
+    messages: str = Form(...),
 ):
     try:
         # JSON 문자열을 파이썬 객체로 변환
@@ -138,7 +136,6 @@ async def create_meeting_minutes(
         
         # 파일명 생성
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        # filename = f"meeting_{timestamp}_{meeting_data['id'][:8]}.json"
         filename = f"meeting_{timestamp}_{meeting_data['room_name']}.json"
         filepath = os.path.join('meeting_minutes', filename)
         
@@ -209,8 +206,6 @@ async def get_meeting_minutes(meeting_id: str):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
