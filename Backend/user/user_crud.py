@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 
 import models
 from models import User, Novel, Comment, CoComment
@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload
 from passlib.context import CryptContext
 from . import user_schema
 from auth import auth_schema
+from typing import Optional
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -87,7 +88,7 @@ def get_user_by_name_and_phone(db: Session, name: str, phone: str):
     """
     return db.query(User).filter(User.name == name, User.phone == phone).first()
 
-def update_user(db: Session, user: User, updated_user: user_schema.UpdateUserForm):
+def update_user(db: Session, user: User, updated_user: user_schema.UpdateUserForm, file : Optional[UploadFile] = None ):
     """
     특정 사용자 정보 수정
     :param db: SQLAlchemy 세션
@@ -108,9 +109,10 @@ def update_user(db: Session, user: User, updated_user: user_schema.UpdateUserFor
         user.phone = updated_user.phone
 
     # 유저 이미지 수정
-    if updated_user.user_img:
-        user.user_img = updated_user.user_img
-
+    if updated_user.user_img and file:
+        #여기에 파일 받아야지.
+        response = requests.post(url, files=files)
+    
     # 데이터베이스 업데이트
     db.commit()
     db.refresh(user)
@@ -158,3 +160,4 @@ def save_recent_novel(db: Session, user_pk: int, novel_pk: int):
 
     db.commit()
     return {"message": "Recent novel updated successfully"}
+
