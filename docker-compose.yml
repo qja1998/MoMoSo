@@ -1,29 +1,29 @@
 services:
-  db:
-    image: mysql:8.0
-    container_name: db
-    environment:
-      MYSQL_ROOT_PASSWORD: "961226"
-      MYSQL_DATABASE: "test_db"
-    ports:
-      - "3306:3306"
-    volumes:
-      - db_data:/var/lib/mysql
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    networks:
-      - app_network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # db:
+  #   image: mysql:8.0
+  #   container_name: db
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: "961226"
+  #     MYSQL_DATABASE: "test_db"
+  #   ports:
+  #     - "3306:3306"
+  #   volumes:
+  #     - db_data:/var/lib/mysql
+  #   command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+  #   networks:
+  #     - app_network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   backend:
     image: kwon0528/b106-backend:latest
     container_name: prod-backend
     environment:
-      DATABASE_URL: mysql+pymysql://root:961226@db:3306/test_db?charset=utf8
+      DATABASE_URL: "mysql+pymysql://$DB_USER:$DB_PASSWD@$DB_HOST:$DB_PORT/$DB_NAME?charset=utf8"
       # DEBUG: True
     ports:
       - "8000:8000"
@@ -31,9 +31,9 @@ services:
       - ./Backend:/app  # 로컬 파일 시스템을 컨테이너에 마운트
     networks:
       - app_network
-    depends_on:
-      db:
-        condition: service_healthy
+    # depends_on:
+    #   db:
+    #     condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -47,7 +47,7 @@ services:
     networks:
       - app_network
 
-    # Nginx (Reverse Proxy)
+  # Nginx (Reverse Proxy)
   nginx:
     image: nginx:latest
     container_name: nginx
@@ -58,7 +58,7 @@ services:
       - ./certbot/www:/var/www/certbot
       - ./certbot/conf:/etc/letsencrypt
     ports:
-      - "80:80"
+      - "81:80"
       - "443:443"
     depends_on:
       - backend

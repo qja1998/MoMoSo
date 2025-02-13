@@ -5,75 +5,62 @@ stages:
   - test
   - deploy
 
-services:
-  - docker:dind  # Docker-in-Docker 실행
-
 variables:
-  DOCKER_HOST: tcp://docker:2375
-  DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: "unix:///var/run/docker.sock"
+  DOCKER_AUTH_CONFIG: '{"auths":{"https://index.docker.io/v1/":{"username":"$DOCKER_USERNAME","password":"$DOCKER_PASSWORD"}}}'
   IMAGE_BACKEND: kwon0528/b106-backend
   IMAGE_FRONTEND: kwon0528/b106-frontend
-  TAG: $CI_COMMIT_REF_NAME  # 브랜치 이름을 태그로 사용
+  TAG: $CI_COMMIT_REF_NAME
 
 before_script:
-  # # 이미 서버에 있으니까 필요 없지 않을까?
-  # - mkdir -p ~/.ssh
-  # - chmod 700 ~/.ssh
-  # - ssh-keyscan -H i12b106.p.ssafy.io >> ~/.ssh/known_hosts
-  # - chmod 400 I12B106T.pem
   - apk add --no-cache docker-compose
-  - docker info
-  
-  # # secret file로 관리
-  # - echo SECRET_KEY=$SECRET_KEY >> .env
-  # - echo ACCESS_TOKEN_EXPIRE_MINUTES=$ACCESS_TOKEN_EXPIRE_MINUTES >> .env
-  # - echo DATABASE_URL=mysql+pymysql://root:root@localhost:3306/test?charset=utf8 >> .env
-  # - echo ALGORITHM=SH256 >> .env
+  - mkdir -p ~/.ssh
+  - echo "🔑 Downloading Secure Files..."
+  - securefiles download  # ✅ Secure Files 다운로드
+  - mv $CI_PROJECT_DIR/.env .env  # ✅ `.env` 파일 이동
+  - export $(grep -v '^#' .env | xargs)  # ✅ 환경 변수 적용
 
-  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-
-# 1. Backend 빌드
 build_backend:
   stage: build
   script:
-    - docker build -t $IMAGE_BACKEND:$TAG -f Backend/Dockerfile.prod ./Backend
+    - docker build -t $IMAGE_BACKEND:$TAG -f Backend/Dockerfile.dev
     - docker push $IMAGE_BACKEND:$TAG
   only:
     - develop
     - master
 
-# 2. Frontend 빌드
 build_frontend:
   stage: build
   script:
-    - docker build -t $IMAGE_FRONTEND:$TAG -f Frontend/Dockerfile.prod ./Frontend
+    - docker build -t $IMAGE_FRONTEND:$TAG -f Frontend/Dockerfile.dev
     - docker push $IMAGE_FRONTEND:$TAG
   only:
     - develop
     - master
 
-# 3. 테스트 실행
 test:
   stage: test
   script:
-    - echo "✅ Running unit tests..."
-    - pytest Backend/tests/
-    - echo "✅ Linting frontend..."
-    - cd Frontend && yarn lint
+    - docker-compose -f docker-compose.yml run --rm backend bash -c "
+        uvicorn main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips='*'
+      "
+    - docker-compose -f docker-compose.yml run --rm frontend npm run dev
+    - docker-compose down
   only:
     - develop
 
-# 4. 배포 실행 (운영 환경)
 deploy:
   stage: deploy
   script:
-    - ssh -i I12B106T.pem ubuntu@i12b106.p.ssafy.io "docker pull $IMAGE_BACKEND:$TAG"
-    - ssh -i I12B106T.pem ubuntu@i12b106.p.ssafy.io "docker pull $IMAGE_FRONTEND:$TAG"
-    - ssh -i I12B106T.pem ubuntu@i12b106.p.ssafy.io "docker-compose -f docker-compose.yml up -d"
-    # - scp -i I12B106T.pem -r ./nginx ubuntu@i12b106.p.ssafy.io:/home/ubuntu/nginx
-    # - scp -i I12B106T.pem docker-compose.yml ubuntu@i12b106.p.ssafy.io:/home/ubuntu/docker-compose.yml
-    # - ssh -i I12B106T.pem ubuntu@i12b106.p.ssafy.io "cd /home/ubuntu/test_repo/ci_cd_test && docker-compose -f 'docker-compose.yml' up -d --build"
-
+    - chmod 600 $CI_PROJECT_DIR/I12B106T.pem
+    - mv $CI_PROJECT_DIR/I12B106T.pem ~/.ssh/id_rsa
+    - ssh -i ~/.ssh/id_rsa ubuntu@i12b106.p.ssafy.io "echo '✅ SSH connection successful'"
+    - ssh ubuntu@i12b106.p.ssafy.io << EOF
+        set -e
+        docker pull $IMAGE_BACKEND:$TAG || { echo "Backend pull failed! Rolling back..."; exit 1; }
+        docker pull $IMAGE_FRONTEND:$TAG || { echo "Frontend pull failed! Rolling back..."; exit 1; }
+        docker-compose -f docker-compose.yml up -d
+      EOF
   only:
     - master
     - release
