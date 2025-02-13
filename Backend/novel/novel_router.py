@@ -1,13 +1,17 @@
 from fastapi import Depends, HTTPException, status, APIRouter
 from sqlalchemy.orm import Session
 from database import get_db
-from novel import novel_crud, novel_schema
+from novel import novel_crud, novel_schema, gen_image
 from models import Novel, User
 from typing import List, Optional
 from utils.auth_utils import get_optional_user
 from fastapi import Request # 삭제 예정 
 import os
 
+
+
+# AI 이미지 생성 
+from novel.gen_image import ImageGenerator
 
 
 app = APIRouter(
@@ -305,10 +309,27 @@ def create_episode(request: CreateChapterRequest, current_user: User = Depends(g
     return {"title": request.title, "genre": request.genre, "new_chapter": new_chapter}
 
 from fastapi import File, UploadFile
-@app.post("/upload")
-async def upload_image(imgpath : str, pk : int, file: UploadFile = File(...)):
-    return await novel_crud.image_upload(imgpath, pk, file)
 
+@app.post("/save")
+async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), db: Session = Depends(get_db)) : 
+    if user_novel == "user" :
+        drive_path = "1M6KHgGMhmN0AiPaf5Ltb3f0JhZZ7Bnm5"
+    elif user_novel == "novel" : 
+        drive_path = "1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N"
+    else : 
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="need to choose user or novel")
+    
+    # Local static에 이미지 저장
+    file_path = await novel_crud.image_upload(file)
+
+    # 원격 저장소에 이미지 저장
+    novel_crud.save_cover(user_novel, pk, file_path, drive_path, db)
+
+    # Local static에서 이미지 삭제
+    os.remove(file_path)
+
+    
+    
 
 from .novel_generator import NovelGenerator
 from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
@@ -373,67 +394,69 @@ def create_episode(request: CreateChapterRequest, current_user: User = Depends(g
 
     return {"title": request.title, "genre": request.genre, "new_chapter": new_chapter}
 
+from PIL import Image
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List
+from fastapi.responses import Response
+import requests
+import os
+from io import BytesIO
+
+JUPYTER_URL = os.environ["JUPYTER_URL"]
+
+payload = {
+    "genre": "fantasy",
+    "style": "watercolor",
+    "title": "The Last Dragon",
+    "worldview": "high",
+    "keywords": ["dragon", "knight", "adventure"]
+}
+
+# payload는 
+@app.post("/image/generate")
+async def AI_img_generate(req: novel_schema.ImageRequest, payload_, delete_files : list, novel_pk : int, db: Session = Depends(get_db)) :
+    headers = {"Content-Type": "application/json"}
+    response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=payload, headers=headers)
+    if response.status_code == 200:
+        print("✅ 이미지 생성 성공!")
 
 
+    # 🖼️ 이미지 띄우기
+    # image.show()
 
-
-# from fastapi import FastAPI, HTTPException
-# from pydantic import BaseModel
-# from typing import List
-# from fastapi.responses import Response
-
-# from gen_func.gen_image import ImageGenerator
-
-# generator = ImageGenerator()
-# generator.gen_image_pipline
-# JUPYTER_URL = os.environ["JUPYTER_URL"]
-
-# payload = {
-#     "genre": "fantasy",
-#     "style": "watercolor",
-#     "title": "The Last Dragon",
-#     "worldview": "high",
-#     "keywords": ["dragon", "knight", "adventure"]
-# }
-# import requests
-# import os
-# from io import BytesIO
-# from PIL import Image
-
-
-# @app.post("/image/generate")
-# async def AI_img_generate(payload) :
-#     headers = {"Content-Type": "application/json"}
-#     response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=payload, headers=headers)
-#     if response.status_code == 200:
-#         print("✅ 이미지 생성 성공!")
-
-#     # 응답된 이미지 데이터를 BytesIO 객체로 변환
-#     img_data = BytesIO(response.content)
-
-#     # PIL로 이미지 열기
-#     image = Image.open(img_data)
-
-#     # 🖼️ 이미지 띄우기
-#     image.show()
-
-#     # 💾 이미지 저장
-#     image.save(f"/static/{payload["title"]}.png", format="PNG")
-#     print("📸 이미지가 'generated_image.png'로 저장되었습니다.")
-
+    # 💾 이미지 저장
+    img_name = f"{payload['title']}.png"
+    save_path = os.path.join(os.getcwd(), "static", img_name)
+    image.save(save_path, format="PNG")
     
-# @app.post("/api/v1/editor/image_ai")    
-# async def generate_image(req: novel_schema.ImageRequest):
-#     try:
-#         image = generator.gen_image_pipeline(
-#             req.genre, req.style, req.title, req.worldview, req.keywords
-#         )
-#         # ✅ BytesIO 버퍼 생성 후 이미지 변환
-#         img_buffer = BytesIO()
-#         image.save(img_buffer, format="PNG")
-#         img_buffer.seek(0)  # 버퍼의 시작 위치로 이동
+    # print("📸 이미지가 'generated_image.png'로 저장되었습니다.)
+    novel_crud.save_cover("novel", novel_pk, save_path, "1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N", db)
+    print("📸 이미지가 'generated_image.png'로 저장되었습니다.")
+    
+    for delete_image in delete_files : 
+        path = os.path.join(os.getcwd(), "static", delete_image)
+        os.remove(path)
+    print("이미지를 전체 삭제하였습니다.")
+
+    return HTTPException(status_code=status.HTTP_201_CREATED)
+
+@app.post("/api/v1/editor/image_ai")    
+async def generate_image(req: novel_schema.ImageRequest):
+    generator = ImageGenerator()
+    generator.gen_image_pipline
+    try:
+        image = generator.gen_image_pipeline(
+            req.genre, req.style, req.title, req.worldview, req.keywords
+        )
+        # ✅ BytesIO 버퍼 생성 후 이미지 변환
+        img_buffer = BytesIO()
+        image.save(img_buffer, format="PNG")
+        img_buffer.seek(0)  # 버퍼의 시작 위치로 이동
 
 #         return Response(content=img_buffer.getvalue(), media_type="image/png")
         
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+

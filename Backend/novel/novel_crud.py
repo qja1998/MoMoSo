@@ -469,17 +469,11 @@ def delete_character(character_pk : int, db: Session) :
         return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
 
 
-#등장인물 AI 생성
-
-#표지 불러오기(AI)
-def generate_cover() : 
-    pass
-
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 # 표지 저장
-def save_cover(novel_pk : int, file_name : str, drive_folder_id : str, db: Session) : 
-    image_path = os.path.join(os.getcwd(), "static", file_name+".jpg")
+def save_cover(user_or_nov : str, pk : int, image_path : str, drive_folder_id : str, db: Session) : 
+    # image_path = os.path.join(os.getcwd(), "static", file_name+".jpg")
     """
     이미지를 Google Drive에 업로드합니다.
 
@@ -491,8 +485,7 @@ def save_cover(novel_pk : int, file_name : str, drive_folder_id : str, db: Sessi
         dict: 업로드 성공 시 파일 ID를 포함한 결과 반환.
         None: 업로드 실패 시 None 반환.
     """
-    # JSON 파일 절대 경로로 변환
-    json_key_path = os.path.abspath("momoso-450108-0d3ffb86c6ef.json")
+    json_key_path = os.path.join(os.getcwd(), "momoso-450108-0d3ffb86c6ef.json")
 
     # JSON 파일 존재 여부 확인
     if not os.path.exists(json_key_path):
@@ -524,45 +517,40 @@ def save_cover(novel_pk : int, file_name : str, drive_folder_id : str, db: Sessi
         print("업로드 객체 생성 시작")
         media = MediaFileUpload(image_path, mimetype='image/jpg', resumable=False)
 
-
-        # folder = service.files().get(fileId=drive_folder_id, fields="id, name").execute()
-        # print(f"폴더 존재 확인 완료: {folder}")
-
-        # 파일 업로드 요청 실행
         print("업로드 실행 시작")
-        
         file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
         
 
-        print(f"파일이 업로드되었습니다. 응답 데이터: {file}")
+        print(f"파일이 업로드되었습니다. 응답 데이터: {file.get('id')}")
         file_id = file.get('id')
 
-        # print(f"파일이 업로드되었습니다. File ID: {file.get('id')}")
-        #1EiNEqQqTOJUaklXfPI5wTD1jJSOVHFk7
-        # file = service.files().get(fileId=file_id, fields="id, name, parents").execute()
-        # print(f"파일이 존재합니다: {file}")
-
-        novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
-        novel.novel_img = file_id
+        if user_or_nov == "user" : 
+            data = db.query(User).filter(User.user_pk == pk).first()
+            if data.user_img : 
+                delete_image(data.user_img, drive_folder_id)
+            data.user_img = file_id
+        elif user_or_nov == "novel" : 
+            data = db.query(Novel).filter(Novel.novel_pk == pk).first()
+            if data.novel_img : 
+                delete_image(data.novel_img, drive_folder_id)
+            data.novel_img = file_id
+        else :
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="user 이나 novel 둘 중 하나를 선택해주세요.")
         
+        db.add(data)
         db.commit()
-        db.refresh(novel)
-        
-        os.remove(image_path)
+        db.refresh(data)
 
-        return novel
+        return data
 
     except Exception as e:
         print(f"업로드 실패: {e}")
         return None
 
-# 프론트 단에 기능이 없어서 일단 - 
 
 def delete_image(file_id : str, drive_folder_id : str):
     # JSON 파일 절대 경로로 변환
-    json_key_path = os.path.abspath("momoso-450108-0d3ffb86c6ef.json")
-
-    print(f"JSON 키 파일이 존재하지 않습니다: {json_key_path}")
+    json_key_path = os.path.join(os.getcwd(), "momoso-450108-0d3ffb86c6ef.json")
 
     creds = service_account.Credentials.from_service_account_file(json_key_path, scopes=SCOPES)
 
@@ -575,7 +563,8 @@ def delete_image(file_id : str, drive_folder_id : str):
 
 from fastapi import File, UploadFile
 #로컬에서 파일 업로드 하는 기능
-async def image_upload(imgpath : str, pk : int, file: UploadFile = File(...)):
+
+async def image_upload(file: UploadFile = File(...)) : 
     
     if not file:
         raise HTTPException(status_code=400, detail="No file provided")
@@ -583,12 +572,12 @@ async def image_upload(imgpath : str, pk : int, file: UploadFile = File(...)):
     try:
         filename = file.filename
         filepath = os.path.join(os.getcwd(), "static", filename)
-        # filepath = os.path.join("/tmp", filename)  # 임시 저장 경로
 
         # 파일 저장
         with open(filepath, "wb") as f:
             contents = await file.read()  # 파일 내용을 읽음 (await 사용!)
             f.write(contents)
+        return filepath
 
     except Exception as e:
         #  os.remove(filepath)  <- 파일이 없는 경우 에러 발생 가능성
