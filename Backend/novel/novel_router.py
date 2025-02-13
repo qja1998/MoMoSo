@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status, APIRouter
 from sqlalchemy.orm import Session
 from database import get_db
-from novel import novel_crud, novel_schema, gen_image
+from novel import novel_crud, novel_schema
 from models import Novel, User
 from typing import List, Optional
 from utils.auth_utils import get_optional_user
@@ -9,10 +9,8 @@ from fastapi import Request # 삭제 예정
 import os
 
 
-
 # AI 이미지 생성 
-from novel.gen_image import ImageGenerator
-
+from ai.gen_image import ImageGenerator
 
 app = APIRouter(
     prefix='/api/v1',
@@ -56,8 +54,6 @@ def main_page(
         }
 
     return response_data
-
-
 
 # 영상 재생은 별개의 router 로 보여줌
 # 아래가 예시임. 
@@ -245,7 +241,8 @@ def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session
 def delete_img(file_id : str, drive_folder_id : str, novel_pk : int , db: Session = Depends(get_db)) :
     return novel_crud.delete_image(file_id, drive_folder_id)
 
-from .novel_generator import NovelGenerator
+from ai.gen_image import ImageGenerator
+from ai.gen_novel import NovelGenerator
 from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
 from .novel_crud import get_previous_chapters
 from utils.auth_utils import get_current_user
@@ -331,7 +328,7 @@ async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), d
     
     
 
-from .novel_generator import NovelGenerator
+from ai.gen_novel import NovelGenerator
 from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
 from .novel_crud import get_previous_chapters
 from utils.auth_utils import get_current_user
@@ -417,29 +414,30 @@ payload = {
 @app.post("/image/generate")
 async def AI_img_generate(req: novel_schema.ImageRequest, payload_, delete_files : list, novel_pk : int, db: Session = Depends(get_db)) :
     headers = {"Content-Type": "application/json"}
-    response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=payload, headers=headers)
+    response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=req, headers=headers)
     if response.status_code == 200:
         print("✅ 이미지 생성 성공!")
+        img_data = BytesIO(response.content)
+        image = Image.open(img_data)
 
+        # 🖼️ 이미지 띄우기
+        # image.show()
 
-    # 🖼️ 이미지 띄우기
-    # image.show()
+        # 💾 이미지 저장
+        img_name = f"{payload['title']}.png"
+        save_path = os.path.join(os.getcwd(), "static", img_name)
+        image.save(save_path, format="PNG")
+        
+        # print("📸 이미지가 'generated_image.png'로 저장되었습니다.)
+        novel_crud.save_cover("novel", novel_pk, save_path, "1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N", db)
+        print("📸 이미지가 'generated_image.png'로 저장되었습니다.")
+        
+        for delete_image in delete_files : 
+            path = os.path.join(os.getcwd(), "static", delete_image)
+            os.remove(path)
+        print("이미지를 전체 삭제하였습니다.")
 
-    # 💾 이미지 저장
-    img_name = f"{payload['title']}.png"
-    save_path = os.path.join(os.getcwd(), "static", img_name)
-    image.save(save_path, format="PNG")
-    
-    # print("📸 이미지가 'generated_image.png'로 저장되었습니다.)
-    novel_crud.save_cover("novel", novel_pk, save_path, "1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N", db)
-    print("📸 이미지가 'generated_image.png'로 저장되었습니다.")
-    
-    for delete_image in delete_files : 
-        path = os.path.join(os.getcwd(), "static", delete_image)
-        os.remove(path)
-    print("이미지를 전체 삭제하였습니다.")
-
-    return HTTPException(status_code=status.HTTP_201_CREATED)
+        return HTTPException(status_code=status.HTTP_201_CREATED)
 
 @app.post("/api/v1/editor/image_ai")    
 async def generate_image(req: novel_schema.ImageRequest):
@@ -454,7 +452,7 @@ async def generate_image(req: novel_schema.ImageRequest):
         image.save(img_buffer, format="PNG")
         img_buffer.seek(0)  # 버퍼의 시작 위치로 이동
 
-#         return Response(content=img_buffer.getvalue(), media_type="image/png")
+        return Response(content=img_buffer.getvalue(), media_type="image/png")
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

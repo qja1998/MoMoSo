@@ -547,7 +547,6 @@ def save_cover(user_or_nov : str, pk : int, image_path : str, drive_folder_id : 
         print(f"업로드 실패: {e}")
         return None
 
-
 def delete_image(file_id : str, drive_folder_id : str):
     # JSON 파일 절대 경로로 변환
     json_key_path = os.path.join(os.getcwd(), "momoso-450108-0d3ffb86c6ef.json")
@@ -595,16 +594,4 @@ def get_previous_chapters(db: Session, novel_pk: int) -> str:
     )
     return "\n\n---\n\n".join([ep.ep_content for ep in episodes]) if episodes else ""
 
-
-
-
-def get_previous_chapters(db: Session, novel_pk: int) -> str:
-    """DB에서 해당 소설의 모든 챕터 내용을 불러와 하나의 문자열로 합칩니다."""
-    episodes = (
-        db.query(Episode)
-        .filter(Episode.novel_pk == novel_pk)
-        .order_by(Episode.ep_pk.asc())  # 챕터 순서대로 정렬
-        .all()
-    )
-    return "\n\n---\n\n".join([ep.ep_content for ep in episodes]) if episodes else ""
 
