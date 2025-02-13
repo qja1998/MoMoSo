@@ -547,6 +547,7 @@ def save_cover(user_or_nov : str, pk : int, image_path : str, drive_folder_id : 
         print(f"업로드 실패: {e}")
         return None
 
+
 def delete_image(file_id : str, drive_folder_id : str):
     # JSON 파일 절대 경로로 변환
     json_key_path = os.path.join(os.getcwd(), "momoso-450108-0d3ffb86c6ef.json")

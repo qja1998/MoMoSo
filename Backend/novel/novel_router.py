@@ -149,7 +149,7 @@ def novel_episode(novel_pk: int, db: Session = Depends(get_db)):
 
 # 특정 소설에 에피소드 추가
 @app.post("/novel/{novel_pk}/episode", response_model=novel_schema.EpisodeCreateBase)
-def create_episode(novel_pk: int, episode_data: novel_schema.EpisodeCreateBase, db: Session = Depends(get_db)):
+def save_episode(novel_pk: int, episode_data: novel_schema.EpisodeCreateBase, db: Session = Depends(get_db)):
     return novel_crud.save_episode(novel_pk, episode_data, db)
 
 # 에피소드 변경
@@ -170,7 +170,7 @@ def ep_comment(novel_pk: int, ep_pk: int, db: Session = Depends(get_db)):
 
 # 댓글 작성
 @app.post("/novel/{novel_pk}/episode/{ep_pk}/comment", response_model=novel_schema.CommentBase)
-def write_comment(comment_info: novel_schema.CommentBase, novel_pk: int, ep_pk: int, user_pk: int, db: Session = Depends(get_db)):
+def save_comment(comment_info: novel_schema.CommentBase, novel_pk: int, ep_pk: int, user_pk: int, db: Session = Depends(get_db)):
     comment = novel_crud.create_comment(comment_info, novel_pk, ep_pk, user_pk, db)
     if not comment:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="댓글 작성에 실패했습니다.")
@@ -226,17 +226,17 @@ def get_cocoment(comment_pk : int, db: Session = Depends(get_db) ) :
     return novel_crud.get_cocoment(comment_pk,db)
 
 # 표지 이미지
-
+"""
 import os
 @app.post("/image")
 
 #아래 리턴되는 값은 드라이브 내부의 img id임. 수정이 필요한경우 해당 걸로 하면 됨.
 def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session = Depends(get_db)) : 
     novel = novel_crud.save_cover(novel_pk, file_name, drive_folder_id, db)
-    
     return novel
+"""
 
-# 1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N
+
 @app.delete("/image")
 def delete_img(file_id : str, drive_folder_id : str, novel_pk : int , db: Session = Depends(get_db)) :
     return novel_crud.delete_image(file_id, drive_folder_id)
@@ -258,6 +258,12 @@ def recommend_synopsis(request: SynopsisRequest) :
     novel_gen = NovelGenerator(request.genre, request.title, request.worldview)
     synopsis = novel_gen.recommend_synopsis()
     return {"synopsis": synopsis}
+
+@app.post("/ai/characters-new")
+def add_new_characters(request : CharacterRequest) : 
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis)
+    new_characters = novel_gen.add_new_characters()
+    return {"new_characters" : new_characters}
 
 @app.post("/ai/characters")
 def recommend_characters(request: CharacterRequest):
@@ -325,8 +331,7 @@ async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), d
     # Local static에서 이미지 삭제
     os.remove(file_path)
 
-    
-    
+"""
 
 from ai.gen_novel import NovelGenerator
 from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
@@ -345,11 +350,18 @@ def recommend_synopsis(request: SynopsisRequest) :
     synopsis = novel_gen.recommend_synopsis()
     return {"synopsis": synopsis}
 
-@app.post("/ai/characters")
+@app.post("/ai/characters/new")
+def add_new_characters(request : CharacterRequest) : 
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis)
+    new_characters = novel_gen.add_new_characters()
+    return {"new_characters" : new_characters}
+
+@app.post("/ai/character")
 def recommend_characters(request: CharacterRequest):
     novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.characters)
     updated_characters = novel_gen.recommend_characters()
     return {"characters": updated_characters}
+
 
 @app.post("/ai/episode")
 def create_episode(request: CreateChapterRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -390,6 +402,7 @@ def create_episode(request: CreateChapterRequest, current_user: User = Depends(g
     new_chapter = generator.create_chapter()
 
     return {"title": request.title, "genre": request.genre, "new_chapter": new_chapter}
+"""
 
 from PIL import Image
 from fastapi import FastAPI, HTTPException
