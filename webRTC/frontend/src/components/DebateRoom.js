@@ -301,28 +301,54 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
   // 참가자 수 및 회의록 처리
   useEffect(() => {
     if (publisher?.session) {
-      const handleStreamEvent = async () => {
+      const handleStreamCreated = (event) => {
+        setParticipantCount(prev => prev + 1);
+      };
+
+      const handleStreamDestroyed = async (event) => {
         const newCount = participantCount - 1;
         setParticipantCount(newCount);
         
+        // If this was the last participant, save meeting minutes
         if (newCount === 0) {
+          console.log('마지막 참가자가 나갔습니다. 회의록을 저장합니다.');
           try {
             await createMeetingMinutes();
           } catch (error) {
-            console.error('회의록 저장 실패:', error);
+            console.error('마지막 참가자 퇴장 시 회의록 저장 실패:', error);
           }
         }
       };
 
-      publisher.session.on('streamDestroyed', handleStreamEvent);
-      publisher.session.on('connectionDestroyed', handleStreamEvent);
+      // Handle connection destroyed event
+      const handleConnectionDestroyed = async (event) => {
+        const newCount = participantCount - 1;
+        setParticipantCount(newCount);
+        
+        if (newCount === 0) {
+          console.log('마지막 연결이 종료되었습니다. 회의록을 저장합니다.');
+          try {
+            await createMeetingMinutes();
+          } catch (error) {
+            console.error('마지막 연결 종료 시 회의록 저장 실패:', error);
+          }
+        }
+      };
 
+      // Add event listeners
+      publisher.session.on('streamCreated', handleStreamCreated);
+      publisher.session.on('streamDestroyed', handleStreamDestroyed);
+      publisher.session.on('connectionDestroyed', handleConnectionDestroyed);
+
+      // Cleanup
       return () => {
-        publisher.session.off('streamDestroyed', handleStreamEvent);
-        publisher.session.off('connectionDestroyed', handleStreamEvent);
+        publisher.session.off('streamCreated', handleStreamCreated);
+        publisher.session.off('streamDestroyed', handleStreamDestroyed);
+        publisher.session.off('connectionDestroyed', handleConnectionDestroyed);
       };
     }
   }, [publisher, participantCount, createMeetingMinutes]);
+
 
   // 채팅 메시지 전송
   const sendChatMessage = async (e) => {
