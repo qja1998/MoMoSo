@@ -55,7 +55,7 @@ model = genai.GenerativeModel(
 )
 
 # JSON 파일로부터 회의록 데이터를 읽어오기
-json_file_path = "stt_json/test.json"
+json_file_path = "stt_json/dochungi.json"
 with open(json_file_path, "r", encoding="utf-8") as json_file:
     data = json.load(json_file)
 
