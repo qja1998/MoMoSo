@@ -7,7 +7,7 @@ echo "🚀 Starting local GitLab CI/CD pipeline test..."
 export $(grep -v '^#' .env | xargs)
 
 # 1️⃣ GitLab Runner 환경과 동일하게 Docker 컨테이너 내부에서 실행
-docker run --rm -it \
+docker run --rm \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$(pwd)":/workspace \
   -w /workspace \
@@ -18,7 +18,7 @@ docker run --rm -it \
     set -e
     apk add --no-cache docker-compose
     
-
+    
     # 2️⃣ Docker 로그인
     echo "🔑 Logging in to Docker..."
     echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
@@ -33,26 +33,33 @@ docker run --rm -it \
     docker build -t kwon0528/b106-frontend:local-test -f Frontend/Dockerfile.dev ./Frontend
     docker push kwon0528/b106-frontend:local-test
 
-    # 5️⃣ 컨테이너 실행
+
+    # 1️⃣ Docker 컨테이너 실행
     echo "🧪 Running Tests..."
-    docker-compose -f docker-compose.yml up -d backend
-    sleep 5  # ✅ 컨테이너가 완전히 준비될 때까지 대기
-    docker-compose -f docker-compose.yml exec backend bash -c "ls -R /app"
-    
-    docker-compose -f docker-compose.yml exec backend bash -c "
-        cd /app &&
-        uvicorn main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips='*'
-      "
+    BACKEND_CONTAINER_ID=$(docker run -d kwon0528/b106-backend:local-test)
+    FRONTEND_CONTAINER_ID=$(docker run -d kwon0528/b106-frontend:local-test)
 
-    docker-compose -f docker-compose.yml exec frontend npm run dev
+    # 2️⃣ 컨테이너 로그 출력 (비동기 실행)
+    echo "🔍 Checking Backend logs..."
+    docker logs -f "$BACKEND_CONTAINER_ID" &
+    BACKEND_LOG_PID=$!
 
-    # 6️⃣ 컨테이너 정리
-    echo "🛑 Stopping Docker containers..."
-    docker-compose down
+    echo "🔍 Checking Frontend logs..."
+    docker logs -f "$FRONTEND_CONTAINER_ID" &
+    FRONTEND_LOG_PID=$!
 
-    # 7️⃣ 배포 테스트 (실제 서버 배포 X)
-    echo "🚀 Simulating Deployment..."
-    docker-compose -f docker-compose.yml up -d
+    # 3️⃣ 컨테이너 상태 확인
+    sleep 10  # 컨테이너가 충분히 실행될 시간을 줌
+    BACKEND_STATUS=$(docker inspect -f '{{.State.Running}}' "$BACKEND_CONTAINER_ID")
+    FRONTEND_STATUS=$(docker inspect -f '{{.State.Running}}' "$FRONTEND_CONTAINER_ID")
+
+    if [[ "$BACKEND_STATUS" == "true" && "$FRONTEND_STATUS" == "true" ]]; then
+        echo "✅ Both containers are running successfully!"
+    else
+        echo "❌ Error: One or both containers failed to start."
+        docker ps -a  # 현재 실행 중인 컨테이너 목록 출력
+        exit 1
+    fi
   '
 
 echo "✅ Local CI/CD pipeline test completed successfully!"
