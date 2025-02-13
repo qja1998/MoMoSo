@@ -2,10 +2,11 @@ from fastapi import Depends, HTTPException, APIRouter, status
 from sqlalchemy.orm import Session
 from typing import List
 
+
 from . import discussion_crud, discussion_schema
 from database import get_db
 
-from models import User
+from models import User, Episode
 from utils.auth_utils import get_current_user
 
 app = APIRouter(
@@ -81,12 +82,191 @@ def delete_discussion(discussion_pk: int, db: Session = Depends(get_db)):
     discussion_crud.delete_discussion(db, discussion_pk)
     return {"message":"토론 방 삭제 완료"}
 
+
+# =============================AI 어셈블==================================
+from .discussion_func.discussion_rag import GeminiDiscussionAssistant
+from models import Novel, Note, Discussion
+from .discussion_schema import SummaryRequest, FactCheckRequest, SubjectRequest
+import os
+
+document_path = ".document_path"  # txt 저장될 디렉토리
+GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
+
+def get_assistant(document_path: str = None):
+    return GeminiDiscussionAssistant(document_path, GEMINI_API_KEY)
+
+DOCUMENT_PATH = "./document_path"  # txt 파일 저장 디렉토리
+
+@app.post('/create-txt', description="토론 시작 시, 소설 txt 파일 생성")
+def create_txt_file(discussion_pk: int, db: Session = Depends(get_db)):
+    """
+    AI 기능을 위해 토론 시작 시, 소설 폴더에 소설 내용을 담은 txt 파일을 생성하는 기능
+    """
+
+    # 소설 및 토론 정보 조회
+    discussion = db.query(Discussion).filter(Discussion.discussion_pk == discussion_pk).first()
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+    
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
+
+    # 소설의 모든 에피소드 조회 (생성 날짜순 정렬)
+    episodes = db.query(Episode).filter(Episode.novel_pk == novel.novel_pk).order_by(Episode.created_date).all()
+
+    if not episodes:
+        raise HTTPException(status_code=400, detail="No episodes found for this novel")
+
+    # txt 파일 제목 설정 (토론 세션 ID + 소설 제목)
+    txt_title = f"{novel.title}_{discussion.session_id}.txt"
+
+    # 파일 저장 경로 설정
+    os.makedirs(DOCUMENT_PATH, exist_ok=True)  # 폴더가 없으면 생성
+    file_path = os.path.join(DOCUMENT_PATH, txt_title)
+
+    # 소설 내용 구성
+    content = f" 소설 제목: {novel.title}\n\n"
+    
+    for idx, episode in enumerate(episodes):
+        content += f"\n\n {idx + 1}화 에피소드 : {episode.ep_title}\n\n{episode.ep_content}\n\n"
+
+    # 파일 생성 및 저장
+    try:
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"파일 저장 실패: {str(e)}")
+
+    return { 
+        "file_name": txt_title,
+        "document_path": os.path.abspath(file_path)  # 절대 경로 반환
+    }
+
+
+@app.post('/delete-txt', description="토론 종료 시, 소설 txt 파일 삭제")
+def delete_txt_file(discussion_pk: int, db: Session = Depends(get_db)):
+    """
+    토론 종료 시, 해당 토론에서 사용된 txt 파일을 삭제하는 기능
+    """
+
+    # 1️⃣ 해당 토론 조회
+    discussion = db.query(Discussion).filter(Discussion.discussion_pk == discussion_pk).first()
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
+
+    # 2️⃣ 토론과 연결된 소설 조회
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+
+    # 3️⃣ 삭제할 txt 파일명 설정 (토론 세션 ID + 소설 제목)
+    txt_title = f"{novel.title}_{discussion.session_id}.txt"
+    file_path = os.path.join(DOCUMENT_PATH, txt_title)
+
+    # 4️⃣ 파일 존재 여부 확인 후 삭제
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)  # 파일 삭제
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"파일 삭제 실패: {str(e)}")
+        return { 
+            "message": "TXT file successfully deleted.",
+            "file_name": txt_title
+        }
+    else:
+        # 파일이 이미 삭제되었거나 존재하지 않으면 204 No Content 반환
+        return { 
+            "message": "TXT file not found or already deleted.",
+            "file_name": txt_title
+        }
+
+
 @app.post('/note', description="토론 요약본 저장")
-def create_discussion_summary(db:Session=Depends(get_db)):
+def create_discussion_summary(
+    request: SummaryRequest, 
+    db: Session = Depends(get_db),
+    assistant: GeminiDiscussionAssistant = Depends(get_assistant)
+):
     """
-    AI 쪽에서 정보 받아와서 저장 필요
+    토론이 끝나면 rtc에서 넘겨받은 회의록으로 토론 요약본 저장
     """
-    pass
+
+    # novel 조회 및 존재 여부 확인
+    novel = db.query(Novel).filter(Novel.novel_pk == request.novel_pk).first()
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+
+    user_pk = novel.user_pk
+
+    # 2. 모델에 txt 경로 인자로 전달
+    summary_response = assistant.generate_meeting_notes(discussion_transcript=request.content)
+    
+    if hasattr(summary_response, "content"):
+        summary = summary_response.content
+    else:
+        summary = str(summary_response)  
+
+    new_note = Note(novel_pk=request.novel_pk, user_pk=user_pk, summary=summary)
+
+    try:
+        db.add(new_note)
+        db.commit()
+        db.refresh(new_note)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"DB 저장 실패: {str(e)}")
+
+    return new_note
+
+
+@app.post('/subject', description="토론 주제 추천")
+def create_discussion_subject(
+    request: SubjectRequest,
+    db: Session = Depends(get_db)
+):
+    """사용자가 요청할 때마다 바뀌는 file_path를 반영하여 토론 주제를 추천"""
+
+    # 소설 및 토론 정보 조회
+    discussion = db.query(Discussion).filter(Discussion.discussion_pk == request.discussion_pk).first()
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
+
+    # 사용자 요청에 따른 file_path 생성
+    txt_filename = f"{novel.title}_{discussion.session_id}.txt"
+    file_path = os.path.join(DOCUMENT_PATH, txt_filename)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="TXT file not found. Please start the discussion first.")
+
+    assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
+
+    # 유저 발화 기반 주제 추천 실행
+    subject = assistant.recommend_discussion_topic(request.content)
+
+    return {"subject": subject}
+
+
+@app.post('/fact-check', description="토론 팩트 체크")
+def create_discussion_factcheck(
+    request: FactCheckRequest,
+    db: Session = Depends(get_db),
+    assistant: GeminiDiscussionAssistant = Depends(get_assistant)
+):
+
+    novel = db.query(Novel).filter(Novel.novel_pk == request.novel_pk).first()
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+
+    # 2. 모델에 txt 경로 인자로 전달
+    factcheck = assistant.fact_check(query=request.content)
+    return { "factcheck": factcheck }
+
 
 
 

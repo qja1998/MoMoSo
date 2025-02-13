@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status, APIRouter
 from sqlalchemy.orm import Session
 from database import get_db
-from novel import novel_crud, novel_schema, gen_image
+from novel import novel_crud, novel_schema
 from models import Novel, User
 from typing import List, Optional
 from utils.auth_utils import get_optional_user
@@ -11,7 +11,7 @@ import os
 
 
 # AI 이미지 생성 
-from novel.gen_image import ImageGenerator
+from ai.gen_image import ImageGenerator
 
 
 app = APIRouter(
@@ -245,7 +245,7 @@ def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session
 def delete_img(file_id : str, drive_folder_id : str, novel_pk : int , db: Session = Depends(get_db)) :
     return novel_crud.delete_image(file_id, drive_folder_id)
 
-from .novel_generator import NovelGenerator
+from ai.gen_novel import NovelGenerator
 from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
 from .novel_crud import get_previous_chapters
 from utils.auth_utils import get_current_user
@@ -331,7 +331,7 @@ async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), d
     
     
 
-from .novel_generator import NovelGenerator
+from ai.gen_novel import NovelGenerator
 from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
 from .novel_crud import get_previous_chapters
 from utils.auth_utils import get_current_user
