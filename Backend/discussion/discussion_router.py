@@ -93,7 +93,6 @@ def create_discussion_summary(db:Session=Depends(get_db)):
 # =============================WebRTC 어셈블==================================
 from fastapi import UploadFile, File, Form, HTTPException
 from pathlib import Path
-import uvicorn
 import datetime
 import aiofiles
 import os
@@ -190,7 +189,7 @@ async def receive_audio(
         return {"error": str(e)}
 
 
-@app.post("/api/meeting-minutes", description="STT 내용용 저장")
+@app.post("/api/meeting-minutes", description="STT 내용 저장")
 async def create_meeting_minutes(
     room_name: str = Form(...),
     host_name: str = Form(...),
@@ -216,7 +215,7 @@ async def create_meeting_minutes(
             "participants": participants_list,
             "messages": messages_list
         }
-
+        
         # 회의록 디렉토리 생성
         os.makedirs('meeting_minutes', exist_ok=True)
         
@@ -239,15 +238,3 @@ async def create_meeting_minutes(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
-    
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=port,
-        log_level="info",
-        reload=True,
-        ssl_keyfile="cert.key",
-        ssl_certfile="cert.crt"
-    )

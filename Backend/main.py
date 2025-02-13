@@ -1,7 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import FastAPI
 # from starlette.middleware.sessions import SessionMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse
+import os
 
 # 영상 보여주기 
 from fastapi.staticfiles import StaticFiles
@@ -39,13 +38,28 @@ app.add_middleware(
 # 라우터 설정
 app.include_router(auth_router.app, tags=["auth"])
 app.include_router(user_router.app, tags=["user"])
+app.include_router(novel_router.app, tags=["novel"])
 app.include_router(discussion_router.app, tags=["discussion"])
 app.include_router(google_oauth_router, tags=["oauth"], prefix="/api/v1")
 
-# novel 라우터
-app.include_router(novel_router.app, tags=["novel"])
-
+cert_key = os.path.join(os.getcwd(), "cert.key")
+cert_crt = os.path.join(os.getcwd(), "cert.crt")
 
 @app.get("/")
 def read_root():
     return {"Hello":"World"}
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        log_level="info",
+        reload=False,
+        ssl_keyfile=cert_key,
+        ssl_certfile=cert_crt
+    )
+
