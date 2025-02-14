@@ -113,6 +113,7 @@ class NovelGenerator:
         """소설 세계관 생성 함수"""
         instruction = """
         당신은 전문적으로 소설 세계관을 만드는 작가입니다.
+        생성되는 텍스트는 순수한 일반 텍스트 형식이어야 하며, 어떠한 마크다운 문법(예: **, ## 등)도 사용하지 말아주세요.
         주어진 장르, 제목을 기반으로 독창적이고 생동감 있는 소설 세계관을 만들어주세요.
         소설 세계관을 구성할 때, 아래의 항목들을 참고하여 상세하게 작성하세요.
 
@@ -150,38 +151,39 @@ class NovelGenerator:
         prompt = f"## 소설 장르: {self.genre}\n## 소설 제목: {self.title}\n\n**소설 세계관**\n"
         response = model.generate_content(prompt)
         self.worldview = response.text
-        print("Worldview:\n", self.worldview)
+        print("소설 세계관:\n", self.worldview)
         return self.worldview
 
     def recommend_synopsis(self) -> str:
         """소설 줄거리 생성 함수"""
         instruction = """
         당신은 전문적으로 소설 줄거리를 만드는 작가입니다.
+        생성되는 텍스트는 순수한 일반 텍스트 형식이어야 하며, 어떠한 마크다운 문법(예: **, ## 등)도 사용하지 말아주세요.
         주어진 장르, 제목, 세계관을 기반으로 독창적이고 생동감 있는 소설 줄거리를 만들어주세요.
         소설 줄거리를 구성할 때, 아래의 항목들을 참고하세요.
 
         1. 기본 정보
-        - 장르: [예: 판타지, SF 등]
-        - 제목: [제목 입력]
-        - 세계관: [세계관의 배경, 시대, 문화, 기술 등 간단히 설명]
+            - 장르: [예: 판타지, SF 등]
+            - 제목: [제목 입력]
+            - 세계관: [세계관의 배경, 시대, 문화, 기술 등 간단히 설명]
 
         2. 도입부
-        - 소설이 펼쳐지는 세계관 소개
-        - 주요 인물 및 그들의 기본 목표
-        - 초기 갈등이나 문제의 암시
+            - 소설이 펼쳐지는 세계관 소개
+            - 주요 인물 및 그들의 기본 목표
+            - 초기 갈등이나 문제의 암시
 
         3. 전개부
-        - 주된 갈등 및 도전 과제 전개
-        - 인물 간의 관계와 서브 플롯 설명
-        - 주인공이 맞서야 하는 문제와 성장 과정
+            - 주된 갈등 및 도전 과제 전개
+            - 인물 간의 관계와 서브 플롯 설명
+            - 주인공이 맞서야 하는 문제와 성장 과정
 
         4. 클라이맥스
-        - 갈등의 최고조와 결정적 순간
-        - 주인공의 중요한 선택 및 대립의 절정
+            - 갈등의 최고조와 결정적 순간
+            - 주인공의 중요한 선택 및 대립의 절정
 
         5. 결말
-        - 갈등 해결 및 인물 변화
-        - 세계관에 미친 영향과 여운 남기기
+            - 갈등 해결 및 인물 변화
+            - 세계관에 미친 영향과 여운 남기기
 
         위 템플릿에 따라 소설의 줄거리를 상세하게 작성해 주세요. 
         """
@@ -189,7 +191,7 @@ class NovelGenerator:
         prompt = f"## 소설 장르: {self.genre}\n## 소설 제목: {self.title}\n## 소설 세계관: {self.worldview}\n\n**소설 줄거리**\n"
         response = model.generate_content(prompt)
         self.synopsis = response.text
-        print("Synopsis:\n", self.synopsis)
+        print("소설 줄거리:\n", self.synopsis)
         return self.synopsis
 
     def recommend_characters(self) -> str:
@@ -260,7 +262,7 @@ class NovelGenerator:
         else:
             existing.append(new_char)
         self.characters = json.dumps(existing, ensure_ascii=False, indent=2)
-        print("Characters:\n", self.characters)
+        print("소설 등장인물:\n", self.characters)
         return self.characters
 
     def add_new_characters(self) -> str:
@@ -320,7 +322,7 @@ class NovelGenerator:
         else:
             existing.append(new_char)
         self.characters = json.dumps(existing, ensure_ascii=False, indent=2)
-        print("Updated Characters:\n", self.characters)
+        print("소설 등장인물 업데이트:\n", self.characters)
         return self.characters
 
     def create_episode(self) -> str:
@@ -336,7 +338,12 @@ class NovelGenerator:
             instruction = """
             당신은 창의적이고 독창적인 소설 작가입니다. 
             주어진 장르, 제목, 세계관, 줄거리, 등장인물을 기반으로 소설의 초안을 작성해야 합니다.
-            장르의 분위기에 맞게 전개하되, 500-1000자 정도의 내용을 작성해야 합니다.
+            각 에피소드는 500-1000자 정도로 작성해야 합니다.
+
+            <작성 지침>
+            - 소설의 분위기는 주어진 장르에 맞게 설정하세요.
+            - 첫 번째 에피소드에서는 주인공을 등장시키고, 소설의 시작점을 설정하세요.
+            - 분량을 준수하되, 에피소드가 끝날 때 문장이 완결되도록 작성하세요.
             """
             episode_label = "**소설 초안**\n"
         else:
@@ -344,7 +351,12 @@ class NovelGenerator:
             instruction = """
             당신은 창의적이고 독창적인 소설 작가입니다. 
             주어진 장르, 제목, 세계관, 줄거리, 등장인물, 소설 이전화를 기반으로 소설의 다음화를 작성해야 합니다.
-            장르의 분위기에 맞게 전개하되, 500-1000자 정도의 내용을 작성해야 합니다.
+            각 에피소드는 500-1000자 정도로 작성해야 합니다.
+
+            <작성 지침>
+            - 소설의 분위기는 주어진 장르에 맞게 설정하세요.
+            - 이전화의 내용을 참고하여 내용이 자연스럽게 연결되도록 작성하세요.
+            - 분량을 준수하되, 에피소드가 끝날 때 문장이 완결되도록 작성하세요.
             """
             episode_label = "**소설 다음화**\n"
         
@@ -376,10 +388,10 @@ class NovelGenerator:
 
         if ep_number == 1:
             self.first_episode = episode_content
-            print("Novel Draft:\n", episode_content)
+            print("에피소드 1화:\n", episode_content)
         else:
             self.next_episode = episode_content
-            print("Next Episode:\n", episode_content)
+            print(f"에피소드 {ep_number}화:\n", episode_content)
         return episode_content
 
 # 예시 사용법:
