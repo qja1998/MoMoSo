@@ -84,7 +84,7 @@ print("app has started")
 def all_novel(db: Session = Depends(get_db)):
     return novel_crud.get_all_novel(db)
 
-# 디테일 페이지
+# 디테일 페이지, 아직 미완
 @app.get("/novel/{novel_pk}")
 def novel_detail(novel_pk : int, db : Session = Depends(get_db)) : 
     episode = novel_crud.novel_episode()
@@ -92,9 +92,6 @@ def novel_detail(novel_pk : int, db : Session = Depends(get_db)) :
     discussion = discussion_crud.get_discussions()
     
     pass
-# 에디터 페이지 아주 많은걸 인풋으로 받아야 하겠네. 일단 나누자고 얘기해보자. 
-
-# 에디터 페이지 정보 가져오기.
 
 @app.get("/novel/{novel_pk}") 
 def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
@@ -104,8 +101,6 @@ def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
     character = novel_crud.get_character(novel_pk, db)
     return {"novel" : novel, "character" : character} 
 
-#등장인물 CUD
-# 등장인물 완성함
 #등장인물 CUD
 @app.post("/novel/character/{novel_pk}", response_model=novel_schema.CharacterBase)
 def save_character(novel_pk : int, character_info : novel_schema.CharacterBase, db: Session = Depends(get_db)) :
