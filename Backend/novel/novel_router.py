@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, status, APIRouter
 from sqlalchemy.orm import Session
 from database import get_db
 from novel import novel_crud, novel_schema
-from models import Novel, User
+from models import Novel, User, Discussion
 from typing import List, Optional
 from utils.auth_utils import get_optional_user
 from fastapi import Request, File, UploadFile # 삭제 예정 
@@ -85,13 +85,12 @@ def all_novel(db: Session = Depends(get_db)):
     return novel_crud.get_all_novel(db)
 
 # 디테일 페이지, 아직 미완
-@app.get("/novel/{novel_pk}")
+@app.get("/novel/{novel_pk}/detail")
 def novel_detail(novel_pk : int, db : Session = Depends(get_db)) : 
-    episode = novel_crud.novel_episode()
-    novel_info  = ""
-    discussion = discussion_crud.get_discussions()
-    
-    pass
+    episode = novel_crud.novel_episode(novel_pk, db)
+    novel_info  = novel_crud.search_novel(novel_pk, db)
+    discussion = db.query(Discussion).filter(Discussion.novel_pk == novel_pk).all()
+    return {"episode" : episode, "novel_info" : novel_info, "discussion": discussion}
 
 @app.get("/novel/{novel_pk}") 
 def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
@@ -474,3 +473,26 @@ async def generate_image(req: novel_schema.ImageRequest):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
