@@ -42,8 +42,11 @@ before_script:
 
 build_backend:
   stage: build
+  tag:
+    - backend-runner
   script:
-    - docker build -t $IMAGE_BACKEND:$TAG -f Backend/Dockerfile.dev .
+    - cd Backend
+    - docker build -t $IMAGE_BACKEND:$TAG -f Dockerfile.dev .
     - docker push $IMAGE_BACKEND:$TAG
   only:
     - develop
@@ -51,8 +54,11 @@ build_backend:
 
 build_frontend:
   stage: build
+  tag:
+    - frontend-runner
   script:
-    - docker build -t $IMAGE_FRONTEND:$TAG -f Frontend/Dockerfile.dev .
+    - cd Frontend
+    - docker build -t $IMAGE_FRONTEND:$TAG -f Dockerfile.dev .
     - docker push $IMAGE_FRONTEND:$TAG
   only:
     - develop
