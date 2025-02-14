@@ -28,7 +28,7 @@ def get_discussion(discussion_pk: int, db: Session = Depends(get_db)):
     return discussion_crud.get_discussion(db, discussion_pk)
 
 
-@app.get("enter-room/{discussion_pk}")
+@app.get("/enter-room/{discussion_pk}")
 def enter_discussion_room(discussion_pk: int, user_pk:int, db: Session = Depends(get_db)):
     """
     특정 토론 방 접속 : user가 해당 토론 방에 예약된 participant인지 확인 후, 예약된 방의 session_id 던져주는 로직

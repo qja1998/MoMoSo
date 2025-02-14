@@ -73,6 +73,7 @@ def get_discussion(db: Session, discussion_pk: int):
 
     return {
         "discussion_pk": discussion.discussion_pk,
+        "session_id" : discussion.session_id,
         "novel": {"novel_pk": novel.novel_pk, "title": novel.title},
         "episode": {"ep_pk": episode.ep_pk, "ep_title": episode.ep_title} if episode else None,
         "topic": discussion.topic,
