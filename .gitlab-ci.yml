@@ -42,7 +42,7 @@ before_script:
 
 build_backend:
   stage: build
-  tag:
+  tags:
     - backend-runner
   script:
     - cd Backend
@@ -54,7 +54,7 @@ build_backend:
 
 build_frontend:
   stage: build
-  tag:
+  tags:
     - frontend-runner
   script:
     - cd Frontend
