@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Box, Button, Typography, IconButton, Grid, TextField, Dialog,DialogActions,DialogContent,DialogContentText,DialogTitle } from '@mui/material';
+import { Box, Button, Typography, IconButton, TextField, Dialog,DialogActions,DialogContent,DialogContentText,DialogTitle } from '@mui/material';
 import { Mic, MicOff, Videocam, VideocamOff,Logout,Save } from '@mui/icons-material';
 import VideoPlayer from './VideoPlayer';
 import RecordRTC from 'recordrtc';
@@ -14,8 +14,8 @@ const VoiceActivityDetector = class {
 
     this.recorder = null;
     this.options = {
-      threshold: 0.15,     // 음성 감지 임계값
-      maxSilentTime: 2000, // 최대 침묵 시간 (ms)
+      threshold: 0.13,     // 음성 감지 임계값
+      maxSilentTime: 2400, // 최대 침묵 시간 (ms)
       minRecordingTime: 1000 // 최소 녹음 시간 (ms)
     };
 
@@ -150,40 +150,32 @@ const VoiceActivityDetector = class {
 };
 
 const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => {
+  // 상태 관리
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [meetingStartTime] = useState(new Date());
   const [openSaveDialog, setOpenSaveDialog] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const localStreamRef = useRef(null);
-  const recorderRef = useRef(null);
-  const chatBoxRef = useRef(null);
-  const [activeSpeeakers, setActiveSpeakers] = useState(new Set());
-  const vadRef = useRef(null);
-  const stopVADRef = useRef(null);
+  const [activeSpeakers, setActiveSpeakers] = useState(new Set());
   const [participantCount, setParticipantCount] = useState(1 + subscribers.length);
+
+  // 참조 훅
+  const vadRef = useRef(null);
+  const chatBoxRef = useRef(null);
 
   // 디바운스 유틸리티 함수
   const debounce = (func, delay) => {
     let timeoutId;
     return (...args) => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      timeoutId = setTimeout(() => {
-        func(...args);
-      }, delay);
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => func(...args), delay);
     };
   };
 
   // 회의록 생성 함수
   const createMeetingMinutes = useCallback(async () => {
-    console.log('회의록 저장 시도');
-    
-    // 메시지가 없으면 기본 메시지 추가
+    // 메시지가 없을 경우 기본 메시지 생성
     const messagesToSave = messages.length > 0 ? messages : [
       { 
         type: 'system', 
@@ -259,8 +251,7 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
   // 채팅 스크롤 
   useEffect(() => {
     if (chatBoxRef.current) {
-      const chatContainer = chatBoxRef.current;
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -285,26 +276,29 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
 
   // 음성 활동 감지 (구독자)
   useEffect(() => {
-    const voiceActivityChecks = subscribers.filter(sub => sub.stream.audioActive).map((sub) => {
-      const subUserName = JSON.parse(sub.stream.connection.data).clientData;
-      const audioStream = sub.stream.getMediaStream();
-      const vad = new VoiceActivityDetector(audioStream);
-      
-      const checkVoiceActivity = setInterval(() => {
-        const isActive = vad.isVoiceActive();
-        setActiveSpeakers(prev => {
-          const newSpeakers = new Set(prev);
-          isActive ? newSpeakers.add(subUserName) : newSpeakers.delete(subUserName);
-          return newSpeakers;
-        });
-      }, 200);
+    const voiceActivityChecks = subscribers
+      .filter(sub => sub.stream.audioActive)
+      .map((sub) => {
+        const subUserName = JSON.parse(sub.stream.connection.data).clientData;
+        const audioStream = sub.stream.getMediaStream();
+        const vad = new VoiceActivityDetector(audioStream);
+        
+        const checkVoiceActivity = setInterval(() => {
+          const isActive = vad.isVoiceActive();
+          setActiveSpeakers(prev => {
+            const newSpeakers = new Set(prev);
+            isActive ? newSpeakers.add(subUserName) : newSpeakers.delete(subUserName);
+            return newSpeakers;
+          });
+        }, 200);
 
-      return () => clearInterval(checkVoiceActivity);
-    });
+        return () => clearInterval(checkVoiceActivity);
+      });
 
     return () => voiceActivityChecks.forEach(cleanup => cleanup());
   }, [subscribers]);
 
+  // 참가자 수 및 회의록 처리
   useEffect(() => {
     if (publisher?.session) {
       const handleStreamCreated = (event) => {
@@ -356,12 +350,6 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
   }, [publisher, participantCount, createMeetingMinutes]);
 
 
-  // 디바운스된 회의록 생성 함수
-  const debouncedCreateMeetingMinutes = useCallback(
-    debounce(createMeetingMinutes, 300),
-    [createMeetingMinutes]
-  );
-
   // 채팅 메시지 전송
   const sendChatMessage = async (e) => {
     e.preventDefault();
@@ -381,16 +369,8 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
     }
   };
 
-  // 음성 데이터 전송
+  // 오디오 데이터 전송
   const sendAudioData = async (blob) => {
-    const audioContext = new AudioContext();
-    try {
-      const arrayBuffer = await blob.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    } catch (decodeError) {
-      console.error('오디오 디코딩 에러:', decodeError);
-    }
-
     const formData = new FormData();
     formData.append('audio', blob, `audio_${Date.now()}.wav`);
     formData.append('roomName', roomName);
@@ -417,14 +397,8 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
           type: 'stt'
         });
       }
-      console.log(`✅ WAV 청크 업로드 완료! (Size: ${blob.size} bytes)`);
-      console.log(`📝 STT 결과:`, response.data.text);
     } catch (error) {
-      console.error('❌ 오디오 전송 에러:', {
-        message: error.message,
-        response: error.response?.data,
-        config: error.config
-      });
+      console.error('오디오 전송 에러:', error);
     }
   };
 
@@ -467,9 +441,6 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
 
   // 나가기 처리
   const handleLeave = useCallback(() => {
-    console.log("나가기 누름!!!!");
-    // console.log(JSON.parse(sub.stream.connection.data).clientData)
-    
     const saveAndLeave = async () => {
       try {
         // VAD 녹음 중지
@@ -561,7 +532,7 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
           width: 10, 
           height: 10, 
           borderRadius: '50%', 
-          backgroundColor: activeSpeeakers.has(userName) ? 'green' : 'gray',
+          backgroundColor: activeSpeakers.has(userName) ? 'green' : 'gray',
           mr: 1 
         }} />
         <Typography sx={{ flex: 1 }}>
@@ -591,7 +562,7 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
               width: 10, 
               height: 10, 
               borderRadius: '50%', 
-              backgroundColor: activeSpeeakers.has(subUserName) ? 'green' : 'gray',
+              backgroundColor: activeSpeakers.has(subUserName) ? 'green' : 'gray',
               mr: 1 
             }} />
             <Typography sx={{ flex: 1 }}>
@@ -680,7 +651,7 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
             borderRadius: 2, 
             overflow: 'hidden',
             position: 'relative',
-            boxShadow: activeSpeeakers.has(userName) ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none'
+            boxShadow: activeSpeakers.has(userName) ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none'
           }}
         >
           <Box sx={{ 
@@ -688,7 +659,7 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
-            backgroundColor: activeSpeeakers.has(userName) ? 'rgba(76, 175, 80, 0.1)' : 'transparent'
+            backgroundColor: activeSpeakers.has(userName) ? 'rgba(76, 175, 80, 0.1)' : 'transparent'
           }}>
             <Typography variant="subtitle1">
               {userName} (나)
@@ -709,7 +680,7 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
                 border: '1px solid #e0e0e0', 
                 borderRadius: 2, 
                 overflow: 'hidden',
-                boxShadow: activeSpeeakers.has(subUserName) ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none'
+                boxShadow: activeSpeakers.has(subUserName) ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none'
               }}
             >
               <Box sx={{ 
@@ -717,7 +688,7 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
                 display: 'flex', 
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                backgroundColor: activeSpeeakers.has(subUserName) ? 'rgba(76, 175, 80, 0.1)' : 'transparent'
+                backgroundColor: activeSpeakers.has(subUserName) ? 'rgba(76, 175, 80, 0.1)' : 'transparent'
               }}>
                 <Typography variant="subtitle1">
                   {subUserName}
