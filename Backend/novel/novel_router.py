@@ -474,5 +474,3 @@ async def generate_image(req: novel_schema.ImageRequest):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
-# def save_ai_image 
