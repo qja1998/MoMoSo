@@ -1,21 +1,20 @@
-image: alpine:latest  # 경량화된 기본 이미지 사용
-
 stages:
   - build
   - test
   - deploy
 
 variables:
-  IMAGE_BACKEND: kwon0528/test-backend
-  IMAGE_FRONTEND: kwon0528/test-frontend
+  IMAGE_BACKEND: kwon0528/backend
+  IMAGE_FRONTEND: kwon0528/frontend
   TAG: $CI_COMMIT_REF_NAME
 
 before_script:
-  - apk add --no-cache docker docker-compose  # `dind` 없이 직접 실행 가능하도록 설정
+  - docker --version
+  - docker-compose --version
+
   - docker info
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
-  - apk add --no-cache docker-compose
   - mkdir -p ~/.ssh
   - echo "🔑 Set ENV"
 
@@ -44,7 +43,7 @@ before_script:
 build_backend:
   stage: build
   script:
-    - docker build -t $IMAGE_BACKEND:$TAG -f Backend/Dockerfile.dev
+    - docker build -t $IMAGE_BACKEND:$TAG -f Backend/Dockerfile.dev .
     - docker push $IMAGE_BACKEND:$TAG
   only:
     - develop
@@ -53,7 +52,7 @@ build_backend:
 build_frontend:
   stage: build
   script:
-    - docker build -t $IMAGE_FRONTEND:$TAG -f Frontend/Dockerfile.dev
+    - docker build -t $IMAGE_FRONTEND:$TAG -f Frontend/Dockerfile.dev .
     - docker push $IMAGE_FRONTEND:$TAG
   only:
     - develop
