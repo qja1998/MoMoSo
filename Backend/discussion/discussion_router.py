@@ -187,28 +187,34 @@ def delete_txt_file(discussion_pk: int, db: Session = Depends(get_db)):
 def create_discussion_summary(
     request: SummaryRequest, 
     db: Session = Depends(get_db),
-    assistant: GeminiDiscussionAssistant = Depends(get_assistant)
 ):
     """
     토론이 끝나면 rtc에서 넘겨받은 회의록으로 토론 요약본 저장
     """
 
-    # novel 조회 및 존재 여부 확인
-    novel = db.query(Novel).filter(Novel.novel_pk == request.novel_pk).first()
+    # 소설 및 토론 정보 조회
+    discussion = db.query(Discussion).filter(Discussion.discussion_pk == request.discussion_pk).first()
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+
     if not novel:
         raise HTTPException(status_code=404, detail="Novel not found")
-
-    user_pk = novel.user_pk
-
-    # 2. 모델에 txt 경로 인자로 전달
-    summary_response = assistant.generate_meeting_notes(discussion_transcript=request.content)
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
     
-    if hasattr(summary_response, "content"):
-        summary = summary_response.content
-    else:
-        summary = str(summary_response)  
-
-    new_note = Note(novel_pk=request.novel_pk, user_pk=user_pk, summary=summary)
+    # 사용자 요청에 따른 file_path 생성
+    txt_filename = f"{novel.title}_{discussion.session_id}.txt"
+    file_path = os.path.join(DOCUMENT_PATH, txt_filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="TXT file not found. Please start the discussion first.")
+    
+    assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
+    
+    # 유저 발화 기반 요약 실행
+    summary_response = assistant.generate_meeting_notes(request.content)
+    summary = summary_response.content if hasattr(summary_response, "content") else str(summary_response)
+    
+    new_note = Note(novel_pk=novel.novel_pk, user_pk=novel.user_pk, summary=summary)
 
     try:
         db.add(new_note)
@@ -217,7 +223,7 @@ def create_discussion_summary(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"DB 저장 실패: {str(e)}")
-
+    
     return new_note
 
 
@@ -255,19 +261,33 @@ def create_discussion_subject(
 @app.post('/fact-check', description="토론 팩트 체크")
 def create_discussion_factcheck(
     request: FactCheckRequest,
-    db: Session = Depends(get_db),
-    assistant: GeminiDiscussionAssistant = Depends(get_assistant)
+    db: Session = Depends(get_db)
 ):
+    """
+    토론 중 제기된 주장에 대한 팩트 체크 수행
+    """
+    # 소설 및 토론 정보 조회
+    discussion = db.query(Discussion).filter(Discussion.discussion_pk == request.discussion_pk).first()
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
 
-    novel = db.query(Novel).filter(Novel.novel_pk == request.novel_pk).first()
     if not novel:
         raise HTTPException(status_code=404, detail="Novel not found")
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
 
-    # 2. 모델에 txt 경로 인자로 전달
-    factcheck = assistant.fact_check(query=request.content)
+    # 사용자 요청에 따른 file_path 생성
+    txt_filename = f"{novel.title}_{discussion.session_id}.txt"
+    file_path = os.path.join(DOCUMENT_PATH, txt_filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="TXT file not found. Please start the discussion first.")
+    
+    assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
+
+    factcheck = assistant.fact_check(request.content)
     return { "factcheck": factcheck }
 
-
+    
 
 
 # =============================WebRTC 어셈블==================================
