@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-# from starlette.middleware.sessions import SessionMiddleware
 import os
 
 # 영상 보여주기 

@@ -16,8 +16,6 @@ app = APIRouter(
     prefix='/api/v1/users',
 )
 
-import static
-
 @app.get('/', description="전체 사용자 조회", response_model=list[user_schema.User])
 def get_users(db:Session=Depends(get_db)):
     users = user_crud.get_users(db)

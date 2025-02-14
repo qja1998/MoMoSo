@@ -10,6 +10,7 @@ from passlib.context import CryptContext
 from . import user_schema
 from auth import auth_schema
 from typing import Optional
+import requests
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -111,7 +112,12 @@ def update_user(db: Session, user: User, updated_user: user_schema.UpdateUserFor
     # 유저 이미지 수정
     if updated_user.user_img and file:
         #여기에 파일 받아야지.
-        response = requests.post(url, files=files)
+        data = {
+            "user_novel" : "user",
+            "pk" : user.user_pk, 
+        }
+        response = requests.post("http://127.0.0.1:8000/api/v1/image/generate", data=data,files=file)
+        
     
     # 데이터베이스 업데이트
     db.commit()

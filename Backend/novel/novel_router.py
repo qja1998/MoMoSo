@@ -5,9 +5,9 @@ from novel import novel_crud, novel_schema
 from models import Novel, User
 from typing import List, Optional
 from utils.auth_utils import get_optional_user
-from fastapi import Request # 삭제 예정 
+from fastapi import Request, File, UploadFile # 삭제 예정 
 import os
-
+from discussion import discussion_crud
 
 # AI 이미지 생성 
 from ai.gen_image import ImageGenerator
@@ -84,7 +84,14 @@ print("app has started")
 def all_novel(db: Session = Depends(get_db)):
     return novel_crud.get_all_novel(db)
 
-
+# 디테일 페이지
+@app.get("/novel/{novel_pk}")
+def novel_detail(novel_pk : int, db : Session = Depends(get_db)) : 
+    episode = novel_crud.novel_episode()
+    novel_info  = ""
+    discussion = discussion_crud.get_discussions()
+    
+    pass
 # 에디터 페이지 아주 많은걸 인풋으로 받아야 하겠네. 일단 나누자고 얘기해보자. 
 
 # 에디터 페이지 정보 가져오기.
@@ -237,6 +244,24 @@ def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session
 """
 
 
+@app.post("/save")
+async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), db: Session = Depends(get_db)) : 
+    if user_novel == "user" :
+        drive_path = "1M6KHgGMhmN0AiPaf5Ltb3f0JhZZ7Bnm5"
+    elif user_novel == "novel" : 
+        drive_path = "1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N"
+    else : 
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="need to choose user or novel")
+    
+    # Local static에 이미지 저장
+    file_path = await novel_crud.image_upload(file)
+
+    # 원격 저장소에 이미지 저장
+    novel_crud.save_cover(user_novel, pk, file_path, drive_path, db)
+
+    # Local static에서 이미지 삭제
+    os.remove(file_path)
+
 @app.delete("/image")
 def delete_img(file_id : str, drive_folder_id : str, novel_pk : int , db: Session = Depends(get_db)) :
     return novel_crud.delete_image(file_id, drive_folder_id)
@@ -313,23 +338,6 @@ def create_episode(request: CreateChapterRequest, current_user: User = Depends(g
 
 from fastapi import File, UploadFile
 
-@app.post("/save")
-async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), db: Session = Depends(get_db)) : 
-    if user_novel == "user" :
-        drive_path = "1M6KHgGMhmN0AiPaf5Ltb3f0JhZZ7Bnm5"
-    elif user_novel == "novel" : 
-        drive_path = "1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N"
-    else : 
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="need to choose user or novel")
-    
-    # Local static에 이미지 저장
-    file_path = await novel_crud.image_upload(file)
-
-    # 원격 저장소에 이미지 저장
-    novel_crud.save_cover(user_novel, pk, file_path, drive_path, db)
-
-    # Local static에서 이미지 삭제
-    os.remove(file_path)
 
 """
 
@@ -425,9 +433,9 @@ payload = {
 
 # payload는 
 @app.post("/image/generate")
-async def AI_img_generate(req: novel_schema.ImageRequest, payload_, delete_files : list, novel_pk : int, db: Session = Depends(get_db)) :
+async def AI_img_generate(req: novel_schema.ImageRequest) :
     headers = {"Content-Type": "application/json"}
-    response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=req, headers=headers)
+    response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=payload, headers=headers)
     if response.status_code == 200:
         print("✅ 이미지 생성 성공!")
         img_data = BytesIO(response.content)
@@ -442,17 +450,19 @@ async def AI_img_generate(req: novel_schema.ImageRequest, payload_, delete_files
         image.save(save_path, format="PNG")
         
         # print("📸 이미지가 'generated_image.png'로 저장되었습니다.)
-        novel_crud.save_cover("novel", novel_pk, save_path, "1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N", db)
-        print("📸 이미지가 'generated_image.png'로 저장되었습니다.")
+
+        # novel_crud.save_cover("novel", novel_pk, save_path, "1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N", db)
+        print("📸 이미지가 저장되었습니다.")
         
-        for delete_image in delete_files : 
-            path = os.path.join(os.getcwd(), "static", delete_image)
-            os.remove(path)
-        print("이미지를 전체 삭제하였습니다.")
+        # for delete_image in delete_files : 
+        #     path = os.path.join(os.getcwd(), "static", delete_image)
+        #     os.remove(path)
+        # print("이미지를 전체 삭제하였습니다.")
 
         return HTTPException(status_code=status.HTTP_201_CREATED)
 
-@app.post("/api/v1/editor/image_ai")    
+
+@app.post("/api/v1/editor/image_ai")
 async def generate_image(req: novel_schema.ImageRequest):
     generator = ImageGenerator()
     generator.gen_image_pipline
@@ -470,4 +480,4 @@ async def generate_image(req: novel_schema.ImageRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-
+# def save_ai_image 

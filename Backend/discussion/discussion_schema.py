@@ -81,13 +81,26 @@ class NewDiscussionForm(BaseModel):
         from_attributes = True
 
 
-# 토론 요약본 생성
-class NewNoteForm(BaseModel):
-    novel_pk: int
-    user_pk: int
-    summary: str
 
 
 # 토론 요약본 조회
 class Note(BaseModel):
     summary: str
+
+
+# 소설 생성 AI 모델 응답용 스키마
+
+# 토론 요약본 생성
+class SummaryRequest(BaseModel):
+    novel_pk: int
+    document_path: str
+    content: str
+
+class FactCheckRequest(BaseModel):
+    novel_pk: int
+    document_path: str
+    content: str
+
+class SubjectRequest(BaseModel):
+    discussion_pk: int
+    content: str
