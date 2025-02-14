@@ -145,8 +145,8 @@ async def login(response: Response, login_form: OAuth2PasswordRequestForm = Depe
     redis_client.setex(f"refresh_token:{user.email}", int(refresh_token_expires.total_seconds()), refresh_token)
 
     # 쿠키에 토큰 저장
-    response.set_cookie(key="access_token", value=access_token, httponly=True, max_age=int(access_token_expires.total_seconds()))
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, max_age=int(refresh_token_expires.total_seconds()))
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="Lax", max_age=int(access_token_expires.total_seconds()))
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="Lax", max_age=int(refresh_token_expires.total_seconds()))
 
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
