@@ -5,10 +5,12 @@ from novel import novel_crud, novel_schema
 from models import Novel, User
 from typing import List, Optional
 from utils.auth_utils import get_optional_user
-from fastapi import Request # 삭제 예정 
+from fastapi import Request, File, UploadFile # 삭제 예정 
 import os
+from discussion import discussion_crud
 
-
+# AI 이미지 생성 
+from ai.gen_image import ImageGenerator
 
 app = APIRouter(
     prefix='/api/v1',
@@ -53,8 +55,6 @@ def main_page(
 
     return response_data
 
-
-
 # 영상 재생은 별개의 router 로 보여줌
 # 아래가 예시임. 
 """
@@ -84,10 +84,14 @@ print("app has started")
 def all_novel(db: Session = Depends(get_db)):
     return novel_crud.get_all_novel(db)
 
-
-# 에디터 페이지 아주 많은걸 인풋으로 받아야 하겠네. 일단 나누자고 얘기해보자. 
-
-# 에디터 페이지 정보 가져오기.
+# 디테일 페이지, 아직 미완
+@app.get("/novel/{novel_pk}")
+def novel_detail(novel_pk : int, db : Session = Depends(get_db)) : 
+    episode = novel_crud.novel_episode()
+    novel_info  = ""
+    discussion = discussion_crud.get_discussions()
+    
+    pass
 
 @app.get("/novel/{novel_pk}") 
 def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
@@ -97,8 +101,6 @@ def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
     character = novel_crud.get_character(novel_pk, db)
     return {"novel" : novel, "character" : character} 
 
-#등장인물 CUD
-# 등장인물 완성함
 #등장인물 CUD
 @app.post("/novel/character/{novel_pk}", response_model=novel_schema.CharacterBase)
 def save_character(novel_pk : int, character_info : novel_schema.CharacterBase, db: Session = Depends(get_db)) :
@@ -149,7 +151,7 @@ def novel_episode(novel_pk: int, db: Session = Depends(get_db)):
 
 # 특정 소설에 에피소드 추가
 @app.post("/novel/{novel_pk}/episode", response_model=novel_schema.EpisodeCreateBase)
-def create_episode(novel_pk: int, episode_data: novel_schema.EpisodeCreateBase, db: Session = Depends(get_db)):
+def save_episode(novel_pk: int, episode_data: novel_schema.EpisodeCreateBase, db: Session = Depends(get_db)):
     return novel_crud.save_episode(novel_pk, episode_data, db)
 
 # 에피소드 변경
@@ -170,7 +172,7 @@ def ep_comment(novel_pk: int, ep_pk: int, db: Session = Depends(get_db)):
 
 # 댓글 작성
 @app.post("/novel/{novel_pk}/episode/{ep_pk}/comment", response_model=novel_schema.CommentBase)
-def write_comment(comment_info: novel_schema.CommentBase, novel_pk: int, ep_pk: int, user_pk: int, db: Session = Depends(get_db)):
+def save_comment(comment_info: novel_schema.CommentBase, novel_pk: int, ep_pk: int, user_pk: int, db: Session = Depends(get_db)):
     comment = novel_crud.create_comment(comment_info, novel_pk, ep_pk, user_pk, db)
     if not comment:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="댓글 작성에 실패했습니다.")
@@ -226,22 +228,41 @@ def get_cocoment(comment_pk : int, db: Session = Depends(get_db) ) :
     return novel_crud.get_cocoment(comment_pk,db)
 
 # 표지 이미지
-
+"""
 import os
 @app.post("/image")
 
 #아래 리턴되는 값은 드라이브 내부의 img id임. 수정이 필요한경우 해당 걸로 하면 됨.
 def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session = Depends(get_db)) : 
     novel = novel_crud.save_cover(novel_pk, file_name, drive_folder_id, db)
-    
     return novel
+"""
 
-# 1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N
+
+@app.post("/save")
+async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), db: Session = Depends(get_db)) : 
+    if user_novel == "user" :
+        drive_path = "1M6KHgGMhmN0AiPaf5Ltb3f0JhZZ7Bnm5"
+    elif user_novel == "novel" : 
+        drive_path = "1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N"
+    else : 
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="need to choose user or novel")
+    
+    # Local static에 이미지 저장
+    file_path = await novel_crud.image_upload(file)
+
+    # 원격 저장소에 이미지 저장
+    novel_crud.save_cover(user_novel, pk, file_path, drive_path, db)
+
+    # Local static에서 이미지 삭제
+    os.remove(file_path)
+
 @app.delete("/image")
 def delete_img(file_id : str, drive_folder_id : str, novel_pk : int , db: Session = Depends(get_db)) :
     return novel_crud.delete_image(file_id, drive_folder_id)
 
-from .novel_generator import NovelGenerator
+from ai.gen_image import ImageGenerator
+from ai.gen_novel import NovelGenerator
 from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
 from .novel_crud import get_previous_chapters
 from utils.auth_utils import get_current_user
@@ -257,6 +278,12 @@ def recommend_synopsis(request: SynopsisRequest) :
     novel_gen = NovelGenerator(request.genre, request.title, request.worldview)
     synopsis = novel_gen.recommend_synopsis()
     return {"synopsis": synopsis}
+
+@app.post("/ai/characters-new")
+def add_new_characters(request : CharacterRequest) : 
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis)
+    new_characters = novel_gen.add_new_characters()
+    return {"new_characters" : new_characters}
 
 @app.post("/ai/characters")
 def recommend_characters(request: CharacterRequest):
@@ -305,12 +332,11 @@ def create_episode(request: CreateChapterRequest, current_user: User = Depends(g
     return {"title": request.title, "genre": request.genre, "new_chapter": new_chapter}
 
 from fastapi import File, UploadFile
-@app.post("/upload")
-async def upload_image(imgpath : str, pk : int, file: UploadFile = File(...)):
-    return await novel_crud.image_upload(imgpath, pk, file)
 
 
-from .novel_generator import NovelGenerator
+"""
+
+from ai.gen_novel import NovelGenerator
 from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
 from .novel_crud import get_previous_chapters
 from utils.auth_utils import get_current_user
@@ -327,11 +353,18 @@ def recommend_synopsis(request: SynopsisRequest) :
     synopsis = novel_gen.recommend_synopsis()
     return {"synopsis": synopsis}
 
-@app.post("/ai/characters")
+@app.post("/ai/characters/new")
+def add_new_characters(request : CharacterRequest) : 
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis)
+    new_characters = novel_gen.add_new_characters()
+    return {"new_characters" : new_characters}
+
+@app.post("/ai/character")
 def recommend_characters(request: CharacterRequest):
     novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.characters)
     updated_characters = novel_gen.recommend_characters()
     return {"characters": updated_characters}
+
 
 @app.post("/ai/episode")
 def create_episode(request: CreateChapterRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -372,20 +405,17 @@ def create_episode(request: CreateChapterRequest, current_user: User = Depends(g
     new_chapter = generator.create_chapter()
 
     return {"title": request.title, "genre": request.genre, "new_chapter": new_chapter}
+"""
 
-
-
-
-
+from PIL import Image
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
 from fastapi.responses import Response
+import requests
+import os
+from io import BytesIO
 
-from gen_func.gen_image import ImageGenerator
-
-generator = ImageGenerator()
-generator.gen_image_pipline
 JUPYTER_URL = os.environ["JUPYTER_URL"]
 
 payload = {
@@ -395,35 +425,42 @@ payload = {
     "worldview": "high",
     "keywords": ["dragon", "knight", "adventure"]
 }
-import requests
-import os
-from io import BytesIO
-from PIL import Image
 
-
+# payload는 
 @app.post("/image/generate")
-async def AI_img_generate(payload) :
+async def AI_img_generate(req: novel_schema.ImageRequest) :
     headers = {"Content-Type": "application/json"}
     response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=payload, headers=headers)
     if response.status_code == 200:
         print("✅ 이미지 생성 성공!")
+        img_data = BytesIO(response.content)
+        image = Image.open(img_data)
 
-    # 응답된 이미지 데이터를 BytesIO 객체로 변환
-    img_data = BytesIO(response.content)
+        # 🖼️ 이미지 띄우기
+        # image.show()
 
-    # PIL로 이미지 열기
-    image = Image.open(img_data)
+        # 💾 이미지 저장
+        img_name = f"{payload['title']}.png"
+        save_path = os.path.join(os.getcwd(), "static", img_name)
+        image.save(save_path, format="PNG")
+        
+        # print("📸 이미지가 'generated_image.png'로 저장되었습니다.)
 
-    # 🖼️ 이미지 띄우기
-    image.show()
+        # novel_crud.save_cover("novel", novel_pk, save_path, "1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N", db)
+        print("📸 이미지가 저장되었습니다.")
+        
+        # for delete_image in delete_files : 
+        #     path = os.path.join(os.getcwd(), "static", delete_image)
+        #     os.remove(path)
+        # print("이미지를 전체 삭제하였습니다.")
 
-    # 💾 이미지 저장
-    image.save(f"/static/{payload["title"]}.png", format="PNG")
-    print("📸 이미지가 'generated_image.png'로 저장되었습니다.")
+        return HTTPException(status_code=status.HTTP_201_CREATED)
 
-    
-@app.post("/api/v1/editor/image_ai")    
+
+@app.post("/api/v1/editor/image_ai")
 async def generate_image(req: novel_schema.ImageRequest):
+    generator = ImageGenerator()
+    generator.gen_image_pipline
     try:
         image = generator.gen_image_pipeline(
             req.genre, req.style, req.title, req.worldview, req.keywords

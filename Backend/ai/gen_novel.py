@@ -79,10 +79,34 @@ class NovelGenerator:
     def recommend_synopsis(self) -> str:
         """소설 줄거리 생성 함수"""
         instruction = """
-        당신은 전문적으로 소설 줄거리를 만드는 작가입니다.
-        주어진 장르, 제목을 기반으로 독창적이고 생동감 있는 소설 줄거리를 만들어주세요.
-        줄거리를 구성할 때, 소설 세계관과의 연계성을 고려하여 상세하게 작성하세요.
-        이 정보를 바탕으로, 소설 줄거리에 대해 상세한 설명을 작성해 주세요.
+당신은 전문적으로 소설 줄거리를 만드는 작가입니다.
+        주어진 장르, 제목, 세계관을 기반으로 독창적이고 생동감 있는 소설 줄거리를 만들어주세요.
+        소설 줄거리를 구성할 때, 아래의 항목들을 참고하세요.
+
+        1. 기본 정보
+        - 장르: [예: 판타지, SF 등]
+        - 제목: [제목 입력]
+        - 세계관: [세계관의 배경, 시대, 문화, 기술 등 간단히 설명]
+
+        2. 도입부
+        - 소설이 펼쳐지는 세계관 소개
+        - 주요 인물 및 그들의 기본 목표
+        - 초기 갈등이나 문제의 암시
+
+        3. 전개부
+        - 주된 갈등 및 도전 과제 전개
+        - 인물 간의 관계와 서브 플롯 설명
+        - 주인공이 맞서야 하는 문제와 성장 과정
+
+        4. 클라이맥스
+        - 갈등의 최고조와 결정적 순간
+        - 주인공의 중요한 선택 및 대립의 절정
+
+        5. 결말
+        - 갈등 해결 및 인물 변화
+        - 세계관에 미친 영향과 여운 남기기
+
+        위 템플릿에 따라 소설의 줄거리를 상세하게 작성해 주세요. 
         """
         model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)
         prompt = f"## 소설 장르: {self.genre}\n## 소설 제목: {self.title}\n##소설 세계관: {self.worldview}\n\n**소설 줄거리**\n"
@@ -91,38 +115,45 @@ class NovelGenerator:
         print("Synopsis:\n", self.synopsis)
         return self.synopsis
 
-    def recommend_characters(self) -> List[Dict]:
+    def recommend_characters(self) -> str:
         """소설 등장인물 생성 함수"""
         instruction = """
         당신은 전문적으로 등장인물을 구성하는 소설 작가입니다. 
         주어진 장르, 제목, 세계관, 줄거리를 기반으로 소설 등장인물을 만들어주세요.
 
-        각 등장인물은 다음 속성을 포함하는 JSON 형태(dict)로 표현해야 합니다.
+        각 등장인물은 다음 속성을 포함하는 JSON 형태(dict)로 표현되어야 합니다.
 
         * 이름: (예: 홍길동, 춘향이 등) - 등장인물의 이름 (필수)
         * 성별: (예: 남, 여, 기타) - 등장인물의 성별 (필수)
         * 나이: (예: 20세, 30대 초반 등) - 등장인물의 나이 (필수)
         * 역할: (예: 주인공, 조력자, 악당 등) - 이야기 속 역할 (필수)
         * 직업: (예: 의사, 학생, 무사 등) - 등장인물의 직업 (필수)
-        * 프로필:
+        * 프로필: 등장인물의 외모, 성격, 능력, 과거, 관계 등 여러 특징을 하나의 자연스러운 문장으로 작성해 주세요.
+          (예: "키 180cm에 날카로운 눈매와 과묵한 성격을 가지고 있으며, 특정 능력과 습관, 버릇, 가치관 등이 돋보이고, 가문 및 출신과 과거가 있으며, 주인공과 친구 혹은 연인 관계를 형성한다.")
             - (예: 키 180cm, 날카로운 눈매, 과묵한 성격 등) - 외모, 성격, 능력 등 세부 묘사 (선택)
             - (예: 특정 능력, 습관, 버릇, 가치관 등) - 등장인물의 개성을 드러내는 특징 (선택)
             - (예: 가문, 출신, 과거 등) - 등장인물의 과거와 배경 (선택)
             - (예: 주인공과 친구, 연인 관계 등) - 다른 등장인물과의 관계 (선택)
 
-        여러 명의 등장인물을 생성할 수 있으며, 각 등장인물은 아래와 같은 형태로 표현해야 합니다.
+        여러 명의 등장인물을 생성할 수 있으며, 각 등장인물은 아래와 같은 형태로 표현되어야 합니다.
 
-        characters = [
+        characters =
             {
                 "이름": "홍길동",
                 "성별": "남",
                 "나이": "20",
                 "역할": "주인공",
                 "직업": "무사",
-                "프로필": "활달한 성격",
-                "특징": "뛰어난 검술"
+                "프로필": "활달한 성격"
+            },
+            {
+                "이름": "춘향이",
+                "성별": "여",
+                "나이": "18",
+                "역할": "조력자",
+                "직업": "농부",
+                "프로필": "밝고 활발한 성격"
             }
-        ]
         """
         model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)
         prompt = (
@@ -130,29 +161,91 @@ class NovelGenerator:
             f"## 소설 제목: {self.title}\n"
             f"## 소설 세계관: {self.worldview}\n"
             f"## 소설 줄거리: {self.synopsis}\n"
-            f"## 기존 소설 등장인물: {json.dumps(self.characters, ensure_ascii=False)}\n\n"
+            f"## 기존 소설 등장인물: {self.characters}\n\n"
             "**새로운 소설 등장인물**\n"
         )
         response = model.generate_content(prompt)
-        raw_text = response.text.strip()  # AI 응답에서 불필요한 공백 제거
-
-        # **JSON 코드 블록(````json ... `````) 제거**
-        raw_text = re.sub(r'```json\n(.*?)\n```', r'\1', raw_text, flags=re.DOTALL)
-
-        # **JSON 변환 검증**
+        new_characters = response.text
+        new_characters = re.sub(r'```json\n(.*?)\n```', r'\1', new_characters, flags=re.DOTALL)
         try:
-            new_characters = json.loads(raw_text)  # AI 응답을 JSON으로 변환
-            if isinstance(new_characters, list):  # 응답이 리스트인지 확인
-                self.characters.extend(new_characters)  # 기존 리스트에 추가
-            else:
-                print("Error: AI 응답이 리스트 형태의 JSON이 아님", raw_text)
-                new_characters = []
-        except json.JSONDecodeError:
-            print("Error: AI 응답을 JSON으로 변환하는 데 실패", raw_text)
-            new_characters = []
-
+            existing = json.loads(self.characters) if self.characters.strip() else []
+            if not isinstance(existing, list):
+                existing = [existing]
+        except Exception:
+            existing = []
+        try:
+            new_char = json.loads(new_characters)
+        except Exception:
+            new_char = new_characters
+        # 수정: new_char가 리스트인 경우 extend, 그렇지 않으면 append
+        if isinstance(new_char, list):
+            existing.extend(new_char)
+        else:
+            existing.append(new_char)
+        self.characters = json.dumps(existing, ensure_ascii=False, indent=2)
         print("Characters:\n", self.characters)
         return self.characters
+
+    def add_new_characters(self) -> str:
+        """
+        기존 등장인물에 추가로 새로운 등장인물을 생성하는 함수.
+        기존 캐릭터와 차별화된 새로운 인물들을 생성하여 기존 목록 리스트에 덧붙입니다.
+        """
+        instruction = """
+        당신은 전문적으로 등장인물을 구성하는 소설 작가입니다. 
+        주어진 장르, 제목, 세계관, 줄거리, 기존 등장인물들을 기반으로 기존과 다른 새로운 소설 등장인물을 만들어주세요.
+
+        등장인물은 다음 속성을 포함하는 JSON 형태(dict)로 표현되어야 합니다.
+
+        * 이름: (예: 홍길동, 춘향이 등) - 등장인물의 이름 (필수)
+        * 성별: (예: 남, 여, 기타) - 등장인물의 성별 (필수)
+        * 나이: (예: 20세, 30대 초반 등) - 등장인물의 나이 (필수)
+        * 역할: (예: 주인공, 조력자, 악당 등) - 이야기 속 역할 (필수)
+        * 직업: (예: 의사, 학생, 무사 등) - 등장인물의 직업 (필수)
+        * 프로필: 등장인물의 외모, 성격, 능력, 과거, 관계 등 여러 특징을 하나의 자연스러운 문장으로 작성해 주세요.
+          (예: "키 180cm에 날카로운 눈매와 과묵한 성격을 가지고 있으며, 특정 능력과 습관, 버릇, 가치관 등이 돋보이고, 가문 및 출신과 과거가 있으며, 주인공과 친구 혹은 연인 관계를 형성한다.")
+        등장인물은 아래와 같은 형태로 표현되어야 하며, 한 명의 캐릭터를 생성합니다.
+
+        characters =
+            {
+                "이름": "홍길동",
+                "성별": "남",
+                "나이": "20",
+                "역할": "주인공",
+                "직업": "무사",
+                "프로필": "활달한 성격"
+            }
+        """
+        model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)
+        prompt = (
+            f"## 소설 장르: {self.genre}\n"
+            f"## 소설 제목: {self.title}\n"
+            f"## 소설 세계관: {self.worldview}\n"
+            f"## 소설 줄거리: {self.synopsis}\n"
+            f"## 기존 소설 등장인물: {self.characters}\n\n"
+            "**추가 생성된 소설 등장인물**\n"
+        )
+        response = model.generate_content(prompt)
+        additional_characters = response.text
+        additional_characters = re.sub(r'```json\n(.*?)\n```', r'\1', additional_characters, flags=re.DOTALL)
+        try:
+            existing = json.loads(self.characters) if self.characters.strip() else []
+            if not isinstance(existing, list):
+                existing = [existing]
+        except Exception:
+            existing = []
+        try:
+            new_char = json.loads(additional_characters)
+        except Exception:
+            new_char = additional_characters
+        if isinstance(new_char, list):
+            existing.extend(new_char)
+        else:
+            existing.append(new_char)
+        self.characters = json.dumps(existing, ensure_ascii=False, indent=2)
+        print("Updated Characters:\n", self.characters)
+        return self.characters
+
 
     def create_chapter(self) -> str:
         """
@@ -197,26 +290,26 @@ class NovelGenerator:
         return chapter_text
 
 
-# 예시 사용법:
-if __name__ == "__main__":
-    # 소설의 장르와 제목을 입력합니다.
-    genre = input("소설의 장르를 입력하세요: ex) 판타지, 로맨스, 스릴러 등\n")
-    title = input("소설의 제목을 입력하세요: ex) 괴식식당, 신의탑, 전생전기 등\n")
+# # 예시 사용법:
+# if __name__ == "__main__":
+#     # 소설의 장르와 제목을 입력합니다.
+#     genre = input("소설의 장르를 입력하세요: ex) 판타지, 로맨스, 스릴러 등\n")
+#     title = input("소설의 제목을 입력하세요: ex) 괴식식당, 신의탑, 전생전기 등\n")
 
-    novel_gen = NovelGenerator(genre, title)
+#     novel_gen = NovelGenerator(genre, title)
     
-    # 순차적으로 각 단계의 결과를 생성합니다.
-    input("세계관 생성을 시작합니다. 엔터를 눌러주세요.")
-    novel_gen.recommend_worldview()
-    input("줄거리 생성을 시작합니다. 엔터를 눌러주세요.")
-    novel_gen.recommend_synopsis()
-    input("등장인물 생성을 시작합니다. 엔터를 눌러주세요.")
-    novel_gen.recommend_characters()
+#     # 순차적으로 각 단계의 결과를 생성합니다.
+#     input("세계관 생성을 시작합니다. 엔터를 눌러주세요.")
+#     novel_gen.recommend_worldview()
+#     input("줄거리 생성을 시작합니다. 엔터를 눌러주세요.")
+#     novel_gen.recommend_synopsis()
+#     input("등장인물 생성을 시작합니다. 엔터를 눌러주세요.")
+#     novel_gen.recommend_characters()
     
-    # 첫 번째 장(초안) 생성
-    input("첫 번째 장(초안) 생성을 시작합니다. 엔터를 눌러주세요.")
-    chapter1 = novel_gen.create_chapter()
+#     # 첫 번째 장(초안) 생성
+#     input("첫 번째 장(초안) 생성을 시작합니다. 엔터를 눌러주세요.")
+#     chapter1 = novel_gen.create_chapter()
     
-    # 이후 생성할 챕터는 create_chapter()를 호출하면 DB에 저장된 모든 챕터가 입력값으로 사용됩니다.
-    input("다음 장 생성을 시작합니다. 엔터를 눌러주세요.")
-    chapter2 = novel_gen.create_chapter()
+#     # 이후 생성할 챕터는 create_chapter()를 호출하면 DB에 저장된 모든 챕터가 입력값으로 사용됩니다.
+#     input("다음 장 생성을 시작합니다. 엔터를 눌러주세요.")
+#     chapter2 = novel_gen.create_chapter()
