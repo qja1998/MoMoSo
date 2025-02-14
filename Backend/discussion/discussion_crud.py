@@ -1,8 +1,9 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from uuid import uuid4
 
-from models import Discussion, Novel, User, Episode
+from models import Discussion, Novel, User, Episode, user_discussion_table
 from . import discussion_schema
 
 def get_discussions(db: Session) -> List[Discussion]:
@@ -10,33 +11,109 @@ def get_discussions(db: Session) -> List[Discussion]:
     모든 토론 방 목록 조회
     """
     discussions = db.query(Discussion).all()
-    return discussions
 
-def get_discussion(db: Session, discussion_pk: int) -> Discussion:
+    discussion_list = []
+    for discussion in discussions:
+        # 1. Novel 조회
+        novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+        if not novel:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Novel not found")
+
+        # 2. Episode 조회 (ep_pk가 존재하는 경우만)
+        episode = None
+        if discussion.ep_pk:
+            episode = db.query(Episode).filter(Episode.ep_pk == discussion.ep_pk).first()
+            if not episode:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Episode not found")
+
+        # 3. Participants 조회 (참여자 리스트)
+        participants = db.query(User).join(user_discussion_table).filter(
+            user_discussion_table.c.discussion_pk == discussion.discussion_pk
+        ).all()
+
+        discussion_list.append({
+            "discussion_pk": discussion.discussion_pk,
+            "novel": {"novel_pk": novel.novel_pk, "title": novel.title},  # ✅ novel 정보 포함
+            "episode": {"ep_pk": episode.ep_pk, "ep_title": episode.ep_title} if episode else None,
+            "topic": discussion.topic,
+            "start_time": discussion.start_time,
+            "end_time": discussion.end_time,
+            "participants": [{"user_pk": user.user_pk, "name": user.name, "nickname": user.nickname} for user in participants]
+        })
+
+    return discussion_list
+
+
+def get_discussion(db: Session, discussion_pk: int):
     """
-    특정 토론 방 조회
+    특정 토론 방 조회 (관계 설정 없이 novel, episode 직접 조회)
     """
+    # 1. Discussion 조회
     discussion = db.query(Discussion).filter(Discussion.discussion_pk == discussion_pk).first()
     if not discussion:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Discussion not found")
-    return discussion
 
-def create_discussion(db: Session, discussion: discussion_schema.NewDiscussionForm) -> Discussion:
+    # 2. Novel 조회
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+    if not novel:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Novel not found")
+
+    # 3. Episode 조회
+    episode = None
+    if discussion.ep_pk:
+        episode = db.query(Episode).filter(Episode.ep_pk == discussion.ep_pk).first()
+        if not episode:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Episode not found")
+
+    # 4. Participants 조회 (참여자 리스트)
+    participants = db.query(User).join(user_discussion_table).filter(
+        user_discussion_table.c.discussion_pk == discussion.discussion_pk
+    ).all()
+
+    return {
+        "discussion_pk": discussion.discussion_pk,
+        "novel": {"novel_pk": novel.novel_pk, "title": novel.title},
+        "episode": {"ep_pk": episode.ep_pk, "ep_title": episode.ep_title} if episode else None,
+        "topic": discussion.topic,
+        "start_time": discussion.start_time,
+        "end_time": discussion.end_time,
+        "participants": [{"user_pk": user.user_pk, "name": user.name, "nickname": user.nickname} for user in participants]
+    }
+
+
+def generate_session_id():
+    """
+    토론방 참여를 위한 세션 ID를 생성하는 함수
+    """
+    return str(uuid4())
+
+
+def create_discussion(db: Session, discussion: discussion_schema.NewDiscussionForm, current_user: User) -> Discussion:
     """
     새로운 토론 방 생성
     """
     # 1. Novel, User 존재 확인
     novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
-    user = db.query(User).filter(User.user_pk == discussion.user_pk).first()
+    user = db.query(User).filter(User.user_pk == current_user.user_pk).first()
 
     if not novel:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Novel not found")
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
+    # 소설 특정 회차에 대한 토론일 경우, episode 존재 여부 확인
+    if discussion.ep_pk:
+        episode = db.query(Episode).filter(Episode.ep_pk == discussion.ep_pk).first()
+        if not episode:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Episode not found")
+
+    session_id = generate_session_id()
+
     # 2. Discussion 생성
     new_discussion = Discussion(
         novel_pk=discussion.novel_pk,
+        ep_pk=discussion.ep_pk if discussion.ep_pk else None,
+        session_id=session_id,
         topic=discussion.topic,
         category=discussion.category,
         start_time=discussion.start_time,
@@ -53,7 +130,7 @@ def create_discussion(db: Session, discussion: discussion_schema.NewDiscussionFo
     return new_discussion
 
 
-def add_participant(db: Session, discussion_pk: int, user_pk: int) -> Discussion:
+def add_participant(db: Session, discussion_pk: int, user_pk: int):
     """
     토론 방에 유저 참여
     """
@@ -79,10 +156,34 @@ def add_participant(db: Session, discussion_pk: int, user_pk: int) -> Discussion
     db.commit()
     db.refresh(discussion)
 
-    return discussion
+    # Novel 정보 추가
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+    if not novel:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Novel not found")
+
+    # Episode 정보 추가
+    episode_data = None
+    if discussion.ep_pk:
+        episode = db.query(Episode).filter(Episode.ep_pk == discussion.ep_pk).first()
+        if episode:
+            episode_data = {"ep_pk": episode.ep_pk, "ep_title": episode.ep_title}
+
+    # Participants 변환
+    participants = [{"user_pk": u.user_pk, "name": u.name, "nickname": u.nickname} for u in discussion.participants]
+
+    return {
+        "discussion_pk": discussion.discussion_pk,
+        "novel": {"novel_pk": novel.novel_pk, "title": novel.title},
+        "episode": episode_data,
+        "topic": discussion.topic,
+        "start_time": discussion.start_time,
+        "end_time": discussion.end_time,
+        "participants": participants
+    }
 
 
-def remove_participant(db: Session, discussion_pk: int, user_pk: int) -> Discussion:
+
+def remove_participant(db: Session, discussion_pk: int, user_pk: int):
     """
     토론 방에서 유저 삭제
     """
@@ -104,10 +205,34 @@ def remove_participant(db: Session, discussion_pk: int, user_pk: int) -> Discuss
     db.commit()
     db.refresh(discussion)
 
-    return discussion
+    # Novel 정보 추가
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+    if not novel:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Novel not found")
+
+    # Episode 정보 추가
+    episode_data = None
+    if discussion.ep_pk:
+        episode = db.query(Episode).filter(Episode.ep_pk == discussion.ep_pk).first()
+        if episode:
+            episode_data = {"ep_pk": episode.ep_pk, "ep_title": episode.ep_title}
+
+    # Participants 변환
+    participants = [{"user_pk": u.user_pk, "name": u.name, "nickname": u.nickname} for u in discussion.participants]
+
+    return {
+        "discussion_pk": discussion.discussion_pk,
+        "novel": {"novel_pk": novel.novel_pk, "title": novel.title},
+        "episode": episode_data,
+        "topic": discussion.topic,
+        "start_time": discussion.start_time,
+        "end_time": discussion.end_time,
+        "participants": participants
+    }
 
 
-def update_discussion(db: Session, discussion_pk: int, discussion_update: discussion_schema.NewDiscussionForm) -> Discussion:
+
+def update_discussion(db: Session, discussion_pk: int, discussion_update: discussion_schema.NewDiscussionForm):
     """
     토론 방 정보 수정
     """
@@ -124,7 +249,34 @@ def update_discussion(db: Session, discussion_pk: int, discussion_update: discus
 
     db.commit()
     db.refresh(discussion)
-    return discussion
+
+    # Novel 정보 추가
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+    if not novel:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Novel not found")
+
+    # Episode 정보 추가 (필요할 때만)
+    episode_data = None
+    if discussion.ep_pk:
+        episode = db.query(Episode).filter(Episode.ep_pk == discussion.ep_pk).first()
+        if episode:
+            episode_data = {"ep_pk": episode.ep_pk, "ep_title": episode.ep_title}
+
+    # Participants 추가
+    participants = db.query(User).join(user_discussion_table).filter(
+        user_discussion_table.c.discussion_pk == discussion.discussion_pk
+    ).all()
+
+    return {
+        "discussion_pk": discussion.discussion_pk,
+        "novel": {"novel_pk": novel.novel_pk, "title": novel.title},
+        "episode": episode_data,
+        "topic": discussion.topic,
+        "start_time": discussion.start_time,
+        "end_time": discussion.end_time,
+        "participants": [{"user_pk": user.user_pk, "name": user.name, "nickname": user.nickname} for user in participants]
+    }
+
 
 def delete_discussion(db: Session, discussion_pk: int):
     """
@@ -136,4 +288,6 @@ def delete_discussion(db: Session, discussion_pk: int):
 
     db.delete(discussion)
     db.commit()
-    return
+    
+    return None 
+
