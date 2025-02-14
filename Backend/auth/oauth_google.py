@@ -40,6 +40,8 @@ def create_refresh_token(data: dict, expires_delta: timedelta = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+import json
+from fastapi.responses import HTMLResponse
 
 async def process_google_callback(code: str, response: Response, db: Session):
     """
@@ -129,6 +131,19 @@ async def process_google_callback(code: str, response: Response, db: Session):
         "refresh_token": jwt_refresh_token,
         "token_type": "bearer",
     }
+
+    # html_content = """
+    # <script>
+    #     window.opener.postMessage({type: "GOOGLE_LOGIN_SUCCESS", data: %s}, "*");
+    #     window.close();
+    # </script>
+    # """ % json.dumps({
+    #     "message": "Google 로그인 성공",
+    #     "user": email,
+    #     "oauth_connected": oauth_connected,
+    # })
+
+    # return HTMLResponse(content=html_content)
 
 
 @router.get("/google/callback")
