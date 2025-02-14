@@ -15,13 +15,23 @@ import graphicLogo from '/src/assets/logo/graphic-logo.svg'
 import { useEffect, useState } from "react";
 import axios from 'axios'
 
+const BACKEND_URL = import.meta.env.BACKEND_URL
+
 const Login = () => {
+  const [loginForm, setLoginForm] = useState({
+    email: "",
+    password: "",
+  })
+  const [formErrors, setFormErrors] = useState({
+    email: false,
+    password: false,
+  })
   const [googleLoginUrl, setGoogleLoginUrl] = useState("")
   const navigate = useNavigate()
 
   useEffect(() => {
     axios
-      .get("http://127.0.0.1:8000/api/v1/oauth/google/login")
+      .get(`${BACKEND_URL}/api/v1/oauth/google/login`)
       .then((response) => {
         console.log(response.data)
         setGoogleLoginUrl(response.data.login_url)
@@ -82,12 +92,29 @@ const Login = () => {
   }
 
   const handleLogin = () => {
-    // TODO: 일반 로그인 구현
     // 1. 입력값 유효성 검사
+    const errors = {
+      email: !loginForm.email.trim(),
+      password: !loginForm.password.trim(),
+    }
+
+    setFormErrors(errors)
+
+    if (Object.values(errors).some((error) => error)) {
+      return
+    }
+
     // 2. API 로그인 요청
+    axios.post(`${BACKEND_URL}/api/v1/auth/login`, loginForm)
+      .then((response) => {
+        console.log(response)
+      })
+      .catch((error) => {
+        console.error("로그인 실패:", error)
+      })
     // 3. 토큰 저장
     // 4. 로그인 상태 업데이트
-    console.log('일반 로그인 시도')
+    console.log(loginForm)
   }
 
   return (
@@ -121,8 +148,15 @@ const Login = () => {
         {/* 로그인 폼 섹션 */}
         <TextField
           fullWidth
+          value={loginForm.email}
+          onChange={(e) => {
+            setLoginForm({ ...loginForm, email: e.target.value })
+            setFormErrors({ ...formErrors, email: false })
+          }}
           placeholder="이메일을 입력해주세요"
           variant="outlined"
+          error={formErrors.email}
+          helperText={formErrors.email ? '이메일을 입력해주세요' : ''}
           slotProps={{
             input: {
               startAdornment: (
@@ -135,9 +169,16 @@ const Login = () => {
         />
         <TextField
           fullWidth
+          value={loginForm.password}
+          onChange={(e) => {
+            setLoginForm({ ...loginForm, password: e.target.value })
+            setFormErrors({ ...formErrors, password: false })
+          }}
           type="password"
           placeholder="비밀번호를 입력해주세요"
           variant="outlined"
+          error={formErrors.password}
+          helperText={formErrors.password ? '비밀번호를 입력해주세요' : ''}
           slotProps={{
             input: {
               startAdornment: (

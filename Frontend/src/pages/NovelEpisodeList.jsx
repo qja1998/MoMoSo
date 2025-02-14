@@ -1,12 +1,27 @@
 import styled from '@emotion/styled'
+import axios from 'axios'
 import dayjs from 'dayjs'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { useNavigate } from 'react-router-dom'
+
+// 아이콘
 import AddIcon from '@mui/icons-material/Add'
 import FavoriteIcon from '@mui/icons-material/Favorite'
+import ImageIcon from '@mui/icons-material/Image'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import InsertEmoticonIcon from '@mui/icons-material/InsertEmoticon'
 import MenuBookIcon from '@mui/icons-material/MenuBook'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
+import RefreshIcon from '@mui/icons-material/Refresh'
+import SendIcon from '@mui/icons-material/Send'
+import SettingsIcon from '@mui/icons-material/Settings'
+import SmartToyIcon from '@mui/icons-material/SmartToy'
+import ThumbDownIcon from '@mui/icons-material/ThumbDown'
+import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+// 디자인 컴포넌트
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
@@ -14,6 +29,7 @@ import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import FormControl from '@mui/material/FormControl'
+import IconButton from '@mui/material/IconButton'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
 import Paper from '@mui/material/Paper'
@@ -30,17 +46,6 @@ import Typography from '@mui/material/Typography'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
-import IconButton from '@mui/material/IconButton'
-import RefreshIcon from '@mui/icons-material/Refresh'
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
-import InsertEmoticonIcon from '@mui/icons-material/InsertEmoticon'
-import ImageIcon from '@mui/icons-material/Image'
-import SendIcon from '@mui/icons-material/Send'
-import SmartToyIcon from '@mui/icons-material/SmartToy'
-import SettingsIcon from '@mui/icons-material/Settings'
-import MoreVertIcon from '@mui/icons-material/MoreVert'
-import ThumbUpIcon from '@mui/icons-material/ThumbUp'
-import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 
 import coverPlaceholder from '/src/assets/placeholder/cover-image-placeholder.png'
 
@@ -73,7 +78,8 @@ const DiscussionBadge = styled(Box)(({ status }) => ({
 }))
 
 const NovelEpisodeList = () => {
-  // episodes 상태를 useMemo로 최적화
+  const navigate = useNavigate()
+  // TODO: 소설 에피소드 목록 조회 API 호출
   const episodes = useMemo(
     () => [
       {
@@ -131,41 +137,126 @@ const NovelEpisodeList = () => {
 
   // 토론방 생성 폼 초기값
   const initialDiscussionForm = {
-    type: 'default',
-    dateTime: null,
-    topic: '',
-    maxParticipants: 5,
+    novel_pk: 1, // TODO: 소설 ID는 실제 URL에서 추출
+    topic: '', // 토론 주제
+    category: false, // 전체 작품 토론의 경우 false, 회차별 토론의 경우 true
+    ep_pk: null, // 회차별 토론의 경우 회차 ID, 전체 작품 토론의 경우 null
+    start_time: null, // 토론 시작 시간
+    max_participants: 6, // 최대 참여 인원
   }
 
   const [discussions, setDiscussions] = useState([])
   const [openModal, setOpenModal] = useState(false)
   const [discussionForm, setDiscussionForm] = useState(initialDiscussionForm)
+  const [formErrors, setFormErrors] = useState({
+    dateTime: false,
+    topic: false,
+    maxParticipants: false,
+  })
+
+  // 토론 목록 가져오기
+  useEffect(() => {
+    const fetchDiscussions = async () => {
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/v1/discussion/`)
+        setDiscussions(response.data)
+        console.log(response.data)
+      } catch (error) {
+        console.error('토론 목록을 가져오는데 실패했습니다:', error)
+      }
+    }
+    fetchDiscussions()
+  }, [])
 
   // 모달 핸들러 함수들
   const handleOpenModal = useCallback(() => setOpenModal(true), [])
   const handleCloseModal = useCallback(() => {
     setOpenModal(false)
     setDiscussionForm(initialDiscussionForm)
+    setFormErrors({
+      dateTime: false,
+      topic: false,
+      maxParticipants: false,
+    })
   }, [])
 
-  const handleCreateDiscussion = useCallback(() => {
-    if (!discussionForm.dateTime || !discussionForm.topic || !discussionForm.maxParticipants) {
-      alert('모든 필드를 입력해주세요.')
+  const handleCreateDiscussion = useCallback(async () => {
+    const errors = {
+      dateTime: !discussionForm.start_time,
+      topic: !discussionForm.topic.trim(),
+      maxParticipants: !discussionForm.max_participants,
+    }
+
+    setFormErrors(errors)
+
+    if (Object.values(errors).some((error) => error)) {
       return
     }
 
-    const newDiscussion = {
-      id: discussions.length + 1,
-      ...discussionForm,
-      createdAt: new Date().toISOString(),
-      participants: [],
+    // 서버에 전송할 데이터 형식으로 변환
+    const requestData = {
+      novel_pk: 1, // TODO: 실제 소설 ID로 교체
+      topic: discussionForm.topic,
+      category: discussionForm.category,
+      ep_pk: discussionForm.ep_pk,
+      start_time: discussionForm.start_time,
+      max_participants: parseInt(discussionForm.max_participants),
     }
 
-    setDiscussions((prev) => [...prev, newDiscussion])
-    handleCloseModal()
+    // 서버에 토론 생성 요청
+    await axios
+      .post(`http://localhost:8000/api/v1/discussion/`, requestData)
+      .then((response) => {
+        console.log(response)
+        // 성공적으로 생성된 경우 로컬 상태 업데이트
+        const newDiscussion = {
+          id: discussions.length + 1,
+          ...discussionForm,
+          createdAt: new Date().toISOString(),
+          participants: [],
+        }
+        setDiscussions((prev) => [...prev, newDiscussion])
+        handleCloseModal()
+      })
+      .catch((error) => {
+        switch (error.response.status) {
+          case 401:
+            console.error('로그인이 필요합니다:', error)
+            // TODO: 에러 처리
+            break
+          case 404:
+            console.error('Failed to create discussion:', error)
+            // TODO: 에러 처리
+            break
+          default:
+            console.error('Failed to create discussion:', error)
+            // TODO: 에러 처리
+            break
+        }
+      })
   }, [discussionForm, discussions.length])
 
+  // 토론방 입장 핸들러
+  const handleEnterDiscussion = useCallback(
+    (discussion) => {
+      navigate(`/discussion/${discussion.discussion_pk}`, {
+        state: {
+          discussion: {
+            topic: discussion.topic,
+            startTime: discussion.start_time,
+            participants: discussion.participants,
+            novelTitle: discussion.novel.title,
+            episode: discussion.episode,
+            sessionId: discussion.session_id
+          }
+        }
+      })
+    },
+    [navigate]
+  )
+
   const [comments, setComments] = useState([
+    // TODO: 댓글 데이터 추가
     {
       id: 1,
       author: '밍(dkgk****)',
@@ -203,15 +294,18 @@ const NovelEpisodeList = () => {
   const handleSubmitComment = useCallback(() => {
     if (!commentInput.trim()) return
 
-    setComments(prev => [...prev, {
-      id: prev.length + 1,
-      author: '사용자',
-      date: new Date().toLocaleString(),
-      content: commentInput,
-      likes: 0,
-      dislikes: 0,
-      isBest: false
-    }])
+    setComments((prev) => [
+      ...prev,
+      {
+        id: prev.length + 1,
+        author: '사용자',
+        date: new Date().toLocaleString(),
+        content: commentInput,
+        likes: 0,
+        dislikes: 0,
+        isBest: false,
+      },
+    ])
     setCommentInput('')
   }, [commentInput])
 
@@ -272,47 +366,59 @@ const NovelEpisodeList = () => {
 
         {/* 토론방 섹션 */}
         <Stack sx={{ flex: 4, p: 2, gap: 2 }}>
-          <Typography variant="h6" fontWeight={700}>
-            토론방
-          </Typography>
-
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleOpenModal}
-            sx={{
-              bgcolor: '#FFA000',
-              '&:hover': { bgcolor: '#FF8F00' },
-            }}
-          >
-            토론 생성
-          </Button>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6" fontWeight={700}>
+              토론방
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleOpenModal}
+              sx={{
+                bgcolor: '#FFA000',
+                '&:hover': { bgcolor: '#FF8F00' },
+              }}
+            >
+              토론 생성
+            </Button>
+          </Stack>
 
           {/* 토론 목록 */}
           <Stack spacing={2}>
             {discussions.map((discussion) => (
               <Paper
-                key={discussion.id}
+                onClick={() => handleEnterDiscussion(discussion)}
+                key={discussion.discussion_pk}
                 elevation={1}
                 sx={{
                   p: 2,
                   borderRadius: 1,
                   cursor: 'pointer',
-                  '&:hover': { bgcolor: 'grey.50' },
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 8px hsla(0, 0%, 0%, 0.1)',
+                    bgcolor: 'hsla(0, 0%, 0%, 0.05)',
+                  },
                 }}
               >
-                <DiscussionBadge status={discussion.type === 'episode' ? '2화 토론' : '전체 토론'}>
-                  {discussion.type === 'episode' ? '2화 토론' : '전체 토론'}
+                <DiscussionBadge status={discussion.episode ? '회차 토론' : '전체 토론'}>
+                  {discussion.episode ? '회차 토론' : '전체 토론'}
                 </DiscussionBadge>
                 <Typography variant="h6" sx={{ mb: 1 }}>
                   {discussion.topic}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  {dayjs(discussion.dateTime).format('YYYY.MM.DD HH:mm')}
+                  {dayjs(discussion.start_time).format('YYYY.MM.DD HH:mm')}
                 </Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  justifyContent="space-between"
+                >
                   <Typography variant="body2" color="text.secondary">
-                    참여 인원 {discussion.participants.length}/{discussion.maxParticipants}명
+                    참여 인원 {discussion.participants.length}명
                   </Typography>
                 </Stack>
               </Paper>
@@ -321,23 +427,39 @@ const NovelEpisodeList = () => {
         </Stack>
 
         {/* 토론방 생성 모달 */}
-        <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
+        <Dialog
+          open={openModal}
+          onClose={(event, reason) => {
+            if (reason !== 'backdropClick') {
+              handleCloseModal()
+            }
+          }}
+          maxWidth="sm"
+          fullWidth
+          disableEscapeKeyDown
+        >
           <DialogTitle sx={{ fontWeight: 700 }}>토론방 생성</DialogTitle>
           <DialogContent>
             <Stack spacing={3} sx={{ mt: 2 }}>
               <FormControl fullWidth>
                 <InputLabel>토론 유형</InputLabel>
                 <Select
-                  value={discussionForm.type}
+                  value={discussionForm.category}
                   label="토론 유형"
                   slotProps={{
                     inputLabel: {
                       shrink: true,
                     },
                   }}
-                  onChange={(e) => setDiscussionForm({ ...discussionForm, type: e.target.value })}
+                  onChange={(e) =>
+                    setDiscussionForm({
+                      ...discussionForm,
+                      category: e.target.value,
+                      ep_pk: e.target.value ? 1 : null, // TODO: 실제 에피소드 ID로 교체
+                    })
+                  }
                 >
-                  <MenuItem value="default">
+                  <MenuItem value={false}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <MenuBookIcon />
                       <Box>
@@ -348,7 +470,7 @@ const NovelEpisodeList = () => {
                       </Box>
                     </Stack>
                   </MenuItem>
-                  <MenuItem value="episode">
+                  <MenuItem value={true}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <MenuBookIcon />
                       <Box>
@@ -362,25 +484,24 @@ const NovelEpisodeList = () => {
                 </Select>
               </FormControl>
 
-              <FormControl fullWidth>
+              <FormControl fullWidth error={formErrors.dateTime}>
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
                   <DateTimePicker
-                    value={discussionForm.dateTime}
+                    value={discussionForm.start_time}
                     onChange={(newValue) =>
-                      setDiscussionForm({ ...discussionForm, dateTime: newValue })
+                      setDiscussionForm({ ...discussionForm, start_time: newValue })
                     }
                     minDateTime={dayjs()}
                     format="YYYY/MM/DD HH:mm"
                     ampm={false}
                     slotProps={{
-                      inputLabel: {
-                        shrink: true,
-                      },
                       textField: {
                         fullWidth: true,
                         required: true,
                         label: '토론 일시',
                         variant: 'outlined',
+                        error: formErrors.dateTime,
+                        helperText: formErrors.dateTime ? '토론 일시를 선택해주세요' : '',
                       },
                     }}
                   />
@@ -393,26 +514,23 @@ const NovelEpisodeList = () => {
                 label="토론 주제"
                 placeholder="토론 주제를 입력하세요."
                 value={discussionForm.topic}
-                slotProps={{
-                  inputLabel: {
-                    shrink: true,
-                  },
-                }}
+                error={formErrors.topic}
+                helperText={formErrors.topic ? '토론 주제를 입력해주세요' : ''}
                 onChange={(e) => setDiscussionForm({ ...discussionForm, topic: e.target.value })}
               />
 
-              <FormControl fullWidth>
+              <FormControl fullWidth error={formErrors.maxParticipants}>
                 <TextField
-                  value={discussionForm.maxParticipants}
+                  value={discussionForm.max_participants}
                   label="최대 참여 인원"
                   type="number"
-                  slotProps={{
-                    inputLabel: {
-                      shrink: true,
-                    },
-                  }}
+                  error={formErrors.maxParticipants}
+                  helperText={formErrors.maxParticipants ? '최대 참여 인원을 입력해주세요' : ''}
                   onChange={(e) =>
-                    setDiscussionForm({ ...discussionForm, maxParticipants: e.target.value })
+                    setDiscussionForm({
+                      ...discussionForm,
+                      max_participants: parseInt(e.target.value),
+                    })
                   }
                 />
               </FormControl>
@@ -479,14 +597,14 @@ const NovelEpisodeList = () => {
             <Typography variant="h6" fontWeight={700}>
               작품리뷰
             </Typography>
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                backgroundColor: 'grey.100', 
-                px: 1, 
-                py: 0.5, 
+            <Typography
+              variant="body2"
+              sx={{
+                backgroundColor: 'grey.100',
+                px: 1,
+                py: 0.5,
                 borderRadius: 1,
-                color: 'text.secondary' 
+                color: 'text.secondary',
               }}
             >
               26
@@ -503,12 +621,12 @@ const NovelEpisodeList = () => {
         </Box>
 
         {/* 댓글 입력 영역 */}
-        <Paper 
-          variant="outlined" 
-          sx={{ 
-            p: 2, 
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 2,
             mb: 3,
-            borderRadius: 2
+            borderRadius: 2,
           }}
         >
           <TextField
@@ -530,8 +648,8 @@ const NovelEpisodeList = () => {
                 <ImageIcon />
               </IconButton>
             </Stack>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               disabled
               onClick={handleSubmitComment}
               startIcon={<SendIcon />}
@@ -546,28 +664,28 @@ const NovelEpisodeList = () => {
         </Paper>
 
         {/* 클린봇 알림 */}
-        <Paper 
-          variant="outlined" 
-          sx={{ 
-            p: 2, 
-            mb: 3, 
-            display: 'flex', 
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 2,
+            mb: 3,
+            display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             borderRadius: 2,
-            bgcolor: '#F5F5F5'
+            bgcolor: '#F5F5F5',
           }}
         >
           <Stack direction="row" spacing={1} alignItems="center">
             <SmartToyIcon sx={{ color: '#00DC64' }} />
             <Typography>
-              <Typography component="span" fontWeight={700}>클린봇</Typography>이 악성댓글을 감지합니다.
+              <Typography component="span" fontWeight={700}>
+                클린봇
+              </Typography>
+              이 악성댓글을 감지합니다.
             </Typography>
           </Stack>
-          <Button 
-            startIcon={<SettingsIcon />}
-            sx={{ color: 'text.secondary' }}
-          >
+          <Button startIcon={<SettingsIcon />} sx={{ color: 'text.secondary' }}>
             설정
           </Button>
         </Paper>
@@ -580,7 +698,7 @@ const NovelEpisodeList = () => {
               variant="outlined"
               sx={{
                 p: 2,
-                borderRadius: 2
+                borderRadius: 2,
               }}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -595,15 +713,15 @@ const NovelEpisodeList = () => {
                 </IconButton>
               </Box>
               {comment.isBest && (
-                <Box 
-                  sx={{ 
+                <Box
+                  sx={{
                     display: 'inline-block',
                     px: 1.5,
                     py: 0.5,
                     borderRadius: 2,
                     bgcolor: '#E3F2FD',
                     color: '#1976D2',
-                    mb: 1
+                    mb: 1,
                   }}
                 >
                   <Typography variant="caption" fontWeight={700}>
@@ -613,16 +731,16 @@ const NovelEpisodeList = () => {
               )}
               <Typography>{comment.content}</Typography>
               <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                <Button 
-                  startIcon={<ThumbUpIcon />} 
+                <Button
+                  startIcon={<ThumbUpIcon />}
                   size="small"
                   onClick={() => handleLike(comment.id)}
                   sx={{ color: 'text.secondary' }}
                 >
                   {comment.likes}
                 </Button>
-                <Button 
-                  startIcon={<ThumbDownIcon />} 
+                <Button
+                  startIcon={<ThumbDownIcon />}
                   size="small"
                   onClick={() => handleDislike(comment.id)}
                   sx={{ color: 'text.secondary' }}
@@ -630,8 +748,8 @@ const NovelEpisodeList = () => {
                   {comment.dislikes}
                 </Button>
               </Stack>
-              <IconButton 
-                size="small" 
+              <IconButton
+                size="small"
                 onClick={() => handleDeleteComment(comment.id)}
                 sx={{ position: 'absolute', top: 8, right: 8 }}
               >
