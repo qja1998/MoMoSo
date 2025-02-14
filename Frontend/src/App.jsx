@@ -4,6 +4,7 @@ import { CssBaseline } from '@mui/material'
 import { ThemeProvider } from '@mui/material/styles'
 
 import DiscussionRoom from './pages/DiscussionRoom'
+import DiscussionSummary from './pages/DiscussionSummary'
 import NavbarLayout from '/src/components/layout/NavbarLayout'
 import SidebarLayout from '/src/components/layout/SidebarLayout'
 import ChangeUserInfo from '/src/pages/ChangeUserInfo'
@@ -39,28 +40,40 @@ function App() {
               {/* <Route path="mypage" element={<MyPage />} /> */}
               <Route path="change-info" element={<ChangeUserInfo />} />
             </Route>
-            <Route path="/novel/edit/" element={<NovelEditor />} />
 
-            <Route path="/novel/viewer">
-              <Route path="list" element={<NovelList />} />
-              {/* 작품 상세 페이지의 실제 주소 스타일 */}
-              {/* <Route path="viewer/:novelId" element={<NovelEpisodeList />} /> */}
-              {/* 에피소드 뷰어 페이지의 실제 주소 스타일 */}
-              {/* <Route path="viewer/:novelId/:episodeId" element={<NovelViewer />} /> */}
-              {/* 디버그를 위한 작품 상세 페이지 */}
-              <Route path="detail" element={<NovelEpisodeList />} />
-              {/* 디버그를 위한 에피소드 뷰어 페이지 */}
-              <Route path="" element={<NovelEpisodeViewer />} />
+            {/* 실제 프로덕션용 라우트 */}
+            <Route path="/novel">
+              <Route path="viewer/:novelId" element={<NovelEpisodeList />} />
+              <Route path="viewer/:novelId/:episodeId" element={<NovelEpisodeViewer />} />
+              <Route path="edit/" element={<NovelEditor />} />
             </Route>
-            <Route path="/discussion-room" element={<DiscussionRoom />} />
+
+            {/* 디버그용 라우트 */}
+            <Route path="/debug">
+              <Route path="novel">
+                <Route path="list" element={<NovelList />} />
+                <Route path="detail" element={<NovelEpisodeList />} />
+                <Route path="viewer" element={<NovelEpisodeViewer />} />
+              </Route>
+            </Route>
           </Route>
 
           {/* Sidebar Layout */}
           <Route element={<SidebarLayout />}>
+            <Route path="/discussions">
+              <Route path=":discussionId" element={<DiscussionRoom />} />
+              <Route path=":discussionId/summary" element={<DiscussionSummary />} />
+            </Route>
+
             <Route path="/novel/edit">
               <Route path="background" element={<NovelBackgroundEditor />} />
-              {/* 작품 회차 수정 페이지의 실제 주소 스타일일 */}
               <Route path="episode/:episodeId" element={<NovelEpisodeEditor />} />
+            </Route>
+
+            {/* 디버그용 라우트 */}
+            <Route path="/debug">
+              <Route path="discussions" element={<DiscussionRoom />} />
+              <Route path="summary" element={<DiscussionSummary />} />
             </Route>
           </Route>
 

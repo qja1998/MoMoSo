@@ -15,6 +15,10 @@ import IconButton from '@mui/material/IconButton'
 import Slider from '@mui/material/Slider'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
+import SendIcon from '@mui/icons-material/Send'
+import AddIcon from '@mui/icons-material/Add'
+import FactCheckIcon from '@mui/icons-material/FactCheck'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
 
 export default function DiscussionRoom() {
   const navigate = useNavigate()
@@ -62,6 +66,56 @@ export default function DiscussionRoom() {
   const [speakingUsers, setSpeakingUsers] = useState([]) // VAD로 현재 말하고 있는 사용자들의 ID 배열
   const [isVolumeHovered, setIsVolumeHovered] = useState(false)
 
+  // 채팅 관련 상태 추가
+  const [messages, setMessages] = useState([
+    {
+      content: '안녕하세요! 토론에 오신 것을 환영합니다.',
+      timestamp: '2025-02-14T06:32:30.000Z',
+      sender: {
+        user_pk: 2,
+        nickname: '검은달의연금술사',
+      },
+    },
+    {
+      content: '첨지와 리나의 만남이 우연이었을까요?',
+      timestamp: '2025-02-14T06:33:15.000Z',
+      sender: {
+        user_pk: 3,
+        nickname: '천둥의시인',
+      },
+    },
+    {
+      content: '저는 운명적인 만남이었다고 생각합니다.',
+      timestamp: '2025-02-14T06:34:00.000Z',
+      sender: {
+        user_pk: 1,
+        nickname: '법의체집관',
+      },
+    },
+    {
+      content: '시간 여행이라는 설정을 고려하면, 모든 만남이 우연이면서도 필연이었을 것 같아요. 과거에서 미래로, 미래에서 과거로 이어지는 시간의 흐름 속에서 그들의 만남은 이미 정해져 있었을 수도 있죠.',
+      timestamp: '2025-02-14T06:34:45.000Z',
+      sender: {
+        user_pk: 4,
+        nickname: '직막의도서관',
+      },
+    },
+    {
+      content: '동의합니다. 시간 여행이라는 소재가 이야기에 깊이를 더해주는 것 같네요.',
+      timestamp: '2025-02-14T06:35:30.000Z',
+      sender: {
+        user_pk: 5,
+        nickname: '파도타는종타가면',
+      },
+    },
+  ])
+  const [newMessage, setNewMessage] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  // AI 어시스턴트 관련 상태 추가
+  const [factChecks, setFactChecks] = useState([])
+  const [isGeneratingTopic, setIsGeneratingTopic] = useState(false)
+
   const handleBack = () => {
     navigate('/discussions', {
       replace: true,
@@ -78,8 +132,74 @@ export default function DiscussionRoom() {
     // TODO: OpenVidu 볼륨 제어 로직 구현
   }
 
+  // 채팅 관련 핸들러 함수 추가
+  const handleMessageChange = (event) => {
+    setNewMessage(event.target.value)
+  }
+
+  const handleMessageSubmit = async (event) => {
+    event.preventDefault()
+    if (!newMessage.trim()) return
+
+    setIsLoading(true)
+    try {
+      // TODO: 메시지 전송 API 호출 구현
+      const messageData = {
+        content: newMessage,
+        timestamp: new Date().toISOString(),
+        sender: {
+          user_pk: 1, // TODO: 실제 사용자 ID로 교체
+          nickname: '나',
+        },
+      }
+      
+      setMessages((prev) => [...prev, messageData])
+      setNewMessage('')
+    } catch (error) {
+      console.error('Failed to send message:', error)
+      // TODO: 에러 처리 구현
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // 팩트 체크 핸들러
+  const handleFactCheck = async (message) => {
+    try {
+      // TODO: 팩트 체크 API 호출
+      const response = {
+        timestamp: new Date().toISOString(),
+        message: message.content,
+        result: '31화에서 리나의 사랑 이야기에 대한 관심이 명시적으로 언급됩니다. 페이지 245, "리나는 늘 실패한 사랑 이야기에 관심이 많았다"라는 구절이 있습니다.',
+      }
+      setFactChecks((prev) => [...prev, response])
+    } catch (error) {
+      console.error('Failed to check fact:', error)
+    }
+  }
+
+  // 토론 주제 추천 핸들러
+  const handleTopicRecommendation = async () => {
+    setIsGeneratingTopic(true)
+    try {
+      // TODO: 토론 주제 추천 API 호출
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    } catch (error) {
+      console.error('Failed to generate topic:', error)
+    } finally {
+      setIsGeneratingTopic(false)
+    }
+  }
+
   return (
-    <Grid container sx={{ height: '100vh' }}>
+    <Grid 
+      container 
+      sx={{ 
+        height: '100vh',
+        width: '100%',
+        overflow: 'hidden',
+      }}
+    >
       {/* 상단 헤더 */}
       <Grid
         size={12}
@@ -123,9 +243,14 @@ export default function DiscussionRoom() {
       </Grid>
 
       {/* 컨텐츠 영역 컨테이너 */}
-      <Grid container size={12} sx={{ height: 'calc(100vh - 72px)' }}>
-        {' '}
-        {/* 헤더 높이 제외 */}
+      <Grid 
+        container 
+        size={12} 
+        sx={{ 
+          height: 'calc(100vh - 72px)',
+          overflow: 'hidden',
+        }}
+      >
         {/* 좌측 사이드바 */}
         <Grid
           size={3}
@@ -145,7 +270,7 @@ export default function DiscussionRoom() {
           </Stack>
 
           {/* 참여자 목록 */}
-          <Stack sx={{ flex: 1, overflow: 'auto' }}>
+          <Stack sx={{ flex: 1, overflow: 'auto', height: 'calc(100% - 100px)' }}>
             {discussionInfo.participants.map((participant) => (
               <Stack
                 key={participant.user_pk}
@@ -180,8 +305,14 @@ export default function DiscussionRoom() {
             }}
             spacing={2}
           >
-            {/* 볼륨 컨트롤 */}
-            <Stack direction="row" alignItems="center" spacing={2} sx={{ position: 'relative' }}>
+            {/* 볼륨 & 마이크 컨트롤 */}
+            <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
+              {/* 마이크 버튼 */}
+              <IconButton onClick={handleMicToggle}>
+                {isMicOn ? <MicIcon /> : <MicOffIcon color="error" />}
+              </IconButton>
+
+              {/* 볼륨 컨트롤 */}
               <IconButton
                 onClick={() => setVolume(volume === 0 ? 50 : 0)}
                 onMouseEnter={() => setIsVolumeHovered(true)}
@@ -193,14 +324,13 @@ export default function DiscussionRoom() {
                 <Box
                   sx={{
                     position: 'absolute',
-                    bottom: '52px', // 약간 더 위로
-                    left: '8px', // 아이콘과 정렬
-                    height: '120px', // 높이 증가
+                    bottom: '52px',
+                    left: '8px',
+                    height: '120px',
                     opacity: isVolumeHovered ? 1 : 0,
                     visibility: isVolumeHovered ? 'visible' : 'hidden',
                     transition: 'opacity 0.2s, visibility 0.2s',
                     bgcolor: 'background.paper',
-
                     borderRadius: 1,
                     boxShadow: 1,
                     zIndex: 1,
@@ -211,54 +341,284 @@ export default function DiscussionRoom() {
                   <Slider
                     value={volume}
                     onChange={handleVolumeChange}
+                    onClick={(e) => e.stopPropagation()} // 이벤트 전파 방지
                     aria-label="Volume"
                     orientation="vertical"
                     size="small"
                     sx={{
                       '& .MuiSlider-root': {
-                        padding: '8px 12px',
+                        padding: '32px 12px',
                       },
                       '& .MuiSlider-thumb': {
                         width: 12,
                         height: 12,
                       },
                       height: '100%',
-                      mt: 0.5, // 상단 마진 추가
-                      mb: 0.5, // 하단 마진 추가
+                      mt: 0.5,
+                      mb: 0.5,
                     }}
                   />
                 </Box>
               </IconButton>
             </Stack>
 
-            {/* 마이크 & 나가기 버튼 */}
-            <Stack direction="row" spacing={1}>
-              <IconButton onClick={handleMicToggle}>
-                {isMicOn ? <MicIcon /> : <MicOffIcon color="error" />}
-              </IconButton>
-              <Button
-                variant="contained"
-                color="error"
-                fullWidth
-                onClick={() => navigate('/discussions', { replace: true })}
+            {/* 구분선 */}
+            <Stack
+              sx={{
+                width: '100%',
+                height: '1px',
+                bgcolor: '#EEEEEE',
+              }}
+            />
+
+            {/* 나가기 버튼 */}
+            <Button
+              variant="contained"
+              color="error"
+              fullWidth
+              onClick={() => navigate('/discussions', { replace: true })}
+            >
+              토론방 나가기
+            </Button>
+          </Stack>
+        </Grid>
+
+        {/* 메인 컨텐츠 영역 */}
+        <Grid
+          size={6}
+          sx={{
+            height: '100%',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* 채팅 메시지 영역 */}
+          <Stack
+            sx={{
+              flex: 1,
+              overflow: 'auto',
+              p: 2,
+              gap: 2,
+            }}
+          >
+            {messages.map((message) => (
+              <Stack
+                key={message.timestamp}
+                direction="row"
+                spacing={1}
+                alignItems="flex-start"
+                sx={{
+                  maxWidth: '70%',
+                  alignSelf: message.sender.user_pk === 1 ? 'flex-end' : 'flex-start',
+                  position: 'relative',
+                }}
               >
-                토론방 나가기
-              </Button>
+                {message.sender.user_pk !== 1 && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      bgcolor: '#F5F5F5',
+                      p: 1,
+                      borderRadius: '50%',
+                      width: 32,
+                      height: 32,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {message.sender.nickname[0]}
+                  </Typography>
+                )}
+                <Stack spacing={0.5}>
+                  {message.sender.user_pk !== 1 && (
+                    <Typography variant="caption" color="text.secondary">
+                      {message.sender.nickname}
+                    </Typography>
+                  )}
+                  <Stack
+                    direction="row"
+                    spacing={0.5}
+                    alignItems="flex-end"
+                    sx={{
+                      flexDirection: message.sender.user_pk === 1 ? 'row-reverse' : 'row',
+                    }}
+                  >
+                    <Stack
+                      sx={{
+                        bgcolor: message.sender.user_pk === 1 ? '#E3F2FD' : '#F5F5F5',
+                        p: 1.5,
+                        borderRadius: 2,
+                        maxWidth: '100%',
+                      }}
+                    >
+                      <Typography variant="body2">{message.content}</Typography>
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(message.timestamp).toLocaleTimeString('ko-KR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Typography>
+                  </Stack>
+                </Stack>
+                <IconButton
+                  size="small"
+                  onClick={() => handleFactCheck(message)}
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    [message.sender.user_pk === 1 ? 'left' : 'right']: -28,
+                    opacity: 0,
+                    transition: 'opacity 0.2s',
+                    '&:hover': {
+                      opacity: 1,
+                    },
+                  }}
+                >
+                  <FactCheckIcon fontSize="small" />
+                </IconButton>
+              </Stack>
+            ))}
+          </Stack>
+
+          {/* 메시지 입력 영역 */}
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{
+              p: 2,
+              borderTop: '1px solid #EEEEEE',
+              bgcolor: '#FFFFFF',
+            }}
+          >
+            <Stack
+              component="form"
+              direction="row"
+              spacing={1}
+              sx={{
+                flex: 1,
+                bgcolor: '#F5F5F5',
+                borderRadius: 2,
+                p: 1,
+              }}
+              onSubmit={handleMessageSubmit}
+            >
+              <input
+                type="text"
+                placeholder="메시지를 입력하세요"
+                value={newMessage}
+                onChange={handleMessageChange}
+                disabled={isLoading}
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  outline: 'none',
+                  background: 'none',
+                  fontSize: '0.875rem',
+                }}
+              />
+              <IconButton type="submit" size="small" disabled={isLoading || !newMessage.trim()}>
+                <SendIcon />
+              </IconButton>
             </Stack>
           </Stack>
         </Grid>
-        {/* 메인 컨텐츠 영역 */}
+
+        {/* AI 어시스턴트 사이드바 */}
         <Grid
-          size={9}
+          size={3}
           sx={{
             height: '100%',
-            overflow: 'auto',
+            borderLeft: '1px solid #EEEEEE',
+            bgcolor: '#FAFAFA',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
+          {/* AI 어시스턴트 헤더 */}
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ p: 2, borderBottom: '1px solid #EEEEEE' }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                AI 어시스턴트
+              </Typography>
+            </Stack>
+            <IconButton size="small">
+              <MoreVertIcon />
+            </IconButton>
+          </Stack>
+
+          {/* 토론 주제 추천 */}
           <Stack sx={{ p: 2 }}>
-            <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 500 }}>
-              토론 내용
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ mb: 1 }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
+                토론 주제 추천
+              </Typography>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={handleTopicRecommendation}
+                disabled={isGeneratingTopic}
+                sx={{ bgcolor: '#FFA726', '&:hover': { bgcolor: '#FB8C00' } }}
+              >
+                주제
+              </Button>
+            </Stack>
+            <Stack
+              sx={{
+                p: 2,
+                bgcolor: '#EEEEEE',
+                borderRadius: 1,
+                minHeight: 80,
+              }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                카리나가 사용하는 타임 폴더의 기원과 목적에 대한 추측과 아이디어에 대해 토론해보세요.
+              </Typography>
+            </Stack>
+          </Stack>
+
+          {/* 팩트 체크 */}
+          <Stack sx={{ p: 2, flex: 1, overflow: 'auto' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 1 }}>
+              FACT CHECK
             </Typography>
+            <Stack spacing={2}>
+              {factChecks.map((check) => (
+                <Stack
+                  key={check.timestamp}
+                  sx={{
+                    p: 2,
+                    bgcolor: '#E8F5E9',
+                    borderRadius: 1,
+                  }}
+                  spacing={1}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    {new Date(check.timestamp).toLocaleTimeString('ko-KR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                    "{check.message}"
+                  </Typography>
+                  <Typography variant="body2">{check.result}</Typography>
+                </Stack>
+              ))}
+            </Stack>
           </Stack>
         </Grid>
       </Grid>
