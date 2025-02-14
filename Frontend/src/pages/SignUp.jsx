@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import CheckIcon from '@mui/icons-material/Check'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -15,6 +15,8 @@ import Typography from '@mui/material/Typography'
 import { styled } from '@mui/material/styles'
 
 import { PrimaryButton } from '../components/common/buttons'
+
+import axios from 'axios'
 
 const PasswordGuideItem = styled(Box)(({ theme, isvalid, focused }) => ({
   display: 'flex',
@@ -41,6 +43,11 @@ const PasswordGuideItem = styled(Box)(({ theme, isvalid, focused }) => ({
 }))
 
 const SignUp = () => {
+  const navigate = useNavigate()
+  const [errors, setErrors] = useState({})
+  const [isVerified, setIsVerified] = useState(false)
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false)
+
   const [showPassword, setShowPassword] = useState(false)
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
   const [formData, setFormData] = useState({
@@ -52,6 +59,7 @@ const SignUp = () => {
     password: '',
     passwordConfirm: '',
   })
+
   const [passwordFieldFocused, setPasswordFieldFocused] = useState(false)
   const [passwordValidation, setPasswordValidation] = useState({
     combinationValid: false,
@@ -83,20 +91,89 @@ const SignUp = () => {
     }))
   }
 
-  const handleVerificationCodeSend = () => {
+  const handleVerificationCodeSend = async () => {
     // TODO: 인증번호 전송 로직 구현
-    console.log('인증번호 전송')
-  }
+    try {
+      console.log("인증번호 전송 요청:", formData.phone);
+      const response = await axios.post("http://127.0.0.1:8000/api/v1/auth/send-sms", null, { // ✅ phone을 query parameter로 전달
+        params: { phone: formData.phone },
+      });
+  
+      alert(response.data.message); // "Verification code sent successfully" 출력
+    } catch (error) {
+      console.error("인증번호 전송 오류:", error);
+      setErrors({ phone: error.response?.data?.detail || "인증번호 전송에 실패했습니다." });
+    }
+  };
 
-  const handleVerificationCodeCheck = () => {
+  const handleVerificationCodeCheck = async () => {
     // TODO: 인증번호 확인 로직 구현
-    console.log('인증번호 확인')
-  }
+    try {
+      console.log("인증번호 확인 요청:", formData.phone, formData.verificationCode);
+      const response = await axios.post("http://127.0.0.1:8000/api/v1/auth/verify-sms-code", null, { // ✅ phone과 code를 query parameter로 전달
+        params: {
+          phone: formData.phone,
+          code: formData.verificationCode,
+        },
+      });
+  
+      setIsPhoneVerified(true);
+      alert(response.data.message); // "Phone number verified successfully" 출력
+    } catch (error) {
+      console.error("인증번호 확인 오류:", error);
+      setErrors({ verificationCode: error.response?.data?.detail || "인증번호가 올바르지 않습니다." });
+    }
+  };
 
-  const handleSignUp = () => {
-    // TODO: 회원가입 로직 구현
-    console.log('회원가입 시도')
+  const handleSignUp = async () => {
+    console.log("회원가입 버튼 클릭됨");
+  console.log("회원가입 요청 데이터:", formData); // 요청 데이터 확인
+
+  try {
+    const requestData = {
+      email: formData.email || "", // ✅ 필수 항목
+      name: formData.name || "",
+      nickname: formData.penName || "", // ✅ "nickname"으로 변경
+      phone: formData.phone || "",
+      password: formData.password || "",
+      confirm_password: formData.passwordConfirm || "", // ✅ "confirm_password"으로 변경
+    };
+
+    const signUpResponse = await axios.post(
+      "http://127.0.0.1:8000/api/v1/auth/signup",
+      requestData
+    );
+
+    console.log("회원가입 성공:", signUpResponse.data);
+
+    // 회원가입 성공 후 자동 로그인
+    // ✅ 로그인 요청을 `form-data` 형식으로 변경
+    const loginFormData = new URLSearchParams();
+    loginFormData.append("username", formData.email);
+    loginFormData.append("password", formData.password);
+
+    const loginResponse = await axios.post(
+      "http://127.0.0.1:8000/api/v1/auth/login", // ✅ FastAPI에서 기대하는 로그인 방식
+      loginFormData,
+      {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" }, // ✅ 필수 헤더 추가
+        withCredentials: true, // ✅ 쿠키 저장 활성화
+      }
+    );
+
+    console.log("로그인 성공:", loginResponse.data);
+    navigate("/"); // 메인 페이지로 이동
+  } catch (error) {
+    console.error("회원가입 오류:", error);
+
+    if (error.response && error.response.data) {
+      setErrors(error.response.data);
+    } else {
+      setErrors({ general: "회원가입 중 오류가 발생했습니다." });
+    }
   }
+};
+  
 
   // 비밀번호 조합 조건 검사
   const checkPasswordCombination = (password) => {
@@ -182,6 +259,8 @@ const SignUp = () => {
         variant="outlined"
         value={formData.email}
         onChange={handleInputChange}
+        error={!!errors.email}
+        helperText={errors.email}
         slotProps={{
           inputLabel: {
             shrink: true,
@@ -198,6 +277,8 @@ const SignUp = () => {
         variant="outlined"
         value={formData.name}
         onChange={handleInputChange}
+        error={!!errors.name}
+        helperText={errors.name}
         slotProps={{
           inputLabel: {
             shrink: true,
@@ -234,6 +315,9 @@ const SignUp = () => {
             variant="outlined"
             value={formData.phone}
             onChange={handlePhoneChange}
+            error={!!errors.phone}
+            helperText={errors.phone}
+            disabled={isPhoneVerified}
             slotProps={{
               inputLabel: {
                 shrink: true,
@@ -263,7 +347,7 @@ const SignUp = () => {
               boxShadow: 'none',
             }}
           >
-            인증번호 전송
+            {isPhoneVerified ? "인증완료" : "인증번호 전송"}
           </PrimaryButton>
         </Stack>
         <Stack direction="row" spacing={0}>
@@ -276,6 +360,9 @@ const SignUp = () => {
             variant="outlined"
             value={formData.verificationCode}
             onChange={handleInputChange}
+            error={!!errors.verificationCode}
+            helperText={errors.verificationCode}
+            disabled={isPhoneVerified}
             slotProps={{
               inputLabel: {
                 shrink: true,
@@ -317,6 +404,8 @@ const SignUp = () => {
           variant="outlined"
           value={formData.password}
           onChange={handleInputChange}
+          error={!!errors.password}
+          helperText={errors.password}
           onFocus={() => setPasswordFieldFocused(true)}
           slotProps={{
             inputLabel: {
