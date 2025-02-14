@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import Email from '@mui/icons-material/Email'
 import Lock from '@mui/icons-material/Lock'
@@ -12,14 +12,73 @@ import GoogleIcon from '../assets/icons/GoogleIcon'
 import { PrimaryButton } from '../components/common/buttons'
 import graphicLogo from '/src/assets/logo/graphic-logo.svg'
 
+import { useEffect, useState } from "react";
+import axios from 'axios'
+
 const Login = () => {
+  const [googleLoginUrl, setGoogleLoginUrl] = useState("")
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    axios
+      .get("http://127.0.0.1:8000/api/v1/oauth/google/login")
+      .then((response) => {
+        console.log(response.data)
+        setGoogleLoginUrl(response.data.login_url)
+      })
+      .catch((error) => {
+        console.error("구글 로그인 URL 가져오기 실패:", error)
+      })
+
+    // 구글 로그인 결과 메시지 리스너
+    const handleMessage = (event) => {
+      if (event.origin !== "http://127.0.0.1:8000") return // Ensure the message is from your backend
+
+      if (event.data.type === "GOOGLE_LOGIN_SUCCESS") {
+        console.log("로그인 성공:", event.data.data)
+        // 여기서 로그인 성공 처리 (예: 상태 업데이트, 리다이렉트 등)
+        navigate("/") // 메인 페이지로 이동
+      } else if (event.data.type === "GOOGLE_LOGIN_ERROR") {
+        console.error("로그인 실패")
+        // 로그인 실패 처리 (예: 에러 메시지 표시)
+      }
+    }
+
+    window.addEventListener("message", handleMessage)
+
+    // 컴포넌트 언마운트 시 이벤트 리스너 제거
+    return () => {
+      window.removeEventListener("message", handleMessage)
+    }
+  }, [navigate])
+
   const handleSocialLogin = () => {
-    // TODO: 구글 소셜 로그인 구현
-    // 1. Google OAuth 인증 요청
-    // 2. 인증 토큰 받기
-    // 3. 사용자 정보 요청
-    // 4. 로그인 처리
-    console.log('구글 로그인 시도')
+    if (googleLoginUrl) {
+      const width = 500
+      const height = 600
+      const left = window.screenX + (window.outerWidth - width) / 2
+      const top = window.screenY + (window.outerHeight - height) / 2
+      const popup = window.open(
+        googleLoginUrl,
+        "googleLogin",
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`,
+      )
+
+      // 팝업이 차단되었는지 확인
+      if (!popup || popup.closed || typeof popup.closed === "undefined") {
+        alert("팝업이 차단되었습니다. 팝업 차단을 해제해주세요.")
+      }
+
+      // 팝업 창 닫힘 감지
+      const checkPopupClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkPopupClosed)
+          // 팝업이 닫혔을 때 추가적인 처리가 필요하다면 여기에 작성
+        }
+      }, 1000)
+    } else {
+      console.error("로그인 URL을 가져오지 못했습니다.")
+    }
   }
 
   const handleLogin = () => {
