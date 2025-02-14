@@ -1,4 +1,6 @@
 import os
+import re
+import json
 from dotenv import load_dotenv
 import google.generativeai as genai
 import mysql.connector
@@ -18,6 +20,9 @@ class NovelGenerator:
         self.characters = ""
         self.first_chapter = ""
         self.next_chapter = ""
+        
+        # 여기서는 간단한 예시로 단일 소설에 대해 novel_pk를 1로 고정
+        self.novel_pk = 1
         
         # DB 접속정보
         self.db_host = os.getenv("DB_HOST")
@@ -63,52 +68,54 @@ class NovelGenerator:
         self.create_table_if_not_exists()
 
     def create_table_if_not_exists(self):
-        """chapters 테이블이 없으면 생성 (novel_title, chapter_number, chapter_text, created_at)"""
+        """episode 테이블이 없으면 생성"""
         cursor = self.db_connection.cursor()
         query = """
-        CREATE TABLE IF NOT EXISTS chapters (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            novel_title VARCHAR(255),
-            chapter_number INT,
-            chapter_text TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        CREATE TABLE IF NOT EXISTS episode (
+            ep_pk INT AUTO_INCREMENT PRIMARY KEY,
+            ep_title VARCHAR(255) NOT NULL,
+            novel_pk INT NOT NULL,
+            created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            ep_content TEXT NOT NULL
         )
         """
         cursor.execute(query)
         self.db_connection.commit()
         cursor.close()
 
-    def insert_chapter(self, chapter_number: int, chapter_text: str):
-        """새 챕터를 DB에 저장합니다."""
+    def insert_episode(self, ep_title: str, ep_content: str):
+        """새 에피소드를 DB에 저장합니다."""
         cursor = self.db_connection.cursor()
         query = """
-        INSERT INTO chapters (novel_title, chapter_number, chapter_text)
+        INSERT INTO episode (ep_title, novel_pk, ep_content)
         VALUES (%s, %s, %s)
         """
-        cursor.execute(query, (self.title, chapter_number, chapter_text))
+        cursor.execute(query, (ep_title, self.novel_pk, ep_content))
         self.db_connection.commit()
         cursor.close()
 
-    def get_previous_chapters(self) -> str:
-        """해당 소설의 모든 챕터(번호 순서대로)를 불러와 하나의 문자열로 합칩니다."""
+    def get_previous_episodes(self) -> str:
+        """해당 소설의 모든 에피소드(ep_content)를 created_date 기준 오름차순으로 불러와 하나의 문자열로 합칩니다."""
         cursor = self.db_connection.cursor()
         query = """
-        SELECT chapter_text FROM chapters
-        WHERE novel_title = %s
-        ORDER BY chapter_number ASC
+        SELECT ep_content FROM episode
+        WHERE novel_pk = %s
+        ORDER BY created_date ASC
         """
-        cursor.execute(query, (self.title,))
+        cursor.execute(query, (self.novel_pk,))
         rows = cursor.fetchall()
         cursor.close()
-        chapters = "\n\n---\n\n".join([row[0] for row in rows])
-        return chapters
+        episodes = "\n\n---\n\n".join([row[0] for row in rows])
+        return episodes
 
     def recommend_worldview(self) -> str:
         """소설 세계관 생성 함수"""
         instruction = """
         당신은 전문적으로 소설 세계관을 만드는 작가입니다.
+        생성되는 텍스트는 순수한 일반 텍스트 형식이어야 하며, 어떠한 마크다운 문법(예: **, ## 등)도 사용하지 말아주세요.
         주어진 장르, 제목을 기반으로 독창적이고 생동감 있는 소설 세계관을 만들어주세요.
-        소설 세계관을 구성할 때, 아래의 항목들을 참고하여 상세하게 작성하세요. 각 항목별 작성 가이드라인을 참고하여 내용을 구성하면 더욱 풍부하고 체계적인 세계관을 만들 수 있습니다.
+        소설 세계관을 구성할 때, 아래의 항목들을 참고하여 상세하게 작성하세요.
 
         1. 기본 설정
             - 시대: (예: 과거, 현대, 미래 등) - 시대적 배경과 분위기를 구체적으로 설명해주세요.
@@ -139,29 +146,52 @@ class NovelGenerator:
         7. 세부 설정 및 고유 용어
             - 세계관 내에서만 사용되는 독특한 용어나 법칙 정리 - 용어의 의미와 사용 예시를 설명하여 세계관의 현실성을 높여주세요.
             - 설정의 일관성을 유지할 수 있도록 참고 자료 작성 - 필요한 경우, 추가적인 자료를 작성하여 세계관의 완성도를 높여주세요.
-
-        이 정보를 바탕으로, 소설 세계관에 대해 상세한 설명을 작성해 주세요.
         """
         model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)
         prompt = f"## 소설 장르: {self.genre}\n## 소설 제목: {self.title}\n\n**소설 세계관**\n"
         response = model.generate_content(prompt)
         self.worldview = response.text
-        print("Worldview:\n", self.worldview)
+        print("소설 세계관:\n", self.worldview)
         return self.worldview
 
     def recommend_synopsis(self) -> str:
         """소설 줄거리 생성 함수"""
         instruction = """
         당신은 전문적으로 소설 줄거리를 만드는 작가입니다.
-        주어진 장르, 제목을 기반으로 독창적이고 생동감 있는 소설 줄거리를 만들어주세요.
-        줄거리를 구성할 때, 소설 세계관과의 연계성을 고려하여 상세하게 작성하세요.
-        이 정보를 바탕으로, 소설 줄거리에 대해 상세한 설명을 작성해 주세요.
+        생성되는 텍스트는 순수한 일반 텍스트 형식이어야 하며, 어떠한 마크다운 문법(예: **, ## 등)도 사용하지 말아주세요.
+        주어진 장르, 제목, 세계관을 기반으로 독창적이고 생동감 있는 소설 줄거리를 만들어주세요.
+        소설 줄거리를 구성할 때, 아래의 항목들을 참고하세요.
+
+        1. 기본 정보
+            - 장르: [예: 판타지, SF 등]
+            - 제목: [제목 입력]
+            - 세계관: [세계관의 배경, 시대, 문화, 기술 등 간단히 설명]
+
+        2. 도입부
+            - 소설이 펼쳐지는 세계관 소개
+            - 주요 인물 및 그들의 기본 목표
+            - 초기 갈등이나 문제의 암시
+
+        3. 전개부
+            - 주된 갈등 및 도전 과제 전개
+            - 인물 간의 관계와 서브 플롯 설명
+            - 주인공이 맞서야 하는 문제와 성장 과정
+
+        4. 클라이맥스
+            - 갈등의 최고조와 결정적 순간
+            - 주인공의 중요한 선택 및 대립의 절정
+
+        5. 결말
+            - 갈등 해결 및 인물 변화
+            - 세계관에 미친 영향과 여운 남기기
+
+        위 템플릿에 따라 소설의 줄거리를 상세하게 작성해 주세요. 
         """
         model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)
-        prompt = f"## 소설 장르: {self.genre}\n## 소설 제목: {self.title}\n##소설 세계관: {self.worldview}\n\n**소설 줄거리**\n"
+        prompt = f"## 소설 장르: {self.genre}\n## 소설 제목: {self.title}\n## 소설 세계관: {self.worldview}\n\n**소설 줄거리**\n"
         response = model.generate_content(prompt)
         self.synopsis = response.text
-        print("Synopsis:\n", self.synopsis)
+        print("소설 줄거리:\n", self.synopsis)
         return self.synopsis
 
     def recommend_characters(self) -> str:
@@ -170,22 +200,23 @@ class NovelGenerator:
         당신은 전문적으로 등장인물을 구성하는 소설 작가입니다. 
         주어진 장르, 제목, 세계관, 줄거리를 기반으로 소설 등장인물을 만들어주세요.
 
-        각 등장인물은 다음 속성을 포함하는 JSON 형태(dict)로 표현해야 합니다.
+        각 등장인물은 다음 속성을 포함하는 JSON 형태(dict)로 표현되어야 합니다.
 
         * 이름: (예: 홍길동, 춘향이 등) - 등장인물의 이름 (필수)
         * 성별: (예: 남, 여, 기타) - 등장인물의 성별 (필수)
         * 나이: (예: 20세, 30대 초반 등) - 등장인물의 나이 (필수)
         * 역할: (예: 주인공, 조력자, 악당 등) - 이야기 속 역할 (필수)
         * 직업: (예: 의사, 학생, 무사 등) - 등장인물의 직업 (필수)
-        * 프로필:
+        * 프로필: 등장인물의 외모, 성격, 능력, 과거, 관계 등 여러 특징을 하나의 자연스러운 문장으로 작성해 주세요.
+          (예: "키 180cm에 날카로운 눈매와 과묵한 성격을 가지고 있으며, 특정 능력과 습관, 버릇, 가치관 등이 돋보이고, 가문 및 출신과 과거가 있으며, 주인공과 친구 혹은 연인 관계를 형성한다.")
             - (예: 키 180cm, 날카로운 눈매, 과묵한 성격 등) - 외모, 성격, 능력 등 세부 묘사 (선택)
             - (예: 특정 능력, 습관, 버릇, 가치관 등) - 등장인물의 개성을 드러내는 특징 (선택)
             - (예: 가문, 출신, 과거 등) - 등장인물의 과거와 배경 (선택)
             - (예: 주인공과 친구, 연인 관계 등) - 다른 등장인물과의 관계 (선택)
 
-        여러 명의 등장인물을 생성할 수 있으며, 각 등장인물은 아래와 같은 형태로 표현해야 합니다.
+        여러 명의 등장인물을 생성할 수 있으며, 각 등장인물은 아래와 같은 형태로 표현되어야 합니다.
 
-        characters = [
+        characters =
             {
                 "이름": "홍길동",
                 "성별": "남",
@@ -193,8 +224,15 @@ class NovelGenerator:
                 "역할": "주인공",
                 "직업": "무사",
                 "프로필": "활달한 성격"
+            },
+            {
+                "이름": "춘향이",
+                "성별": "여",
+                "나이": "18",
+                "역할": "조력자",
+                "직업": "농부",
+                "프로필": "밝고 활발한 성격"
             }
-        ]
         """
         model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)
         prompt = (
@@ -207,45 +245,55 @@ class NovelGenerator:
         )
         response = model.generate_content(prompt)
         new_characters = response.text
-        if self.characters:
-            self.characters += "\n" + new_characters
+        new_characters = re.sub(r'```json\n(.*?)\n```', r'\1', new_characters, flags=re.DOTALL)
+        try:
+            existing = json.loads(self.characters) if self.characters.strip() else []
+            if not isinstance(existing, list):
+                existing = [existing]
+        except Exception:
+            existing = []
+        try:
+            new_char = json.loads(new_characters)
+        except Exception:
+            new_char = new_characters
+        # 수정: new_char가 리스트인 경우 extend, 그렇지 않으면 append
+        if isinstance(new_char, list):
+            existing.extend(new_char)
         else:
-            self.characters = new_characters
-        print("Characters:\n", self.characters)
+            existing.append(new_char)
+        self.characters = json.dumps(existing, ensure_ascii=False, indent=2)
+        print("소설 등장인물:\n", self.characters)
         return self.characters
 
     def add_new_characters(self) -> str:
         """
         기존 등장인물에 추가로 새로운 등장인물을 생성하는 함수.
-        기존 캐릭터와 차별화된 새로운 인물들을 생성하여 기존 목록에 덧붙입니다.
+        기존 캐릭터와 차별화된 새로운 인물들을 생성하여 기존 목록 리스트에 덧붙입니다.
         """
         instruction = """
-        당신은 전문적으로 등장인물을 생성성하는 소설 작가입니다. 
-        주어진 장르, 제목, 세계관, 줄거리, 기존 소설 등장인물들을 기반으로 기존과 다른 새로운 소설 등장인물을 만들어주세요.
+        당신은 전문적으로 등장인물을 구성하는 소설 작가입니다. 
+        주어진 장르, 제목, 세계관, 줄거리, 기존 등장인물들을 기반으로 기존과 다른 새로운 소설 등장인물을 만들어주세요.
 
-        각 등장인물은 다음 속성을 포함하는 JSON 형태(dict)로 표현해야 합니다.
+        등장인물은 다음 속성을 포함하는 JSON 형태(dict)로 표현되어야 합니다.
 
         * 이름: (예: 홍길동, 춘향이 등) - 등장인물의 이름 (필수)
         * 성별: (예: 남, 여, 기타) - 등장인물의 성별 (필수)
         * 나이: (예: 20세, 30대 초반 등) - 등장인물의 나이 (필수)
         * 역할: (예: 주인공, 조력자, 악당 등) - 이야기 속 역할 (필수)
         * 직업: (예: 의사, 학생, 무사 등) - 등장인물의 직업 (필수)
-        * 프로필:
-            - (예: 키 180cm, 날카로운 눈매, 과묵한 성격 등) - 외모, 성격, 능력 등 세부 묘사 (선택)
-            - (예: 특정 능력, 습관, 버릇, 가치관 등) - 등장인물의 개성을 드러내는 특징 (선택)
-            - (예: 가문, 출신, 과거 등) - 등장인물의 과거와 배경 (선택)
-            - (예: 주인공과 친구, 연인 관계 등) - 다른 등장인물과의 관계 (선택)
+        * 프로필: 등장인물의 외모, 성격, 능력, 과거, 관계 등 여러 특징을 하나의 자연스러운 문장으로 작성해 주세요.
+          (예: "키 180cm에 날카로운 눈매와 과묵한 성격을 가지고 있으며, 특정 능력과 습관, 버릇, 가치관 등이 돋보이고, 가문 및 출신과 과거가 있으며, 주인공과 친구 혹은 연인 관계를 형성한다.")
+        등장인물은 아래와 같은 형태로 표현되어야 하며, 한 명의 캐릭터를 생성합니다.
 
-        등장인물은 1명만 추가로 생성되어야 하며, 아래와 같은 형태로 표현해야 합니다.
-
-        {
-            "이름": "홍길동",
-            "성별": "남",
-            "나이": "20",
-            "역할": "주인공",
-            "직업": "무사",
-            "프로필": "활달한 성격"
-        }
+        characters =
+            {
+                "이름": "홍길동",
+                "성별": "남",
+                "나이": "20",
+                "역할": "주인공",
+                "직업": "무사",
+                "프로필": "활달한 성격"
+            }
         """
         model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)
         prompt = (
@@ -258,37 +306,59 @@ class NovelGenerator:
         )
         response = model.generate_content(prompt)
         additional_characters = response.text
-        if self.characters:
-            self.characters += "\n" + additional_characters
+        additional_characters = re.sub(r'```json\n(.*?)\n```', r'\1', additional_characters, flags=re.DOTALL)
+        try:
+            existing = json.loads(self.characters) if self.characters.strip() else []
+            if not isinstance(existing, list):
+                existing = [existing]
+        except Exception:
+            existing = []
+        try:
+            new_char = json.loads(additional_characters)
+        except Exception:
+            new_char = additional_characters
+        if isinstance(new_char, list):
+            existing.extend(new_char)
         else:
-            self.characters = additional_characters
-        print("Updated Characters:\n", additional_characters)
+            existing.append(new_char)
+        self.characters = json.dumps(existing, ensure_ascii=False, indent=2)
+        print("소설 등장인물 업데이트:\n", self.characters)
         return self.characters
 
-    def create_chapter(self) -> str:
+    def create_episode(self) -> str:
         """
-        DB에 저장된 이전 챕터들을 모두 불러와서, 
-        이를 기반으로 새 챕터(초안 또는 다음 화)를 생성합니다.
-        각 챕터는 500-1000자 정도로 작성합니다.
+        DB에 저장된 이전 에피소드들을 모두 불러와서, 
+        이를 기반으로 새 에피소드(초안 또는 다음 화)를 생성합니다.
+        각 에피소드는 500-1000자 정도로 작성합니다.
         """
-        previous_chapters = self.get_previous_chapters()
+        previous_episodes = self.get_previous_episodes()
         
-        if not previous_chapters:
-            # 이전 챕터가 없다면 첫 번째 장(초안) 생성
+        if not previous_episodes:
+            # 이전 에피소드가 없다면 첫 번째 에피소드(초안) 생성
             instruction = """
             당신은 창의적이고 독창적인 소설 작가입니다. 
             주어진 장르, 제목, 세계관, 줄거리, 등장인물을 기반으로 소설의 초안을 작성해야 합니다.
-            장르의 분위기에 맞게 전개하되, 500-1000자 정도의 내용을 작성해야 합니다.
+            각 에피소드는 500-1000자 정도로 작성해야 합니다.
+
+            <작성 지침>
+            - 소설의 분위기는 주어진 장르에 맞게 설정하세요.
+            - 첫 번째 에피소드에서는 주인공을 등장시키고, 소설의 시작점을 설정하세요.
+            - 분량을 준수하되, 에피소드가 끝날 때 문장이 완결되도록 작성하세요.
             """
-            chapter_label = "**소설 초안**\n"
+            episode_label = "**소설 초안**\n"
         else:
-            # 이전 챕터가 있다면 DB의 모든 내용을 기반으로 다음 화 생성
+            # 이전 에피소드가 있다면 DB의 모든 내용을 기반으로 다음 화 생성
             instruction = """
             당신은 창의적이고 독창적인 소설 작가입니다. 
             주어진 장르, 제목, 세계관, 줄거리, 등장인물, 소설 이전화를 기반으로 소설의 다음화를 작성해야 합니다.
-            장르의 분위기에 맞게 전개하되, 500-1000자 정도의 내용을 작성해야 합니다.
+            각 에피소드는 500-1000자 정도로 작성해야 합니다.
+
+            <작성 지침>
+            - 소설의 분위기는 주어진 장르에 맞게 설정하세요.
+            - 이전화의 내용을 참고하여 내용이 자연스럽게 연결되도록 작성하세요.
+            - 분량을 준수하되, 에피소드가 끝날 때 문장이 완결되도록 작성하세요.
             """
-            chapter_label = "**소설 다음화**\n"
+            episode_label = "**소설 다음화**\n"
         
         model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)
         prompt = (
@@ -298,30 +368,31 @@ class NovelGenerator:
             f"## 소설 줄거리: {self.synopsis}\n"
             f"## 소설 등장인물: {self.characters}\n"
         )
-        if previous_chapters:
-            prompt += f"## 소설 초안: {previous_chapters}\n\n"
-        prompt += chapter_label
+        if previous_episodes:
+            prompt += f"## 소설 초안: {previous_episodes}\n\n"
+        prompt += episode_label
 
         response = model.generate_content(prompt)
-        chapter_text = response.text
+        episode_content = response.text
 
-        # DB에 저장할 챕터 번호는 현재 DB에 저장된 챕터 수 + 1로 결정
+        # 에피소드 번호는 기존 에피소드 수 + 1
         cursor = self.db_connection.cursor()
-        cursor.execute("SELECT COUNT(*) FROM chapters WHERE novel_title = %s", (self.title,))
+        cursor.execute("SELECT COUNT(*) FROM episode WHERE novel_pk = %s", (self.novel_pk,))
         (count,) = cursor.fetchone()
         cursor.close()
-        chapter_number = count + 1
+        ep_number = count + 1
+        ep_title = f"Episode {ep_number}"
 
-        # 새로 생성된 챕터를 DB에 저장
-        self.insert_chapter(chapter_number, chapter_text)
+        # 새로 생성된 에피소드를 DB에 저장
+        self.insert_episode(ep_title, episode_content)
 
-        if chapter_number == 1:
-            self.first_chapter = chapter_text
-            print("Novel Draft:\n", chapter_text)
+        if ep_number == 1:
+            self.first_episode = episode_content
+            print("에피소드 1화:\n", episode_content)
         else:
-            self.next_chapter = chapter_text
-            print("Next Chapter:\n", chapter_text)
-        return chapter_text
+            self.next_episode = episode_content
+            print(f"에피소드 {ep_number}화:\n", episode_content)
+        return episode_content
 
 # 예시 사용법:
 if __name__ == "__main__":
@@ -343,10 +414,10 @@ if __name__ == "__main__":
     input("추가 등장인물 생성을 시작합니다. 엔터를 눌러주세요.")
     novel_gen.add_new_characters()
     
-    # 첫 번째 장(초안) 생성
-    input("첫 번째 장(초안) 생성을 시작합니다. 엔터를 눌러주세요.")
-    chapter1 = novel_gen.create_chapter()
+    # 첫 번째 에피소드(초안) 생성
+    input("첫 번째 에피소드(초안) 생성을 시작합니다. 엔터를 눌러주세요.")
+    episode1 = novel_gen.create_episode()
     
-    # 이후 생성할 챕터는 create_chapter()를 호출하면 DB에 저장된 모든 챕터가 입력값으로 사용됩니다.
-    input("다음 장 생성을 시작합니다. 엔터를 눌러주세요.")
-    chapter2 = novel_gen.create_chapter()
+    # 이후 생성할 에피소드는 create_episode()를 호출하면 DB에 저장된 모든 에피소드가 입력값으로 사용됩니다.
+    input("다음 에피소드 생성을 시작합니다. 엔터를 눌러주세요.")
+    episode2 = novel_gen.create_episode()

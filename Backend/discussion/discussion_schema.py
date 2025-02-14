@@ -92,13 +92,11 @@ class Note(BaseModel):
 
 # 토론 요약본 생성
 class SummaryRequest(BaseModel):
-    novel_pk: int
-    document_path: str
+    discussion_pk: int
     content: str
 
 class FactCheckRequest(BaseModel):
-    novel_pk: int
-    document_path: str
+    discussion_pk: int
     content: str
 
 class SubjectRequest(BaseModel):
