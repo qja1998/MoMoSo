@@ -1,4 +1,3 @@
-import styled from '@emotion/styled'
 import axios from 'axios'
 import dayjs from 'dayjs'
 
@@ -29,6 +28,7 @@ import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import FormControl from '@mui/material/FormControl'
+import FormHelperText from '@mui/material/FormHelperText'
 import IconButton from '@mui/material/IconButton'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
@@ -48,34 +48,6 @@ import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 
 import coverPlaceholder from '/src/assets/placeholder/cover-image-placeholder.png'
-
-const NovelInfo = styled(Paper)({
-  padding: '24px',
-  display: 'flex',
-  gap: '24px',
-  marginBottom: '24px',
-  borderRadius: '16px',
-  backgroundColor: '#ffffff',
-  boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-})
-
-const StyledTableCell = styled(TableCell)(({ theme }) => ({
-  '&.MuiTableCell-head': {
-    backgroundColor: theme.palette.grey[100],
-    fontWeight: 700,
-  },
-}))
-
-const DiscussionBadge = styled(Box)(({ status }) => ({
-  display: 'inline-block',
-  padding: '4px 12px',
-  borderRadius: '16px',
-  fontSize: '14px',
-  fontWeight: 'bold',
-  backgroundColor: status === '2화 토론' ? '#E3F2FD' : '#E8F5E9',
-  color: status === '2화 토론' ? '#1976D2' : '#2E7D32',
-  marginBottom: '8px',
-}))
 
 const NovelEpisodeList = () => {
   const navigate = useNavigate()
@@ -152,6 +124,7 @@ const NovelEpisodeList = () => {
     dateTime: false,
     topic: false,
     maxParticipants: false,
+    episode: false,
   })
 
   // 토론 목록 가져오기
@@ -177,6 +150,7 @@ const NovelEpisodeList = () => {
       dateTime: false,
       topic: false,
       maxParticipants: false,
+      episode: false,
     })
   }, [])
 
@@ -185,6 +159,7 @@ const NovelEpisodeList = () => {
       dateTime: !discussionForm.start_time,
       topic: !discussionForm.topic.trim(),
       maxParticipants: !discussionForm.max_participants,
+      episode: discussionForm.category && !discussionForm.ep_pk,
     }
 
     setFormErrors(errors)
@@ -195,7 +170,7 @@ const NovelEpisodeList = () => {
 
     // 서버에 전송할 데이터 형식으로 변환
     const requestData = {
-      novel_pk: 1, // TODO: 실제 소설 ID로 교체
+      novel_pk: discussionForm.novel_pk,
       topic: discussionForm.topic,
       category: discussionForm.category,
       ep_pk: discussionForm.ep_pk,
@@ -247,9 +222,9 @@ const NovelEpisodeList = () => {
             participants: discussion.participants,
             novelTitle: discussion.novel.title,
             episode: discussion.episode,
-            sessionId: discussion.session_id
-          }
-        }
+            sessionId: discussion.session_id,
+          },
+        },
       })
     },
     [navigate]
@@ -317,7 +292,18 @@ const NovelEpisodeList = () => {
 
   return (
     <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
-      <NovelInfo>
+      <Paper
+        sx={{
+          p: '24px',
+          display: 'flex',
+          gap: '24px',
+          elevation: 0,
+          mb: '24px',
+          borderRadius: 2,
+          border: '1px solid #e0e0e0',
+          bgcolor: '#ffffff',
+        }}
+      >
         {/* 표지 섹션 */}
         <Box
           component="img"
@@ -327,7 +313,7 @@ const NovelEpisodeList = () => {
             width: 200,
             height: 267,
             objectFit: 'cover',
-            borderRadius: 1,
+            borderRadius: 2,
             border: '1px solid #e0e0e0',
             flex: 2,
           }}
@@ -384,43 +370,81 @@ const NovelEpisodeList = () => {
           </Stack>
 
           {/* 토론 목록 */}
-          <Stack spacing={2}>
+          <Stack
+            spacing={1}
+            sx={{
+              height: '180px',
+              overflowY: 'auto',
+              scrollSnapType: 'y mandatory',
+              pr: '4px',
+              '&::-webkit-scrollbar': {
+                width: '8px',
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: 'transparent',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                borderRadius: '4px',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                },
+              },
+            }}
+          >
             {discussions.map((discussion) => (
               <Paper
                 onClick={() => handleEnterDiscussion(discussion)}
                 key={discussion.discussion_pk}
-                elevation={1}
+                elevation={0}
                 sx={{
-                  p: 2,
+                  p: 1.5,
                   borderRadius: 1,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease-in-out',
+                  scrollSnapAlign: 'start',
+                  border: '1px solid #E0E0E0',
                   '&:hover': {
                     transform: 'translateY(-2px)',
                     boxShadow: '0 4px 8px hsla(0, 0%, 0%, 0.1)',
-                    bgcolor: 'hsla(0, 0%, 0%, 0.05)',
+                    bgcolor: 'hsla(0, 0%, 0%, 0.02)',
+                    borderColor: '#1976D2',
                   },
                 }}
               >
-                <DiscussionBadge status={discussion.episode ? '회차 토론' : '전체 토론'}>
-                  {discussion.episode ? '회차 토론' : '전체 토론'}
-                </DiscussionBadge>
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {discussion.topic}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                  <Typography
+                    sx={{
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      mb: 1,
+                      maxWidth: '73%',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {discussion.topic}
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: 'inline-block',
+                      padding: '4px 12px',
+                      borderRadius: '16px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      backgroundColor: discussion.category ? '#E3F2FD' : '#E8F5E9',
+                      color: discussion.category ? '#1976D2' : '#2E7D32',
+                      mb: 1,
+                    }}
+                  >
+                    {discussion.category ? `${discussion.episode}화 토론` : '전체 토론'}
+                  </Box>
+                </Stack>
+                <Typography variant="body2" color="text.secondary">
+                  참여 인원 {discussion.participants.length}명<br />
                   {dayjs(discussion.start_time).format('YYYY.MM.DD HH:mm')}
                 </Typography>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  alignItems="center"
-                  justifyContent="space-between"
-                >
-                  <Typography variant="body2" color="text.secondary">
-                    참여 인원 {discussion.participants.length}명
-                  </Typography>
-                </Stack>
               </Paper>
             ))}
           </Stack>
@@ -451,13 +475,17 @@ const NovelEpisodeList = () => {
                       shrink: true,
                     },
                   }}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setDiscussionForm({
                       ...discussionForm,
                       category: e.target.value,
-                      ep_pk: e.target.value ? 1 : null, // TODO: 실제 에피소드 ID로 교체
+                      ep_pk: null, // 회차 선택 초기화
                     })
-                  }
+                    setFormErrors((prev) => ({
+                      ...prev,
+                      episode: false,
+                    }))
+                  }}
                 >
                   <MenuItem value={false}>
                     <Stack direction="row" spacing={1} alignItems="center">
@@ -484,13 +512,50 @@ const NovelEpisodeList = () => {
                 </Select>
               </FormControl>
 
+              {discussionForm.category && (
+                <FormControl fullWidth error={formErrors.episode}>
+                  <InputLabel>토론할 회차</InputLabel>
+                  <Select
+                    value={discussionForm.ep_pk || ''}
+                    label="토론할 회차"
+                    required
+                    onChange={(e) => {
+                      setDiscussionForm({
+                        ...discussionForm,
+                        ep_pk: e.target.value,
+                      })
+                      setFormErrors((prev) => ({
+                        ...prev,
+                        episode: false,
+                      }))
+                    }}
+                  >
+                    {episodes.map((episode) => (
+                      <MenuItem key={episode.id} value={episode.id}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Typography>{episode.id}화</Typography>
+                          <Typography color="text.secondary">{episode.title}</Typography>
+                        </Stack>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {formErrors.episode && (
+                    <FormHelperText error>토론할 회차를 선택해주세요</FormHelperText>
+                  )}
+                </FormControl>
+              )}
+
               <FormControl fullWidth error={formErrors.dateTime}>
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
                   <DateTimePicker
                     value={discussionForm.start_time}
-                    onChange={(newValue) =>
+                    onChange={(newValue) => {
                       setDiscussionForm({ ...discussionForm, start_time: newValue })
-                    }
+                      setFormErrors((prev) => ({
+                        ...prev,
+                        dateTime: false,
+                      }))
+                    }}
                     minDateTime={dayjs()}
                     format="YYYY/MM/DD HH:mm"
                     ampm={false}
@@ -516,7 +581,13 @@ const NovelEpisodeList = () => {
                 value={discussionForm.topic}
                 error={formErrors.topic}
                 helperText={formErrors.topic ? '토론 주제를 입력해주세요' : ''}
-                onChange={(e) => setDiscussionForm({ ...discussionForm, topic: e.target.value })}
+                onChange={(e) => {
+                  setDiscussionForm({ ...discussionForm, topic: e.target.value })
+                  setFormErrors((prev) => ({
+                    ...prev,
+                    topic: false,
+                  }))
+                }}
               />
 
               <FormControl fullWidth error={formErrors.maxParticipants}>
@@ -526,12 +597,16 @@ const NovelEpisodeList = () => {
                   type="number"
                   error={formErrors.maxParticipants}
                   helperText={formErrors.maxParticipants ? '최대 참여 인원을 입력해주세요' : ''}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setDiscussionForm({
                       ...discussionForm,
                       max_participants: parseInt(e.target.value),
                     })
-                  }
+                    setFormErrors((prev) => ({
+                      ...prev,
+                      maxParticipants: false,
+                    }))
+                  }}
                 />
               </FormControl>
             </Stack>
@@ -554,18 +629,29 @@ const NovelEpisodeList = () => {
             </Button>
           </DialogActions>
         </Dialog>
-      </NovelInfo>
+      </Paper>
 
       {/* 에피소드 목록 */}
-      <TableContainer component={Paper}>
+      <TableContainer
+        component={Paper}
+        sx={{
+          borderRadius: 2,
+          mb: 3,
+          border: '1px solid #e0e0e0',
+          '& .MuiTableCell-head': {
+            backgroundColor: (theme) => theme.palette.grey[100],
+            fontWeight: 700,
+          },
+        }}
+      >
         <Table>
           <TableHead>
             <TableRow>
-              <StyledTableCell>화수</StyledTableCell>
-              <StyledTableCell>제목</StyledTableCell>
-              <StyledTableCell align="right">조회수</StyledTableCell>
-              <StyledTableCell align="right">좋아요</StyledTableCell>
-              <StyledTableCell align="right">게시일</StyledTableCell>
+              <TableCell>화수</TableCell>
+              <TableCell>제목</TableCell>
+              <TableCell align="right">조회수</TableCell>
+              <TableCell align="right">좋아요</TableCell>
+              <TableCell align="right">게시일</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -591,7 +677,7 @@ const NovelEpisodeList = () => {
       </TableContainer>
 
       {/* 댓글 섹션 */}
-      <Paper sx={{ mt: 3, p: 3, borderRadius: 2 }}>
+      <Paper sx={{ mt: 3, p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="h6" fontWeight={700}>
@@ -603,7 +689,7 @@ const NovelEpisodeList = () => {
                 backgroundColor: 'grey.100',
                 px: 1,
                 py: 0.5,
-                borderRadius: 1,
+                borderRadius: 0.5,
                 color: 'text.secondary',
               }}
             >
@@ -661,33 +747,6 @@ const NovelEpisodeList = () => {
               등록하기
             </Button>
           </Box>
-        </Paper>
-
-        {/* 클린봇 알림 */}
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 2,
-            mb: 3,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderRadius: 2,
-            bgcolor: '#F5F5F5',
-          }}
-        >
-          <Stack direction="row" spacing={1} alignItems="center">
-            <SmartToyIcon sx={{ color: '#00DC64' }} />
-            <Typography>
-              <Typography component="span" fontWeight={700}>
-                클린봇
-              </Typography>
-              이 악성댓글을 감지합니다.
-            </Typography>
-          </Stack>
-          <Button startIcon={<SettingsIcon />} sx={{ color: 'text.secondary' }}>
-            설정
-          </Button>
         </Paper>
 
         {/* 댓글 목록 */}

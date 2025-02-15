@@ -4,7 +4,7 @@ services:
     # build:
     #   context: ./Backend
     #   dockerfile: Dockerfile.dev
-    image: kwon0528/b106-backend:local-test
+    image: kwon0528/b106-backend:develop
     container_name: dev-backend
     environment:
       DATABASE_URL: mysql+pymysql://$DB_USER:$DB_PASSWD@$DB_HOST:$DB_PORT/$DB_NAME?charset=utf8
@@ -24,7 +24,7 @@ services:
     # build:
     #   context: ./Frontend
     #   dockerfile: Dockerfile.dev
-    image: kwon0528/b106-frontend:local-test
+    image: kwon0528/b106-frontend:develop
     container_name: dev-frontend
     environment:
       - NODE_ENV=development
