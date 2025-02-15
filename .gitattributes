@@ -4,3 +4,11 @@ docker-compose.override.yml merge=ours
 Dockerfile.dev merge=ours
 *.log merge=ours
 config.local.json merge=ours
+
+Backend/Dockerfile.dev merge=ours
+Backend/tests/ merge=ours
+Frontend/Dockerfile.dev merge=ours
+Frontend/src/ merge=ours
+Frontend/public/ merge=ours
+docker-compose.override.yml merge=ours
+.env merge=ours
