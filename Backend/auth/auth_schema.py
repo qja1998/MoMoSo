@@ -22,18 +22,24 @@ class SmsRequest(BaseModel):
 
 # 이메일 인증
 class EmailVerificationRequestSchema(BaseModel):
-    email: EmailStr
-    name: str
+    email: EmailStr = Field(..., description="The email address to send the verification code to")
+    name: str = Field(..., description="User's name")
 
 class EmailVerificationSchema(BaseModel):
-    email: EmailStr
-    code: str
-    name: str
+    email: EmailStr = Field(..., description="The email address to send the verification code to")
+    code: str = Field(..., description="The verification code")
+    name: str = Field(..., description="User's name")
 
 class ResetPasswordSchema(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=128, description="새로운 비밀번호")
     confirm_password: str = Field(..., min_length=8, max_length=128, description="비밀번호 확인")
 
+    @field_validator("confirm_password")
+    def validate_confirm_password(cls, confirm_password: str, info: ValidationInfo):
+        new_password = info.data.get("new_password")
+        if new_password and confirm_password != new_password:
+            raise ValueError("비밀번호 확인이 일치하지 않습니다.")
+        return confirm_password
 
 # id 찾기 검증
 class FindIdRequest(BaseModel):
