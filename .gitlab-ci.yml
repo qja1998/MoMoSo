@@ -46,10 +46,16 @@ build_backend:
     - backend-runner
   script:
     - cd Backend
-    - docker build -t $IMAGE_BACKEND:$TAG -f Dockerfile.dev .
+    - |
+      if [[ "$TAG" == "develop" ]]; then
+        docker build -t $IMAGE_BACKEND:$TAG -f Dockerfile.dev .
+      else
+        docker build -t $IMAGE_BACKEND:$TAG -f Dockerfile.prod .
+      fi
     - docker push $IMAGE_BACKEND:$TAG
   only:
     - develop
+    - release
     - master
 
 build_frontend:
@@ -58,14 +64,22 @@ build_frontend:
     - frontend-runner
   script:
     - cd Frontend
-    - docker build -t $IMAGE_FRONTEND:$TAG -f Dockerfile.dev .
+    - |
+      if [[ "$TAG" == "develop" ]]; then
+        docker build -t $IMAGE_FRONTEND:$TAG -f Dockerfile.dev .
+      else
+        docker build -t $IMAGE_FRONTEND:$TAG -f Dockerfile.prod .
+      fi
     - docker push $IMAGE_FRONTEND:$TAG
   only:
     - develop
+    - release
     - master
 
 test:
   stage: test
+  tags:
+    - test
   script:
     - docker-compose -f docker-compose.yml run --rm backend bash -c "
         uvicorn main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips='*'
@@ -77,6 +91,8 @@ test:
 
 deploy:
   stage: deploy
+  tags:
+    - deploy
   script:
     - echo "$DEPLOY_SSH_PRIVATE_KEY" > I12B106T.pem
     - chmod 400 I12B106T.pem

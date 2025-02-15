@@ -120,30 +120,30 @@ async def process_google_callback(code: str, response: Response, db: Session):
     redis_client.setex(f"refresh_token:{email}", int(refresh_token_expires.total_seconds()), jwt_refresh_token)
 
     # 6. 쿠키에 JWT 저장 (자동 로그인)
-    response.set_cookie(key="access_token", value=jwt_access_token, httponly=True, max_age=int(access_token_expires.total_seconds()))
-    response.set_cookie(key="refresh_token", value=jwt_refresh_token, httponly=True, max_age=int(refresh_token_expires.total_seconds()))
+    response.set_cookie(key="access_token", value=jwt_access_token, httponly=True, secure=False, samesite="Lax", max_age=int(access_token_expires.total_seconds()),
+                        path="/",  # 모든 경로에서 쿠키 사용
+                        domain="" #개발환경에서는 localhost로 설정, 프로덕션에서는 실제 도메인
+                        )
+    response.set_cookie(key="refresh_token", value=jwt_refresh_token, httponly=True, secure=False, samesite="Lax", max_age=int(refresh_token_expires.total_seconds()),
+                        path="/",  # 모든 경로에서 쿠키 사용
+                        domain="" #개발환경에서는 localhost로 설정, 프로덕션에서는 실제 도메인
+                        )
 
-    return {
+
+    html_content = """
+    <script>
+        window.opener.postMessage({type: "GOOGLE_LOGIN_SUCCESS", data: %s}, "*");
+        window.close();
+    </script>
+    """ % json.dumps({
         "message": "Google 로그인 성공",
         "user": email,
         "oauth_connected": oauth_connected,
         "access_token": jwt_access_token,
         "refresh_token": jwt_refresh_token,
-        "token_type": "bearer",
-    }
+    })
 
-    # html_content = """
-    # <script>
-    #     window.opener.postMessage({type: "GOOGLE_LOGIN_SUCCESS", data: %s}, "*");
-    #     window.close();
-    # </script>
-    # """ % json.dumps({
-    #     "message": "Google 로그인 성공",
-    #     "user": email,
-    #     "oauth_connected": oauth_connected,
-    # })
-
-    # return HTMLResponse(content=html_content)
+    return HTMLResponse(content=html_content)
 
 
 @router.get("/google/callback")

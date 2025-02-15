@@ -16,7 +16,7 @@ import { styled } from '@mui/material/styles'
 
 import { PrimaryButton } from '../components/common/buttons'
 
-import axios from 'axios'
+import axios from 'axios';
 
 const PasswordGuideItem = styled(Box)(({ theme, isvalid, focused }) => ({
   display: 'flex',

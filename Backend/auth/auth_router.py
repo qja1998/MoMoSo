@@ -1,27 +1,29 @@
-from fastapi import Depends, Header, HTTPException, status, APIRouter, Response, BackgroundTasks
+from fastapi import Depends, Header, HTTPException, status, APIRouter, Response, BackgroundTasks, Request
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
+from jose.exceptions import ExpiredSignatureError
+
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from . import auth_crud, auth_schema
+from models import User
 from database import get_db
 from user import user_crud
-from utils.auth_utils import send_sms, verify_code, check_verified, redis_client, generate_verification_code, save_verification_code
+from utils.auth_utils import send_sms, verify_code, check_verified, redis_client, generate_verification_code, save_verification_code, get_current_user, create_access_token, create_refresh_token
 
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
-
 # JWT 발급 설정
 SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
-ACCESS_TOKEN_EXPIRE_MINUTES = float(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
-REFRESH_TOKEN_EXPIRE_DAYS = float(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS"))
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = float(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+REFRESH_TOKEN_EXPIRE_DAYS = float(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
@@ -42,6 +44,32 @@ conf = ConnectionConfig(
 app = APIRouter(
     prefix='/api/v1/auth',
 )
+
+
+@app.get("/me", description="현재 로그인 한 사용자 조회", response_model=dict)
+async def get_user_info(request: Request, db: Session = Depends(get_db)):
+    access_token = request.cookies.get("access_token")  # 쿠키에서 access_token 가져오기
+
+    if not access_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Access token is missing.")
+
+    try:
+        payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+
+        if email is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+
+        user = user_crud.get_user_by_email(db, email)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        return {"user_pk": user.user_pk, "email": user.email}
+
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Access token expired. Please login again.")
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
 
 
 # ======================================= 회원가입 로직 ======================================= 
@@ -85,32 +113,6 @@ async def signup(new_user: auth_schema.NewUserForm, db: Session = Depends(get_db
 
 # ======================================= 로그인 로직 ======================================= 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    """
-    Access Token 생성 함수
-    """
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})  # 만료 시간 추가
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None):
-    """
-    Refresh Token 생성 함수
-    """
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire})  # 만료 시간 추가
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
 # 로그인 할 때 받아줄 폼 : OAuth2PasswordRequestForm -> pip install python-multipart 필요
 @app.post("/login")
 async def login(response: Response, login_form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -144,9 +146,28 @@ async def login(response: Response, login_form: OAuth2PasswordRequestForm = Depe
     # Redis에 Refresh Token 저장 (만료 시간 설정)
     redis_client.setex(f"refresh_token:{user.email}", int(refresh_token_expires.total_seconds()), refresh_token)
 
-    # 쿠키에 토큰 저장
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="Lax", max_age=int(access_token_expires.total_seconds()))
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="Lax", max_age=int(refresh_token_expires.total_seconds()))
+    # 개발 환경용 쿠키 설정 (HTTP)
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,  # HTTP 사용시 False
+        samesite="lax",
+        max_age=int(access_token_expires.total_seconds()),
+        domain="localhost",  # 개발 환경용
+        path="/"
+    )
+    
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,  # HTTP 사용시 False
+        samesite="lax",
+        max_age=int(refresh_token_expires.total_seconds()),
+        domain="localhost",  # 개발 환경용
+        path="/"
+    )
 
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
@@ -174,12 +195,10 @@ async def refresh_token(response: Response, refresh_token: str = Header(...)):
         access_token = create_access_token(data={"sub": email}, expires_delta=access_token_expires)
 
         # 쿠키에 새로운 Access Token 저장
-        response.set_cookie(
-            key="access_token",
-            value=access_token,
-            httponly=True,
-            max_age=int(access_token_expires.total_seconds())
-        )
+        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="Lax", max_age=int(access_token_expires.total_seconds())
+                            ,path="/",  # 모든 경로에서 쿠키 사용
+                            domain="127.0.0.1" #개발환경에서는 localhost로 설정, 프로덕션에서는 실제 도메인
+                            )
 
         return {"access_token": access_token, "token_type": "bearer"}
     except JWTError:
@@ -192,15 +211,18 @@ async def refresh_token(response: Response, refresh_token: str = Header(...)):
 security = HTTPBearer()
 
 @app.post("/logout")
-async def logout(response: Response, credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def logout(request: Request, response: Response, db: Session = Depends(get_db)):
     """
-    로그아웃: Refresh Token을 검증하고 무효화
+    로그아웃: 쿠키에서 Refresh Token을 검증하고 무효화
     """
-    token = credentials.credentials  # Authorization 헤더에서 토큰 추출
+    refresh_token = request.cookies.get("refresh_token")  # 쿠키에서 Refresh Token 가져오기
+
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token is missing")
 
     try:
         # Refresh Token 검증
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
 
         if email is None:
@@ -208,15 +230,15 @@ async def logout(response: Response, credentials: HTTPAuthorizationCredentials =
 
         # Redis에서 Refresh Token 확인
         stored_token = redis_client.get(f"refresh_token:{email}")
-        if stored_token != token:
+        if stored_token != refresh_token:
             raise HTTPException(status_code=401, detail="Invalid or expired token")
 
         # Redis에서 Refresh Token 삭제
         redis_client.delete(f"refresh_token:{email}")
 
-        # 클라이언트 쿠키에서 토큰 제거
-        response.delete_cookie(key="access_token")
-        response.delete_cookie(key="refresh_token")
+        # 클라이언트의 `httpOnly` 쿠키 삭제
+        response.delete_cookie(key="access_token", httponly=True)
+        response.delete_cookie(key="refresh_token", httponly=True)
 
         return {"message": "Successfully logged out"}
     except JWTError:
@@ -330,7 +352,7 @@ async def reset_password(reset_password: auth_schema.ResetPasswordSchema, db: Se
 
     # OAuth2 사용자 비밀번호 변경 불가하도록 차단
     if user.is_oauth_user:
-        print(f"🚨 OAuth2 사용자({user.email})가 비밀번호 변경 시도 → 차단됨")
+        print(f"OAuth2 사용자({user.email})가 비밀번호 변경 시도 → 차단됨")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="이 계정은 Google OAuth2 로그인 전용입니다. 비밀번호 변경이 불가능합니다."

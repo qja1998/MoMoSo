@@ -8,6 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from database import engine
 from models import Base
 
+
+
 app = FastAPI()
 
 # 테이블 자동 생성
@@ -26,12 +28,21 @@ from auth.oauth_google import router as google_oauth_router
 
 from fastapi.middleware.cors import CORSMiddleware
 
+origins = [
+        "http://localhost",
+        "http://localhost:5173",
+        "http://127.0.0.1",
+        "http://127.0.0.1:5173",
+        "http://172.23.144.1:5173",
+        "http://172.20.10.9:5173"
+        ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS", "DELETE", "PATCH", "PUT"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # 라우터 설정

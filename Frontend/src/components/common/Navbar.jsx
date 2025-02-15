@@ -21,10 +21,12 @@ import Toolbar from '@mui/material/Toolbar'
 import { useTheme } from '@mui/material/styles'
 import useMediaQuery from '@mui/material/useMediaQuery'
 
+import { useAuth } from '/src/hooks/useAuth'; // 경로 수정
+
 const Navbar = () => {
+  const { isLoggedIn, logout, loading } = useAuth(); // 상태 및 함수 가져오기
   const [anchorEl, setAnchorEl] = useState(null)
   const [userMenuAnchorEl, setUserMenuAnchorEl] = useState(null)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
@@ -44,11 +46,10 @@ const Navbar = () => {
     setUserMenuAnchorEl(null)
   }
 
-  const handleLogout = () => {
-    setIsLoggedIn(false)
-    // TODO: 로그아웃 로직 구현
-    handleUserMenuClose()
-  }
+  const handleLogoutClick = () => {
+    logout(); // 로그아웃 함수 호출
+    handleUserMenuClose();
+  };
 
   const handleProfileClick = () => {
     // TODO: 프로필 페이지 이동 로직 구현
@@ -63,6 +64,11 @@ const Navbar = () => {
   }
 
   const renderMenuItems = () => {
+    console.log({ isLoggedIn });
+    if (loading) {
+      return <MenuItem>로딩중...</MenuItem>;
+    }
+    
     if (isLoggedIn) {
       return (
         <>
@@ -74,7 +80,7 @@ const Navbar = () => {
             <ManageAccountsIcon sx={{ mr: 1 }} />
             회원정보 수정
           </MenuItem>
-          <MenuItem onClick={handleLogout}>
+          <MenuItem onClick={handleLogoutClick}>
             <LogoutIcon sx={{ mr: 1 }} />
             로그아웃
           </MenuItem>

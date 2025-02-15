@@ -1,5 +1,5 @@
 
-from fastapi import Depends, HTTPException, APIRouter
+from fastapi import Depends, HTTPException, APIRouter, status
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from models import User, Novel
@@ -15,6 +15,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 app = APIRouter(
     prefix='/api/v1/users',
 )
+
 
 @app.get('/', description="전체 사용자 조회", response_model=list[user_schema.User])
 def get_users(db:Session=Depends(get_db)):

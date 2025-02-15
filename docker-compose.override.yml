@@ -1,14 +1,10 @@
 services:
 
   backend:
-    # build:
-    #   context: ./Backend
-    #   dockerfile: Dockerfile.dev
     image: kwon0528/b106-backend:develop
     container_name: dev-backend
     environment:
       DATABASE_URL: mysql+pymysql://$DB_USER:$DB_PASSWD@$DB_HOST:$DB_PORT/$DB_NAME?charset=utf8
-      DEBUG: True
     ports:
       - "8000:8000"
     volumes:
@@ -21,9 +17,6 @@ services:
     restart: unless-stopped
 
   frontend:
-    # build:
-    #   context: ./Frontend
-    #   dockerfile: Dockerfile.dev
     image: kwon0528/b106-frontend:develop
     container_name: dev-frontend
     environment:
@@ -33,6 +26,25 @@ services:
     volumes:
       - ./Frontend:/app  # 로컬 파일 시스템을 컨테이너에 마운트
       - /app/node_modules  # 로컬의 node_modules가 container 내에 적용되지 않도록
+    networks:
+      - app_network
+    
+  # Nginx (Reverse Proxy)
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app/frontend
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    ports:
+      - "81:80"
+      - "443:443"
+    depends_on:
+      - backend
+      - frontend
     networks:
       - app_network
 

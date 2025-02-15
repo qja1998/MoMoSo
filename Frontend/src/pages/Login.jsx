@@ -1,121 +1,128 @@
-import { Link, useNavigate } from 'react-router-dom'
-
-import Email from '@mui/icons-material/Email'
-import Lock from '@mui/icons-material/Lock'
-import Button from '@mui/material/Button'
-import InputAdornment from '@mui/material/InputAdornment'
-import Stack from '@mui/material/Stack'
-import TextField from '@mui/material/TextField'
-import Typography from '@mui/material/Typography'
-
-import GoogleIcon from '../assets/icons/GoogleIcon'
-import { PrimaryButton } from '../components/common/buttons'
-import graphicLogo from '/src/assets/logo/graphic-logo.svg'
-
+import { Link, useNavigate } from 'react-router-dom';
+import Email from '@mui/icons-material/Email';
+import Lock from '@mui/icons-material/Lock';
+import Button from '@mui/material/Button';
+import InputAdornment from '@mui/material/InputAdornment';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import GoogleIcon from '../assets/icons/GoogleIcon';
+import { PrimaryButton } from '../components/common/buttons';
+import graphicLogo from '/src/assets/logo/graphic-logo.svg';
 import { useEffect, useState } from "react";
-import axios from 'axios'
-
-const BACKEND_URL = import.meta.env.BACKEND_URL
+import axios from 'axios';
+import { useAuth } from '../hooks/useAuth';
 
 const Login = () => {
-  const [loginForm, setLoginForm] = useState({
-    email: "",
-    password: "",
-  })
-  const [formErrors, setFormErrors] = useState({
-    email: false,
-    password: false,
-  })
-  const [googleLoginUrl, setGoogleLoginUrl] = useState("")
-  const navigate = useNavigate()
+  const [googleLoginUrl, setGoogleLoginUrl] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const navigate = useNavigate();
+  const { isLoggedIn, setIsLoggedIn } = useAuth();
 
   useEffect(() => {
+    axios.defaults.withCredentials = true;
+
     axios
-      .get(`${BACKEND_URL}/api/v1/oauth/google/login`)
+      .get('http://localhost:8000/api/v1/oauth/google/login')
       .then((response) => {
-        console.log(response.data)
-        setGoogleLoginUrl(response.data.login_url)
+        setGoogleLoginUrl(response.data.login_url);
       })
       .catch((error) => {
-        console.error("구글 로그인 URL 가져오기 실패:", error)
-      })
+        console.error('구글 로그인 URL 가져오기 실패:', error);
+      });
 
-    // 구글 로그인 결과 메시지 리스너
     const handleMessage = (event) => {
-      if (event.origin !== "http://127.0.0.1:8000") return // Ensure the message is from your backend
+      if (event.origin !== 'http://localhost:8000') return;
 
-      if (event.data.type === "GOOGLE_LOGIN_SUCCESS") {
-        console.log("로그인 성공:", event.data.data)
-        // 여기서 로그인 성공 처리 (예: 상태 업데이트, 리다이렉트 등)
-        navigate("/") // 메인 페이지로 이동
-      } else if (event.data.type === "GOOGLE_LOGIN_ERROR") {
-        console.error("로그인 실패")
-        // 로그인 실패 처리 (예: 에러 메시지 표시)
+      if (event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
+        console.log('소셜 로그인 성공:', event.data.data);
+        axios.defaults.withCredentials = true;
+        navigate('/');
+      } else if (event.data.type === 'GOOGLE_LOGIN_ERROR') {
+        console.error('소셜 로그인 실패');
       }
-    }
+    };
 
-    window.addEventListener("message", handleMessage)
+    window.addEventListener('message', handleMessage);
 
-    // 컴포넌트 언마운트 시 이벤트 리스너 제거
     return () => {
-      window.removeEventListener("message", handleMessage)
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [navigate]);
+
+  // isLoggedIn 상태 변화 감지하여 리다이렉션
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate('/');
     }
-  }, [navigate])
+    else {
+      console.log(isLoggedIn)
+    }
+  }, [isLoggedIn, navigate]);
 
   const handleSocialLogin = () => {
     if (googleLoginUrl) {
-      const width = 500
-      const height = 600
-      const left = window.screenX + (window.outerWidth - width) / 2
-      const top = window.screenY + (window.outerHeight - height) / 2
+      const width = 500;
+      const height = 600;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
       const popup = window.open(
         googleLoginUrl,
-        "googleLogin",
-        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`,
-      )
+        'googleLogin',
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+      );
 
-      // 팝업이 차단되었는지 확인
-      if (!popup || popup.closed || typeof popup.closed === "undefined") {
-        alert("팝업이 차단되었습니다. 팝업 차단을 해제해주세요.")
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
       }
 
-      // 팝업 창 닫힘 감지
       const checkPopupClosed = setInterval(() => {
         if (popup.closed) {
-          clearInterval(checkPopupClosed)
-          // 팝업이 닫혔을 때 추가적인 처리가 필요하다면 여기에 작성
+          clearInterval(checkPopupClosed);
+          console.log('팝업이 닫혔습니다.');
         }
-      }, 1000)
+      }, 1000);
     } else {
-      console.error("로그인 URL을 가져오지 못했습니다.")
+      console.error('로그인 URL을 가져오지 못했습니다.');
     }
-  }
+  };
 
-  const handleLogin = () => {
-    // 1. 입력값 유효성 검사
-    const errors = {
-      email: !loginForm.email.trim(),
-      password: !loginForm.password.trim(),
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setLoginError('이메일과 비밀번호를 모두 입력해주세요.');
+      return;
     }
+    setLoginError('');
 
-    setFormErrors(errors)
+    try {
+      const formData = new URLSearchParams();
+      formData.append('username', email);
+      formData.append('password', password);
 
-    if (Object.values(errors).some((error) => error)) {
-      return
+      await axios.post(
+        'http://localhost:8000/api/v1/auth/login',
+        formData,
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          withCredentials: true,
+        }
+      );
+
+      console.log('로그인 성공');
+      setIsLoggedIn(true); // ✅ 로그인 상태 즉시 업데이트
+      navigate('/'); // ✅ 로그인 성공 시 메인 페이지로 이동
+
+    } catch (error) {
+      console.error('로그인 실패:', error);
+      if (error.response?.status === 400) {
+        setLoginError(error.response.data.detail);
+      } else {
+        setLoginError('로그인에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      }
     }
-
-    // 2. API 로그인 요청
-    axios.post(`${BACKEND_URL}/api/v1/auth/login`, loginForm)
-      .then((response) => {
-        console.log(response)
-      })
-      .catch((error) => {
-        console.error("로그인 실패:", error)
-      })
-    // 3. 토큰 저장
-    // 4. 로그인 상태 업데이트
-    console.log(loginForm)
-  }
+  };
 
   return (
     <Stack
@@ -135,7 +142,6 @@ const Login = () => {
           maxWidth: '400px',
         }}
       >
-        {/* 헤더 섹션 */}
         <Typography variant="h4" align="center" gutterBottom fontWeight={950}>
           로그인
         </Typography>
@@ -145,18 +151,10 @@ const Login = () => {
           함께 모여 소설을 창작해보세요!
         </Typography>
 
-        {/* 로그인 폼 섹션 */}
         <TextField
           fullWidth
-          value={loginForm.email}
-          onChange={(e) => {
-            setLoginForm({ ...loginForm, email: e.target.value })
-            setFormErrors({ ...formErrors, email: false })
-          }}
           placeholder="이메일을 입력해주세요"
           variant="outlined"
-          error={formErrors.email}
-          helperText={formErrors.email ? '이메일을 입력해주세요' : ''}
           slotProps={{
             input: {
               startAdornment: (
@@ -166,19 +164,14 @@ const Login = () => {
               ),
             },
           }}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
         />
         <TextField
           fullWidth
-          value={loginForm.password}
-          onChange={(e) => {
-            setLoginForm({ ...loginForm, password: e.target.value })
-            setFormErrors({ ...formErrors, password: false })
-          }}
           type="password"
           placeholder="비밀번호를 입력해주세요"
           variant="outlined"
-          error={formErrors.password}
-          helperText={formErrors.password ? '비밀번호를 입력해주세요' : ''}
           slotProps={{
             input: {
               startAdornment: (
@@ -188,10 +181,20 @@ const Login = () => {
               ),
             },
           }}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
         />
+        {loginError && (
+          <Typography color="error" align="center">
+            {loginError}
+          </Typography>
+        )}
 
-        {/* 계정 찾기 섹션 */}
         <Stack direction="row" justifyContent="center" spacing={1} alignItems="center">
+          <Button component={Link} to="/auth/find-id" sx={{ fontWeight: 600, color: '#555555' }}>
+            아이디 찾기
+          </Button>
+          <span style={{ color: '#c9c9c9' }}>|</span>
           <Button
             component={Link}
             to="/auth/find-password"
@@ -200,16 +203,11 @@ const Login = () => {
             비밀번호 찾기
           </Button>
           <span style={{ color: '#c9c9c9' }}>|</span>
-          <Button component={Link} to="/auth/find-id" sx={{ fontWeight: 600, color: '#555555' }}>
-            아이디 찾기
-          </Button>
-          <span style={{ color: '#c9c9c9' }}>|</span>
           <Button component={Link} to="/auth/signup" sx={{ fontWeight: 600, color: '#555555' }}>
             회원가입
           </Button>
         </Stack>
 
-        {/* 로그인 버튼 섹션 */}
         <Stack direction="column" justifyContent="center" alignItems="center" spacing={2}>
           <PrimaryButton fullWidth onClick={handleLogin} sx={{ borderRadius: '4px' }}>
             <img
@@ -222,8 +220,8 @@ const Login = () => {
                 filter: 'brightness(0) invert(1)',
               }}
             />
-            <Typography 
-              sx={{ 
+            <Typography
+              sx={{
                 fontWeight: 600,
                 color: '#ffffff',
                 textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
@@ -260,7 +258,7 @@ const Login = () => {
         </Stack>
       </Stack>
     </Stack>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;
