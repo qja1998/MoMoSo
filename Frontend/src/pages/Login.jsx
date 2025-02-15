@@ -1,7 +1,3 @@
-import axios from 'axios'
-
-import { useEffect, useState } from 'react'
-
 import { Link, useNavigate } from 'react-router-dom'
 
 import Email from '@mui/icons-material/Email'
@@ -16,7 +12,8 @@ import GoogleIcon from '../assets/icons/GoogleIcon'
 import { PrimaryButton } from '../components/common/buttons'
 import graphicLogo from '/src/assets/logo/graphic-logo.svg'
 
-const BACKEND_URL = import.meta.env.BACKEND_URL
+import { useEffect, useState } from "react";
+import axios from 'axios'
 
 const Login = () => {
   const [googleLoginUrl, setGoogleLoginUrl] = useState('')
@@ -48,14 +45,14 @@ const Login = () => {
       } else if (event.data.type === 'GOOGLE_LOGIN_ERROR') {
         console.error('소셜 로그인 실패')
       }
-    }
+    };
 
-    window.addEventListener('message', handleMessage)
+    window.addEventListener('message', handleMessage);
 
     return () => {
-      window.removeEventListener('message', handleMessage)
-    }
-  }, [navigate])
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [navigate]);
 
   const handleSocialLogin = () => {
     if (googleLoginUrl) {
@@ -94,97 +91,87 @@ const Login = () => {
 
     // 2. API 로그인 요청
     try {
-      const formData = new URLSearchParams() // FormData 대신 URLSearchParams 사용
-      formData.append('username', email) // FastAPI OAuth2PasswordRequestForm은 username 필드 사용
-      formData.append('password', password)
+      const formData = new URLSearchParams(); // FormData 대신 URLSearchParams 사용
+      formData.append('username', email); // FastAPI OAuth2PasswordRequestForm은 username 필드 사용
+      formData.append('password', password);
 
-      const response = await axios.post('http://127.0.0.1:8000/api/v1/auth/login', formData, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, // Content-Type 설정 중요
-        withCredentials: true, // ✅ 쿠키 전달을 위한 설정 추가
-      })
+      const response = await axios.post(
+        'http://127.0.0.1:8000/api/v1/auth/login',
+        formData,
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, // Content-Type 설정 중요
+          withCredentials: true, // ✅ 쿠키 전달을 위한 설정 추가
+        }
+      );
 
-      console.log('일반 로그인 성공:', response.data)
+      console.log('일반 로그인 성공:', response.data);
 
       // 3. 토큰 저장 (쿠키는 이미 FastAPI 서버에서 설정)
 
       // 4. 로그인 상태 업데이트 (페이지 리로드 or 리다이렉트)
-      navigate('/')
+      navigate('/');
     } catch (error) {
-      console.error('일반 로그인 실패:', error)
+      console.error('일반 로그인 실패:', error);
 
       if (error.response && error.response.status === 400) {
         // FastAPI에서 발생한 에러 메시지 표시
-        setLoginError(error.response.data.detail)
+        setLoginError(error.response.data.detail);
       } else {
-        setLoginError('로그인에 실패했습니다. 잠시 후 다시 시도해주세요.')
+        setLoginError('로그인에 실패했습니다. 잠시 후 다시 시도해주세요.');
       }
     }
-  }
+  };
 
   return (
     <Stack
+    sx={{
+      height: 'calc(100vh - 64px)',
+      padding: '0 2rem',
+      marginTop: '-64px',
+      paddingTop: '64px',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}
+  >
+    <Stack
+      spacing={2}
       sx={{
-        height: 'calc(100vh - 64px)',
-        padding: '0 2rem',
-        marginTop: '-64px',
-        paddingTop: '64px',
-        alignItems: 'center',
-        justifyContent: 'center',
+        width: '100%',
+        maxWidth: '400px',
       }}
     >
-      <Stack
-        spacing={2}
-        sx={{
-          width: '100%',
-          maxWidth: '400px',
-        }}
-      >
-        {/* 헤더 섹션 */}
-        <Typography variant="h4" align="center" gutterBottom fontWeight={950}>
-          로그인
-        </Typography>
-        <Typography variant="body1" align="center" gutterBottom>
-          모두 모여 소설을 만드는 공간 모모소
-          <br />
-          함께 모여 소설을 창작해보세요!
-        </Typography>
+      {/* 헤더 섹션 */}
+      <Typography variant="h4" align="center" gutterBottom fontWeight={950}>
+        로그인
+      </Typography>
+      <Typography variant="body1" align="center" gutterBottom>
+        모두 모여 소설을 만드는 공간 모모소
+        <br />
+        함께 모여 소설을 창작해보세요!
+      </Typography>
 
-        {/* 로그인 폼 섹션 */}
-        <TextField
-          fullWidth
-          value={loginForm.email}
-          onChange={(e) => {
-            setLoginForm({ ...loginForm, email: e.target.value })
-            setFormErrors({ ...formErrors, email: false })
-          }}
-          placeholder="이메일을 입력해주세요"
-          variant="outlined"
-          error={formErrors.email}
-          helperText={formErrors.email ? '이메일을 입력해주세요' : ''}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Email sx={{ color: '#c9c9c9' }} />
-                </InputAdornment>
+      {/* 로그인 폼 섹션 */}
+      <TextField
+        fullWidth
+        placeholder="이메일을 입력해주세요"
+        variant="outlined"
+        slotProps={{
+          input: {
+            startAdornment: (
+              <InputAdornment position="start">
+                <Email sx={{ color: '#c9c9c9' }} />
+              </InputAdornment>
               ),
-            },
-          }}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <TextField
-          fullWidth
-          value={loginForm.password}
-          onChange={(e) => {
-            setLoginForm({ ...loginForm, password: e.target.value })
-            setFormErrors({ ...formErrors, password: false })
-          }}
-          type="password"
+              },
+              }}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              />
+              <TextField
+              fullWidth
+              type="password"
           placeholder="비밀번호를 입력해주세요"
           variant="outlined"
-          error={formErrors.password}
-          helperText={formErrors.password ? '비밀번호를 입력해주세요' : ''}
           slotProps={{
             input: {
               startAdornment: (
@@ -235,45 +222,45 @@ const Login = () => {
                 filter: 'brightness(0) invert(1)',
               }}
             />
-            <Typography
-              sx={{
+            <Typography 
+              sx={{ 
                 fontWeight: 600,
                 color: '#ffffff',
                 textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
                 letterSpacing: '0.5px',
               }}
+              >
+                모모소 로그인
+              </Typography>
+            </PrimaryButton>
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={handleSocialLogin}
+              startIcon={<GoogleIcon />}
+              sx={{
+                height: '40px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #dadce0',
+                borderRadius: '4px',
+                fontFamily: '"Google Sans",arial,sans-serif',
+                fontWeight: 600,
+                fontSize: '1rem',
+                letterSpacing: '0.25px',
+                color: '#1f1f1f',
+                textTransform: 'none',
+                '&:hover': {
+                  backgroundColor: '#f6f6f6',
+                  borderColor: '#dadce0',
+                },
+              }}
             >
-              모모소 로그인
-            </Typography>
-          </PrimaryButton>
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={handleSocialLogin}
-            startIcon={<GoogleIcon />}
-            sx={{
-              height: '40px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #dadce0',
-              borderRadius: '4px',
-              fontFamily: '"Google Sans",arial,sans-serif',
-              fontWeight: 600,
-              fontSize: '1rem',
-              letterSpacing: '0.25px',
-              color: '#1f1f1f',
-              textTransform: 'none',
-              '&:hover': {
-                backgroundColor: '#f6f6f6',
-                borderColor: '#dadce0',
-              },
-            }}
-          >
-            Google 로그인
-          </Button>
+              Google 로그인
+            </Button>
+          </Stack>
         </Stack>
       </Stack>
-    </Stack>
-  )
-}
-
-export default Login
+    )
+  }
+  
+  export default Login
