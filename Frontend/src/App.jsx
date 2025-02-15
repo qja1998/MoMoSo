@@ -10,6 +10,7 @@ import SidebarLayout from '/src/components/layout/SidebarLayout'
 import ChangeUserInfo from '/src/pages/ChangeUserInfo'
 import FindId from '/src/pages/FindId'
 import FindPassword from '/src/pages/FindPassword'
+import ResetPassword from '/src/pages/ResetPassword'
 import Login from '/src/pages/Login'
 // import MyPage from '/src/pages/MyPage'
 import NotFound from '/src/pages/NotFound'
@@ -37,6 +38,7 @@ function App() {
               <Route path="signup" element={<SignUp />} />
               <Route path="find-id" element={<FindId />} />
               <Route path="find-password" element={<FindPassword />} />
+              <Route path="reset-password" element={<ResetPassword />} />
               {/* <Route path="mypage" element={<MyPage />} /> */}
               <Route path="change-info" element={<ChangeUserInfo />} />
             </Route>

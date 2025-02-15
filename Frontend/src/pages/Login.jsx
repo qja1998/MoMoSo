@@ -16,79 +16,111 @@ import { useEffect, useState } from "react";
 import axios from 'axios'
 
 const Login = () => {
-  const [googleLoginUrl, setGoogleLoginUrl] = useState("")
-  const navigate = useNavigate()
+  const [googleLoginUrl, setGoogleLoginUrl] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState(''); // 로그인 에러 메시지 상태
+  const navigate = useNavigate();
 
   useEffect(() => {
     axios
-      .get("http://127.0.0.1:8000/api/v1/oauth/google/login")
+      .get('http://127.0.0.1:8000/api/v1/oauth/google/login')
       .then((response) => {
-        console.log(response.data)
-        setGoogleLoginUrl(response.data.login_url)
+        console.log(response.data);
+        setGoogleLoginUrl(response.data.login_url);
       })
       .catch((error) => {
-        console.error("구글 로그인 URL 가져오기 실패:", error)
-      })
+        console.error('구글 로그인 URL 가져오기 실패:', error);
+      });
 
     // 구글 로그인 결과 메시지 리스너
     const handleMessage = (event) => {
-      if (event.origin !== "http://127.0.0.1:8000") return // Ensure the message is from your backend
+      if (event.origin !== 'http://127.0.0.1:8000') return; // 보안상의 이유로 백엔드 주소 확인
 
-      if (event.data.type === "GOOGLE_LOGIN_SUCCESS") {
-        console.log("로그인 성공:", event.data.data)
-        // 여기서 로그인 성공 처리 (예: 상태 업데이트, 리다이렉트 등)
-        navigate("/") // 메인 페이지로 이동
-      } else if (event.data.type === "GOOGLE_LOGIN_ERROR") {
-        console.error("로그인 실패")
-        // 로그인 실패 처리 (예: 에러 메시지 표시)
+      if (event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
+        console.log('소셜 로그인 성공:', event.data.data);
+        axios.defaults.withCredentials = true; // 소셜 로그인 콜백 후 axios 기본 설정 변경
+
+        navigate('/');
+      } else if (event.data.type === 'GOOGLE_LOGIN_ERROR') {
+        console.error('소셜 로그인 실패');
       }
-    }
+    };
 
-    window.addEventListener("message", handleMessage)
+    window.addEventListener('message', handleMessage);
 
-    // 컴포넌트 언마운트 시 이벤트 리스너 제거
     return () => {
-      window.removeEventListener("message", handleMessage)
-    }
-  }, [navigate])
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [navigate]);
 
   const handleSocialLogin = () => {
     if (googleLoginUrl) {
-      const width = 500
-      const height = 600
-      const left = window.screenX + (window.outerWidth - width) / 2
-      const top = window.screenY + (window.outerHeight - height) / 2
+      const width = 500;
+      const height = 600;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
       const popup = window.open(
         googleLoginUrl,
-        "googleLogin",
-        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`,
-      )
+        'googleLogin',
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+      );
 
-      // 팝업이 차단되었는지 확인
-      if (!popup || popup.closed || typeof popup.closed === "undefined") {
-        alert("팝업이 차단되었습니다. 팝업 차단을 해제해주세요.")
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
       }
 
-      // 팝업 창 닫힘 감지
       const checkPopupClosed = setInterval(() => {
         if (popup.closed) {
-          clearInterval(checkPopupClosed)
-          // 팝업이 닫혔을 때 추가적인 처리가 필요하다면 여기에 작성
+          clearInterval(checkPopupClosed);
+          console.log('팝업이 닫혔습니다.');
         }
-      }, 1000)
+      }, 1000);
     } else {
-      console.error("로그인 URL을 가져오지 못했습니다.")
+      console.error('로그인 URL을 가져오지 못했습니다.');
     }
-  }
+  };
 
-  const handleLogin = () => {
-    // TODO: 일반 로그인 구현
+  const handleLogin = async () => {
     // 1. 입력값 유효성 검사
+    if (!email || !password) {
+      setLoginError('이메일과 비밀번호를 모두 입력해주세요.');
+      return;
+    }
+    setLoginError(''); // 에러 메시지 초기화
+
     // 2. API 로그인 요청
-    // 3. 토큰 저장
-    // 4. 로그인 상태 업데이트
-    console.log('일반 로그인 시도')
-  }
+    try {
+      const formData = new URLSearchParams(); // FormData 대신 URLSearchParams 사용
+      formData.append('username', email); // FastAPI OAuth2PasswordRequestForm은 username 필드 사용
+      formData.append('password', password);
+
+      const response = await axios.post(
+        'http://127.0.0.1:8000/api/v1/auth/login',
+        formData,
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, // Content-Type 설정 중요
+          withCredentials: true, // ✅ 쿠키 전달을 위한 설정 추가
+        }
+      );
+
+      console.log('일반 로그인 성공:', response.data);
+
+      // 3. 토큰 저장 (쿠키는 이미 FastAPI 서버에서 설정)
+
+      // 4. 로그인 상태 업데이트 (페이지 리로드 or 리다이렉트)
+      navigate('/');
+    } catch (error) {
+      console.error('일반 로그인 실패:', error);
+
+      if (error.response && error.response.status === 400) {
+        // FastAPI에서 발생한 에러 메시지 표시
+        setLoginError(error.response.data.detail);
+      } else {
+        setLoginError('로그인에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      }
+    }
+  };
 
   return (
     <Stack
@@ -132,6 +164,8 @@ const Login = () => {
               ),
             },
           }}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
         />
         <TextField
           fullWidth
@@ -147,20 +181,27 @@ const Login = () => {
               ),
             },
           }}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
         />
+        {loginError && (
+          <Typography color="error" align="center">
+            {loginError}
+          </Typography>
+        )}
 
         {/* 계정 찾기 섹션 */}
         <Stack direction="row" justifyContent="center" spacing={1} alignItems="center">
+          <Button component={Link} to="/auth/find-id" sx={{ fontWeight: 600, color: '#555555' }}>
+            아이디 찾기
+          </Button>
+          <span style={{ color: '#c9c9c9' }}>|</span>
           <Button
             component={Link}
             to="/auth/find-password"
             sx={{ fontWeight: 600, color: '#555555' }}
           >
             비밀번호 찾기
-          </Button>
-          <span style={{ color: '#c9c9c9' }}>|</span>
-          <Button component={Link} to="/auth/find-id" sx={{ fontWeight: 600, color: '#555555' }}>
-            아이디 찾기
           </Button>
           <span style={{ color: '#c9c9c9' }}>|</span>
           <Button component={Link} to="/auth/signup" sx={{ fontWeight: 600, color: '#555555' }}>
