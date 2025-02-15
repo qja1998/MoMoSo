@@ -22,9 +22,11 @@ import NovelEpisodeViewer from '/src/pages/NovelEpisodeViewer'
 import NovelList from '/src/pages/NovelList'
 import SignUp from '/src/pages/SignUp'
 import theme from '/src/styles/theme'
+import { AuthProvider } from '/src/hooks/useAuth';
 
 function App() {
   return (
+    <AuthProvider>
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
@@ -80,6 +82,7 @@ function App() {
         </Routes>
       </Router>
     </ThemeProvider>
+    </AuthProvider>
   )
 }
 
