@@ -1,6 +1,7 @@
 import styled from '@emotion/styled'
 import { useCallback, useState } from 'react'
 
+// 아이콘
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
 import BookmarkIcon from '@mui/icons-material/Bookmark'
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder'
@@ -11,12 +12,12 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext'
 import SettingsIcon from '@mui/icons-material/Settings'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
+// 디자인 컴포넌트
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Divider from '@mui/material/Divider'
 import IconButton from '@mui/material/IconButton'
 import Menu from '@mui/material/Menu'
-import MenuItem from '@mui/material/MenuItem'
 import Paper from '@mui/material/Paper'
 import Popover from '@mui/material/Popover'
 import Rating from '@mui/material/Rating'

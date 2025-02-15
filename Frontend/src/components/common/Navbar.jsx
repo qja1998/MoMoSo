@@ -1,3 +1,5 @@
+import textLogo from '@/assets/logo/text-logo.svg'
+
 import { useState } from 'react'
 
 import { Link } from 'react-router-dom'
@@ -108,11 +110,7 @@ const Navbar = () => {
     >
       <Toolbar sx={{ justifyContent: 'space-between' }}>
         <Link to="/" style={{ textDecoration: 'none', height: '30px' }}>
-          <img
-            src="/src/assets/logo/text-logo.svg"
-            alt="MOMOSO"
-            style={{ height: '30px', width: 'auto' }}
-          />
+          <img src={textLogo} alt="MOMOSO" style={{ height: '30px', width: 'auto' }} />
         </Link>
         {isMobile ? (
           <IconButton
@@ -129,15 +127,17 @@ const Navbar = () => {
               onClose={handleClose}
               onClick={handleClose}
             >
-              <MenuItem component={Link} to="/novel/edit">
-                AI소설 에디터
-              </MenuItem>
-              <MenuItem component={Link} to="/community">
-                그룹 토론
-              </MenuItem>
-              <MenuItem component={Link} to="/novel/viewer/list">
-                소설 게시판
-              </MenuItem>
+              <div>
+                <MenuItem component={Link} to="/novel/edit">
+                  AI소설 에디터
+                </MenuItem>
+                <MenuItem component={Link} to="/community">
+                  그룹 토론
+                </MenuItem>
+                <MenuItem component={Link} to="/novel/viewer/list">
+                  소설 게시판
+                </MenuItem>
+              </div>
             </Menu>
           </IconButton>
         ) : (
@@ -186,7 +186,7 @@ const Navbar = () => {
               onClose={handleUserMenuClose}
               onClick={handleUserMenuClose}
             >
-              {renderMenuItems()}
+              <div>{renderMenuItems()}</div>
             </Menu>
           </Stack>
         )}

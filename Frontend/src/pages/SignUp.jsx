@@ -341,6 +341,7 @@ const SignUp = () => {
             onClick={handleVerificationCodeSend}
             disabled={!formData.phone}
             sx={{
+              height: '56px',
               borderRadius: '0 4px 4px 0',
               px: 4,
               whiteSpace: 'nowrap',
@@ -381,6 +382,7 @@ const SignUp = () => {
             onClick={handleVerificationCodeCheck}
             disabled={!formData.verificationCode}
             sx={{
+              height: '56px',
               borderRadius: '0 4px 4px 0',
               px: 4,
               whiteSpace: 'nowrap',

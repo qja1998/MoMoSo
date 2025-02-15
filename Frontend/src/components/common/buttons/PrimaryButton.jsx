@@ -3,18 +3,18 @@ import PropTypes from 'prop-types'
 import { Button } from '@mui/material'
 import { styled } from '@mui/material/styles'
 
-const StyledButton = styled(Button)(({ bgColor, textColor, hoverBgColor }) => ({
+const StyledButton = styled(Button)(({ backgroundColor, color, hoverBackgroundColor }) => ({
   fontWeight: 500,
   fontSize: '1rem',
   width: 'fit-content',
   height: 'auto',
   borderRadius: 8,
-  backgroundColor: bgColor,
-  color: textColor,
+  backgroundColor: backgroundColor,
+  color: color,
   padding: '8px 16px',
   whiteSpace: 'nowrap',
   '&:hover': {
-    backgroundColor: hoverBgColor,
+    backgroundColor: hoverBackgroundColor,
   },
   '&.MuiButton-fullWidth': {
     width: '100%',
@@ -33,9 +33,9 @@ const PrimaryButton = ({
     <StyledButton
       variant="contained"
       startIcon={startIcon}
-      bgColor={backgroundColor}
-      textColor={color}
-      hoverBgColor={hoverBackgroundColor}
+      backgroundColor={backgroundColor}
+      color={color}
+      hoverBackgroundColor={hoverBackgroundColor}
       {...props}
     >
       {children}

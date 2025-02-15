@@ -274,7 +274,7 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
     }
   }, [publisher, isAudioEnabled, userName]);
 
-  // 음성 활동 감지 (구독자)
+  // 음성 활동 감지 (구독자)  -> 버그남
   useEffect(() => {
     const voiceActivityChecks = subscribers
       .filter(sub => sub.stream.audioActive)
@@ -459,9 +459,9 @@ const DebateRoom = ({ publisher, subscribers, roomName, userName, onLeave }) => 
         }
   
         // 회의록 저장
-        if (participantCount === 1) {
-          await createMeetingMinutes();
-        }
+        // if (participantCount === 1) {
+        //   await createMeetingMinutes();
+        // }
   
         // 세션 연결 해제를 최후에 수행
         if (publisher?.session) {

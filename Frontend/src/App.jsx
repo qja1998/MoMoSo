@@ -45,24 +45,20 @@ function App() {
 
             {/* 실제 프로덕션용 라우트 */}
             <Route path="/novel">
+              <Route path="" element={<NovelList />} />
               <Route path="viewer/:novelId" element={<NovelEpisodeList />} />
               <Route path="viewer/:novelId/:episodeId" element={<NovelEpisodeViewer />} />
-              <Route path="edit/" element={<NovelEditor />} />
+              <Route path="edit/:novelId" element={<NovelEditor />} />
             </Route>
 
             {/* 디버그용 라우트 */}
-            <Route path="/debug">
-              <Route path="novel">
-                <Route path="list" element={<NovelList />} />
-                <Route path="detail" element={<NovelEpisodeList />} />
-                <Route path="viewer" element={<NovelEpisodeViewer />} />
-              </Route>
-            </Route>
+            <Route path="/debug/viewer/1" element={<NovelEpisodeList />} />
+            <Route path="/debug/viewer" element={<NovelEpisodeViewer />} />
           </Route>
 
           {/* Sidebar Layout */}
           <Route element={<SidebarLayout />}>
-            <Route path="/discussions">
+            <Route path="/discussion">
               <Route path=":discussionId" element={<DiscussionRoom />} />
               <Route path=":discussionId/summary" element={<DiscussionSummary />} />
             </Route>
@@ -74,7 +70,7 @@ function App() {
 
             {/* 디버그용 라우트 */}
             <Route path="/debug">
-              <Route path="discussions" element={<DiscussionRoom />} />
+              <Route path="discussion" element={<DiscussionRoom />} />
               <Route path="summary" element={<DiscussionSummary />} />
             </Route>
           </Route>
