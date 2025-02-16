@@ -104,15 +104,11 @@ deploy:
 
   script:
     - |
-      # 1️⃣ 로컬의 docker-compose.yml을 원격 서버로 복사
-      scp -i id_rsa docker-compose.yml ubuntu@$SSH_HOST:/home/ubuntu/docker-compose.yml
-      
-      # 2️⃣ SSH 접속 후 Docker Compose 실행
       ssh -i id_rsa ubuntu@$SSH_HOST << EOF
       set -e
       docker pull $IMAGE_BACKEND:$TAG || { echo "Backend pull failed! Rolling back..."; exit 1; }
       docker pull $IMAGE_FRONTEND:$TAG || { echo "Frontend pull failed! Rolling back..."; exit 1; }
-      cd /home/ubuntu
+      cd /home/ubuntu/S12P11B106
       docker-compose -f docker-compose.yml up -d
       EOF
   only:
