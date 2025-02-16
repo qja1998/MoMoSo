@@ -1,9 +1,6 @@
-import styled from '@emotion/styled'
-
-import { useCallback, useMemo, useState } from 'react'
-
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-
+import styled from '@emotion/styled'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import SearchIcon from '@mui/icons-material/Search'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -38,128 +35,61 @@ const NovelCard = styled(Card)({
   transition: 'transform 0.2s ease-in-out',
   border: '1px solid rgba(0, 0, 0, 0.12)',
   boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-  '&:hover': { 
+  '&:hover': {
     transform: 'translateY(-4px)',
     boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-    border: '1px solid rgba(0, 0, 0, 0.2)'
+    border: '1px solid rgba(0, 0, 0, 0.2)',
   },
 })
 
 const NovelList = () => {
   const navigate = useNavigate()
+  const [novels, setNovels] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState('latest')
   const [genre, setGenre] = useState('all')
 
-  // 소설 목록 데이터 (임시)
-  const novels = useMemo(
-    () => [
-      {
-        id: 1,
-        title: '시간을 달리는 소녀',
-        author: '김희진',
-        coverImage: coverPlaceholder,
-        views: 1234,
-        likes: 567,
-        genre: '판타지',
-        description: '시간 여행을 통해 과거와 현재를 오가는 소녀의 이야기',
-      },
-      {
-        id: 2,
-        title: '달빛 조각사',
-        author: '남궁인',
-        coverImage: coverPlaceholder,
-        views: 8765,
-        likes: 432,
-        genre: '판타지',
-        description: '가상 현실 게임 속 대장장이의 성장 스토리',
-      },
-      {
-        id: 3,
-        title: '구해줘',
-        author: '정유진',
-        coverImage: coverPlaceholder,
-        views: 5432,
-        likes: 789,
-        genre: '미스터리',
-        description: '연쇄 실종 사건을 파헤치는 형사의 이야기',
-      },
-      {
-        id: 4,
-        title: '봄날의 약속',
-        author: '이서연',
-        coverImage: coverPlaceholder,
-        views: 3456,
-        likes: 234,
-        genre: '로맨스',
-        description: '10년 만에 재회한 첫사랑의 이야기',
-      },
-      {
-        id: 5,
-        title: '마법사의 탑',
-        author: '김도훈',
-        coverImage: coverPlaceholder,
-        views: 6789,
-        likes: 345,
-        genre: '판타지',
-        description: '최강의 마법사가 되기 위한 수련생의 여정',
-      },
-      {
-        id: 6,
-        title: '그림자 살인',
-        author: '박진우',
-        coverImage: coverPlaceholder,
-        views: 4567,
-        likes: 678,
-        genre: '미스터리',
-        description: '연쇄 살인마를 쫓는 프로파일러의 이야기',
-      },
-      {
-        id: 7,
-        title: '별들의 춤',
-        author: '최하늘',
-        coverImage: coverPlaceholder,
-        views: 7890,
-        likes: 456,
-        genre: '로맨스',
-        description: '무용수와 음악가의 운명적인 만남',
-      },
-      {
-        id: 8,
-        title: '용의 아이',
-        author: '강민호',
-        coverImage: coverPlaceholder,
-        views: 2345,
-        likes: 567,
-        genre: '판타지',
-        description: '용족의 피를 이어받은 소년의 모험',
-      },
-    ],
-    []
-  )
+  useEffect(() => {
+    const fetchNovels = async () => {
+      setLoading(true)
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/v1/novels')
+        if (!response.ok) throw new Error('데이터를 불러오는데 실패했습니다.')
+        const data = await response.json()
+        setNovels(data)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchNovels()
+  }, [])
 
   const handleSearchChange = useCallback((event) => {
     setSearchQuery(event.target.value)
-    // TODO: 검색 로직 구현
   }, [])
 
   const handleSortChange = useCallback((event) => {
     setSortBy(event.target.value)
-    // TODO: 정렬 로직 구현
   }, [])
 
   const handleGenreChange = useCallback((event) => {
     setGenre(event.target.value)
-    // TODO: 장르 필터링 로직 구현
   }, [])
 
   const handleNovelClick = useCallback(
-    (novelId) => {
-      // TODO: 소설 상세 페이지로 이동
-      navigate(`/novel/${novelId}`)
+    (novelPk) => {  // novelId -> novelPk 로 변경
+      navigate(`/novel/${novelPk}`);  // `/novel/viewer/${novelId}` 에서 변경, novelId -> novelPk 로 변경
     },
     [navigate]
-  )
+  );
+
+  if (loading) return <Typography sx={{ textAlign: 'center', mt: 4 }}>로딩 중...</Typography>
+  if (error) return <Typography sx={{ textAlign: 'center', mt: 4, color: 'red' }}>{error}</Typography>
 
   return (
     <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
@@ -202,11 +132,11 @@ const NovelList = () => {
         {novels.map((novel) => (
           <Grid size={{ xs: 12, sm: 6, md: 3 }} key={novel.id}>
             <NovelCard>
-              <CardActionArea onClick={() => handleNovelClick(novel.id)}>
+              <CardActionArea onClick={() => handleNovelClick(novel.novel_pk)}>  {/* novel.id -> novel.novel_pk 로 변경 */}
                 <CardMedia
                   component="img"
                   sx={{ aspectRatio: '3/4', objectFit: 'cover' }}
-                  image={novel.coverImage}
+                  image={novel.coverImage || coverPlaceholder}
                   alt={novel.title}
                 />
                 <CardContent>
