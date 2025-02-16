@@ -8,7 +8,6 @@ export $(grep -v '^#' .env | xargs)
 
 # 1️⃣ GitLab Runner 환경과 동일하게 Docker 컨테이너 내부에서 실행
 docker run --rm \
-  -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$(pwd)":/workspace \
   -w /workspace \
   --env DOCKER_USERNAME="$DOCKER_USERNAME" \
