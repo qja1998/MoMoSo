@@ -182,7 +182,9 @@ class GeminiDiscussionAssistant:
             HumanMessage(content=prompt)
         ]
 
-        return self.llm.invoke(messages)
+        response = self.llm.invoke(messages)
+
+        return response.content
     
     def delete_collection(self):
         """Delete the Chroma database collection."""
