@@ -10,9 +10,6 @@ COPY package*.json ./
 # # 의존성 설치
 RUN npm install
 
-# 나머지 애플리케이션 소스 코드 복사
-COPY . .
-
 # 컨테이너가 시작될 때 실행될 명령어 설정
 # CMD ["tail", "-f", "/dev/null"]
 CMD ["npm", "run", "dev"]
