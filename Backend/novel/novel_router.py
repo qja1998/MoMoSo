@@ -12,11 +12,11 @@ from discussion import discussion_crud
 # AI 이미지 생성 
 from ai.gen_image import ImageGenerator
 
-app = APIRouter(
+router = APIRouter(
     prefix='/api/v1',
 )
 
-@app.get("/main", response_model=novel_schema.MainPageResponse)
+@router.get("/main", response_model=novel_schema.MainPageResponse)
 def main_page(
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_user)  # 로그인 검증만 수행
@@ -76,23 +76,23 @@ export default VideoPlayer;
 
 
 # 소설(Novel) CRUD
-print("app has started")
+print("router has started")
 
 # 모든 소설을 가져오기 에러 잡는 중
 # 장르도 같이 제공해줘야 함.
-@app.get("/novels", response_model=List[novel_schema.NovelShowBase])
+@router.get("/novels", response_model=List[novel_schema.NovelShowBase])
 def all_novel(db: Session = Depends(get_db)):
     return novel_crud.get_all_novel(db)
 
 # 디테일 페이지, 아직 미완
-@app.get("/novel/{novel_pk}/detail")
+@router.get("/novel/{novel_pk}/detail")
 def novel_detail(novel_pk : int, db : Session = Depends(get_db)) : 
     episode = novel_crud.novel_episode(novel_pk, db)
     novel_info  = novel_crud.search_novel(novel_pk, db)
     discussion = db.query(Discussion).filter(Discussion.novel_pk == novel_pk).all()
     return {"episode" : episode, "novel_info" : novel_info, "discussion": discussion}
 
-@app.get("/novel/{novel_pk}") 
+@router.get("/novel/{novel_pk}") 
 def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
     # novel정보 
     novel = novel_crud.search_novel(novel_pk, db)
@@ -101,32 +101,32 @@ def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
     return {"novel" : novel, "character" : character} 
 
 #등장인물 CUD
-@app.post("/novel/character/{novel_pk}", response_model=novel_schema.CharacterBase)
+@router.post("/novel/character/{novel_pk}", response_model=novel_schema.CharacterBase)
 def save_character(novel_pk : int, character_info : novel_schema.CharacterBase, db: Session = Depends(get_db)) :
     return novel_crud.save_character(novel_pk, character_info ,db)
 
-@app.put("/api/v1/novel/character/{character_pk}")
+@router.put("/api/v1/novel/character/{character_pk}")
 def update_character(character_pk : int, update_data: novel_schema.CharacterUpdateBase, db: Session = Depends(get_db)) : 
     return novel_crud.update_character(character_pk,update_data, db)
 
-@app.delete("/api/v1/novel/character/{character_pk}")
+@router.delete("/api/v1/novel/character/{character_pk}")
 def delete_character(character_pk : int, db: Session = Depends(get_db)) : 
     return novel_crud.delete_character(character_pk, db )
 
 # 소설(시놉시스) CUD
 
 # 수정한 소설 저장하기
-@app.put("/novel/{novel_pk}")
+@router.put("/novel/{novel_pk}")
 def update_novel(novel_pk: int, update_data: novel_schema.NovelUpdateBase,db: Session = Depends(get_db)):
     novel_crud.update_novel(novel_pk, update_data, db)
     return HTTPException(status_code=status.HTTP_200_OK)
 
 # 소설 생성
-@app.post("/novel", response_model=novel_schema.NovelCreateBase)
+@router.post("/novel", response_model=novel_schema.NovelCreateBase)
 def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Session = Depends(get_db)):
     return novel_crud.create_novel(novel_info, user_pk, db)
 
-@app.delete("/novel/{novel_pk}")
+@router.delete("/novel/{novel_pk}")
 def delete_novel(novel_pk: int, db: Session = Depends(get_db)):
     return novel_crud.delete_novel(novel_pk, db)
 
@@ -137,40 +137,40 @@ def delete_novel(novel_pk: int, db: Session = Depends(get_db)):
 디버깅 필요, 에피소드 가져오는 기능도 없음.
 """
 #소설 좋아요 
-@app.put("/novel/{novel_pk}/{user_pk}")
+@router.put("/novel/{novel_pk}/{user_pk}")
 def like_novel(novel_pk: int, user_pk: int, db: Session = Depends(get_db)):
     return novel_crud.like_novel(novel_pk,user_pk, db)
 
 # 에피소드 CRUD
 
 # 특정 소설의 에피소드 조회
-@app.get("/novel/{novel_pk}/episodes")
+@router.get("/novel/{novel_pk}/episodes")
 def novel_episode(novel_pk: int, db: Session = Depends(get_db)):
     return novel_crud.novel_episode(novel_pk, db)
 
 # 특정 소설에 에피소드 추가
-@app.post("/novel/{novel_pk}/episode", response_model=novel_schema.EpisodeCreateBase)
+@router.post("/novel/{novel_pk}/episode", response_model=novel_schema.EpisodeCreateBase)
 def save_episode(novel_pk: int, episode_data: novel_schema.EpisodeCreateBase, db: Session = Depends(get_db)):
     return novel_crud.save_episode(novel_pk, episode_data, db)
 
 # 에피소드 변경
-@app.post("/novel/{novel_pk}/{ep_pk}",response_model=novel_schema.EpisodeCreateBase)
+@router.post("/novel/{novel_pk}/{ep_pk}",response_model=novel_schema.EpisodeCreateBase)
 def change_episode(novel_pk: int, update_data: novel_schema.EpisodeUpdateBase, ep_pk : int, db: Session = Depends(get_db)) : 
     return novel_crud.change_episode(novel_pk, update_data, ep_pk, db)
 
 #에피소드 삭제
-@app.delete("/novel/{novel_pk}/{ep_pk}")
+@router.delete("/novel/{novel_pk}/{ep_pk}")
 def delete_episode(novel_pk: int, ep_pk : int, db: Session = Depends(get_db)) : 
     return novel_crud.delete_episode(novel_pk,ep_pk,db)
 
 # 특정 에피소드의 댓글 조회
-@app.get("/novel/{novel_pk}/episode/{ep_pk}/comments")
+@router.get("/novel/{novel_pk}/episode/{ep_pk}/comments")
 def ep_comment(novel_pk: int, ep_pk: int, db: Session = Depends(get_db)):
     all_ep_comment = novel_crud.get_all_ep_comment(novel_pk, ep_pk, db)
     return all_ep_comment
 
 # 댓글 작성
-@app.post("/novel/{novel_pk}/episode/{ep_pk}/comment", response_model=novel_schema.CommentBase)
+@router.post("/novel/{novel_pk}/episode/{ep_pk}/comment", response_model=novel_schema.CommentBase)
 def save_comment(comment_info: novel_schema.CommentBase, novel_pk: int, ep_pk: int, user_pk: int, db: Session = Depends(get_db)):
     comment = novel_crud.create_comment(comment_info, novel_pk, ep_pk, user_pk, db)
     if not comment:
@@ -178,7 +178,7 @@ def save_comment(comment_info: novel_schema.CommentBase, novel_pk: int, ep_pk: i
     return comment
 
 # 댓글 수정
-@app.put("/novel/{novel_pk}/episode/{ep_pk}/comment")
+@router.put("/novel/{novel_pk}/episode/{ep_pk}/comment")
 def change_comment(content: str, comment_pk: int, db: Session = Depends(get_db)):
     comment = novel_crud.update_comment(content, comment_pk, db)
     if not comment:
@@ -186,24 +186,24 @@ def change_comment(content: str, comment_pk: int, db: Session = Depends(get_db))
     return comment
 
 # 댓글 삭제
-@app.delete("/novel/{novel_pk}/episode/{ep_pk}/comment")
+@router.delete("/novel/{novel_pk}/episode/{ep_pk}/comment")
 def delete_comment(comment_pk: int, db: Session = Depends(get_db)):
     return novel_crud.delete_comment(comment_pk, db)
 
 # 댓글 좋아요
-@app.put("/novel/comment/{comment_pk}/like")
+@router.put("/novel/comment/{comment_pk}/like")
 def like_comment(comment_pk: int, user_pk : int,db: Session = Depends(get_db)):
     return novel_crud.like_comment(comment_pk, user_pk,db)
 
 # 대댓글 CRUD
 
 # 대댓글 작성
-@app.post("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment", response_model=novel_schema.CoComentBase)
+@router.post("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment", response_model=novel_schema.CoComentBase)
 def create_cocoment(comment_pk: int, user_pk: int, cocoment_info: novel_schema.CoComentBase, db: Session = Depends(get_db)):
     return novel_crud.create_cocoment(comment_pk, user_pk, cocoment_info, db)
 
 # 대댓글 수정
-@app.put("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment")
+@router.put("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment")
 def update_cocomment(content: str, cocoment_pk: int, db: Session = Depends(get_db)):
     cocomment = novel_crud.update_cocomment(content, cocoment_pk, db)
     if not cocomment:
@@ -211,25 +211,25 @@ def update_cocomment(content: str, cocoment_pk: int, db: Session = Depends(get_d
     return cocomment
 
 # 대댓글 삭제
-@app.delete("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment")
+@router.delete("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment")
 def delete_cocomment(cocomment_pk: int, db: Session = Depends(get_db)):
     novel_crud.delete_cocomment(cocomment_pk, db)
     return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # 대댓글 좋아요
-@app.put("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment/like")
+@router.put("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment/like")
 def like_cocomment(cocomment_pk: int, user_pk: int, db: Session = Depends(get_db)):
     return novel_crud.like_cocomment(cocomment_pk, user_pk, db)
 
-@app.get("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment")
+@router.get("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}/cocomment")
 def get_cocoment(comment_pk : int, db: Session = Depends(get_db) ) : 
     return novel_crud.get_cocoment(comment_pk,db)
 
 # 표지 이미지
 """
 import os
-@app.post("/image")
+@router.post("/image")
 
 #아래 리턴되는 값은 드라이브 내부의 img id임. 수정이 필요한경우 해당 걸로 하면 됨.
 def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session = Depends(get_db)) : 
@@ -238,7 +238,7 @@ def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session
 """
 
 
-@app.post("/save")
+@router.post("/save")
 async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), db: Session = Depends(get_db)) : 
     if user_novel == "user" :
         drive_path = "1M6KHgGMhmN0AiPaf5Ltb3f0JhZZ7Bnm5"
@@ -256,7 +256,7 @@ async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), d
     # Local static에서 이미지 삭제
     os.remove(file_path)
 
-@app.delete("/image")
+@router.delete("/image")
 def delete_img(file_id : str, drive_folder_id : str, novel_pk : int , db: Session = Depends(get_db)) :
     return novel_crud.delete_image(file_id, drive_folder_id)
 
@@ -266,31 +266,31 @@ from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, C
 from .novel_crud import get_previous_chapters
 from utils.auth_utils import get_current_user
 
-@app.post("/ai/worldview")
+@router.post("/ai/worldview")
 def recommend_worldview(request: WorldviewRequest) : 
     novel_gen = NovelGenerator(request.genre, request.title)
     worldview = novel_gen.recommend_worldview()
     return {"worldview": worldview}
 
-@app.post("/ai/synopsis")
+@router.post("/ai/synopsis")
 def recommend_synopsis(request: SynopsisRequest) : 
     novel_gen = NovelGenerator(request.genre, request.title, request.worldview)
     synopsis = novel_gen.recommend_synopsis()
     return {"synopsis": synopsis}
 
-@app.post("/ai/characters-new")
+@router.post("/ai/characters-new")
 def add_new_characters(request : CharacterRequest) : 
     novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis)
     new_characters = novel_gen.add_new_characters()
     return {"new_characters" : new_characters}
 
-@app.post("/ai/characters")
+@router.post("/ai/characters")
 def recommend_characters(request: CharacterRequest):
     novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.characters)
     updated_characters = novel_gen.recommend_characters()
     return {"characters": updated_characters}
 
-@app.post("/ai/episode")
+@router.post("/ai/episode")
 def create_episode(request: CreateChapterRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     novel = None
     if request.novel_pk:
@@ -340,32 +340,32 @@ from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, C
 from .novel_crud import get_previous_chapters
 from utils.auth_utils import get_current_user
 
-@app.post("/ai/worldview")
+@router.post("/ai/worldview")
 def recommend_worldview(request: WorldviewRequest) : 
     novel_gen = NovelGenerator(request.genre, request.title)
     worldview = novel_gen.recommend_worldview()
     return {"worldview": worldview}
 
-@app.post("/ai/synopsis")
+@router.post("/ai/synopsis")
 def recommend_synopsis(request: SynopsisRequest) : 
     novel_gen = NovelGenerator(request.genre, request.title, request.worldview)
     synopsis = novel_gen.recommend_synopsis()
     return {"synopsis": synopsis}
 
-@app.post("/ai/characters/new")
+@router.post("/ai/characters/new")
 def add_new_characters(request : CharacterRequest) : 
     novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis)
     new_characters = novel_gen.add_new_characters()
     return {"new_characters" : new_characters}
 
-@app.post("/ai/character")
+@router.post("/ai/character")
 def recommend_characters(request: CharacterRequest):
     novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.characters)
     updated_characters = novel_gen.recommend_characters()
     return {"characters": updated_characters}
 
 
-@app.post("/ai/episode")
+@router.post("/ai/episode")
 def create_episode(request: CreateChapterRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     novel = None
     if request.novel_pk:
@@ -426,7 +426,7 @@ payload = {
 }
 
 # payload는 
-@app.post("/image/generate")
+@router.post("/image/generate")
 async def AI_img_generate(req: novel_schema.ImageRequest) :
     headers = {"Content-Type": "application/json"}
     response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=payload, headers=headers)
@@ -456,7 +456,7 @@ async def AI_img_generate(req: novel_schema.ImageRequest) :
         return HTTPException(status_code=status.HTTP_201_CREATED)
 
 
-@app.post("/api/v1/editor/image_ai")
+@router.post("/api/v1/editor/image_ai")
 async def generate_image(req: novel_schema.ImageRequest):
     generator = ImageGenerator()
     generator.gen_image_pipline
