@@ -106,10 +106,22 @@ deploy:
     - |
       ssh -i id_rsa ubuntu@$SSH_HOST << EOF
       set -e
+      echo "Pull docker images..."
       docker pull $IMAGE_BACKEND:$TAG || { echo "Backend pull failed! Rolling back..."; exit 1; }
       docker pull $IMAGE_FRONTEND:$TAG || { echo "Frontend pull failed! Rolling back..."; exit 1; }
+      
+      echo "Checking if docker-compose is running..."
       cd /home/ubuntu/S12P11B106
+      if [ "$(docker ps -q)" ]; then
+        echo "Stopping running services..."
+        docker-compose down
+      else
+        echo "No running containers found."
+      fi
+
+      echo "Starting new docker-compose services..."
       docker-compose -f docker-compose.yml up -d
+      EOF
       EOF
   only:
     - master
