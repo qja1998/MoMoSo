@@ -94,18 +94,21 @@ deploy:
   tags:
     - deploy
   before_script:
-    - 'echo "$SSH_PRIVATE_KEY" > id_rsa'
-    - 'chmod 600 id_rsa'
-    - 'mkdir -p ~/.ssh'
-    - 'ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts'
-    - 'ssh -i id_rsa ubuntu@$SSH_HOST "echo SSH 연결 성공"'
+    - echo "$DEPLOY_SSH_PRIVATE_KEY" > id_rsa
+    - chmod 600 id_rsa
+    - ssh-keygen -p -m PEM -f id_rsa -N ""  # OpenSSH 호환 변환
+    - mkdir -p ~/.ssh
+    - ssh-keyscan -H $SSH_HOST > ~/.ssh/known_hosts  # SSH 호스트 키 등록
+    - chmod 644 ~/.ssh/known_hosts
+    - ssh -i id_rsa ubuntu@$SSH_HOST "echo SSH 연결 성공"
 
   script:
-    - ssh ubuntu@$SSH_HOST << EOF
-        set -e
-        docker pull $IMAGE_BACKEND:$TAG || { echo "Backend pull failed! Rolling back..."; exit 1; }
-        docker pull $IMAGE_FRONTEND:$TAG || { echo "Frontend pull failed! Rolling back..."; exit 1; }
-        docker-compose -f docker-compose.yml up -d
+    - |
+      ssh ubuntu@$SSH_HOST << EOF
+      set -e
+      docker pull $IMAGE_BACKEND:$TAG || { echo "Backend pull failed! Rolling back..."; exit 1; }
+      docker pull $IMAGE_FRONTEND:$TAG || { echo "Frontend pull failed! Rolling back..."; exit 1; }
+      docker-compose -f docker-compose.yml up -d
       EOF
   only:
     - master
