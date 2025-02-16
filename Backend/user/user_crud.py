@@ -1,12 +1,16 @@
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 
-from models import User
+import models
+from models import User, Novel, Comment, CoComment
+from sqlalchemy.sql import func
+from sqlalchemy.orm import joinedload
 
 from passlib.context import CryptContext
-import models
 from . import user_schema
 from auth import auth_schema
+from typing import Optional
+import requests
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -16,7 +20,7 @@ def get_users(db: Session):
     :param db: SQLAlchemy 세션
     :return: User 리스트
     """
-    return db.query(User).all()
+    return db.query(User).options(joinedload(User.oauth_accounts)).all()
 
 
 def get_user(db: Session, user_id: int):
@@ -27,6 +31,34 @@ def get_user(db: Session, user_id: int):
     :return: User 객체 또는 None
     """
     return db.get(User, user_id)
+
+def get_user_profile(db: Session, user_id: int):
+    """
+    데이터베이스에서 특정 사용자 프로필 정보 조회
+    :param db: SQLAlchemy 세션
+    """
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not Found")
+    
+    novels_written  = db.query(Novel).filter(Novel.user_pk == user_id).all()
+    comments = db.query(Comment).filter(Comment.user_pk == user_id).all()
+    cocomments = db.query(CoComment).filter(CoComment.user_pk == user_id).all()
+    recent_novels = user.recent_novels
+
+    return user_schema.UserDetail(
+        user_pk=user.user_pk,
+        name=user.name,
+        nickname=user.nickname,
+        user_img=user.user_img,
+        recent_novels=recent_novels,
+        liked_novels=user.liked_novels,
+        liked_comments=user.liked_comments,
+        liked_cocomments=user.liked_cocomments,
+        comments=comments,
+        cocomments=cocomments,
+        novels_written=novels_written or [],
+    )
 
 
 def get_user_by_email(db: Session, email: str):
@@ -57,7 +89,7 @@ def get_user_by_name_and_phone(db: Session, name: str, phone: str):
     """
     return db.query(User).filter(User.name == name, User.phone == phone).first()
 
-def update_user(db: Session, user: User, updated_user: user_schema.UpdateUserForm):
+def update_user(db: Session, user: User, updated_user: user_schema.UpdateUserForm, file : Optional[UploadFile] = None ):
     """
     특정 사용자 정보 수정
     :param db: SQLAlchemy 세션
@@ -78,9 +110,15 @@ def update_user(db: Session, user: User, updated_user: user_schema.UpdateUserFor
         user.phone = updated_user.phone
 
     # 유저 이미지 수정
-    if updated_user.user_img:
-        user.user_img = updated_user.user_img
-
+    if updated_user.user_img and file:
+        #여기에 파일 받아야지.
+        data = {
+            "user_novel" : "user",
+            "pk" : user.user_pk, 
+        }
+        response = requests.post("http://127.0.0.1:8000/api/v1/image/generate", data=data,files=file)
+        
+    
     # 데이터베이스 업데이트
     db.commit()
     db.refresh(user)
@@ -95,3 +133,37 @@ def delete_user(db: Session, user: models.User):
     """
     db.delete(user)
     db.commit()
+
+def save_recent_novel(db: Session, user_pk: int, novel_pk: int):
+    """
+    로그인한 사용자가 조회한 소설을 최근 본 소설 목록에 저장
+    """
+    # 해당 소설이 존재하는지 확인
+    novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+
+    # 이미 최근 본 소설 목록에 있는지 확인
+    existing_entry = db.execute(
+        models.user_recent_novel_table.select()
+        .where(models.user_recent_novel_table.c.user_pk == user_pk)
+        .where(models.user_recent_novel_table.c.novel_pk == novel_pk)
+    ).fetchone()
+
+    if existing_entry:
+        # 기존 조회 기록이 있다면, viewed_date 갱신
+        db.execute(
+            models.user_recent_novel_table.update()
+            .where(models.user_recent_novel_table.c.user_pk == user_pk)
+            .where(models.user_recent_novel_table.c.novel_pk == novel_pk)
+            .values(viewed_date=func.now())
+        )
+    else:
+        # 새로운 조회 기록을 추가
+        db.execute(
+            models.user_recent_novel_table.insert().values(user_pk=user_pk, novel_pk=novel_pk, viewed_date=func.now())
+        )
+
+    db.commit()
+    return {"message": "Recent novel updated successfully"}
+

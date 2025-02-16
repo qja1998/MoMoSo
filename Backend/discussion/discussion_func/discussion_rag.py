@@ -62,8 +62,8 @@ class GeminiDiscussionAssistant:
             Chroma: Configured Chroma database instance.
         """
         chroma_db = Chroma(persist_directory="data", 
-                           embedding_function=self.embeddings,
-                           collection_name="lc_chroma_demo")
+                        embedding_function=self.embeddings,
+                        collection_name="lc_chroma_demo")
         collection = chroma_db.get()
         
         if len(collection['ids']) == 0:

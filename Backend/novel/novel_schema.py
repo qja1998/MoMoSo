@@ -1,29 +1,57 @@
 from pydantic import BaseModel, field_validator, Field
-from typing import Optional
-from typing import List
+from typing import Optional, Dict, List
+from datetime import datetime
+from user.user_schema import RecentNovel
 
-# 장르 선택
+# 메인 페이지 스키마
+class UserRecentNovel(BaseModel):
+    user_pk: int
+    name: str
+    nickname: str
+    recent_novels: Optional[List[RecentNovel]]
 
+    class Config:
+        from_attributes = True
 
-# 소설 생성 요청
-# class NovelCreateBase(BaseModel):
-#     title: str
-#     worldview: str
-#     synopsis: str
-#     genres: List[str] = Field(default_factory=list) 
-#     @field_validator("title")
-#     @classmethod
-#     def validate_not_empty(cls, v):
-#         if not v.strip():
-#             raise ValueError("이 필드는 비워둘 수 없습니다.")
-#         return v
-#     @field_validator("genres")
-#     @classmethod
-#     def validate_genre_not_empty(cls, v):
-#         if not v : 
-#             raise ValueError("이 필드는 비워둘 수 없습니다.")
+class MainPageResponse(BaseModel):
+    user: UserRecentNovel
+    recent_best: Optional[str]  # 최근 인기 소설
+    month_best: Optional[str]  # 한 달 동안 인기 소설
+
+    class Config:
+        from_attributes = True
 
 
+class CharacterBase(BaseModel) :
+    name : str
+    role : str
+    age : int 
+    sex : bool
+    job : str
+    profile : str
+
+
+
+
+
+
+class GenreGetBase(BaseModel) : 
+    genre_pk: int
+    genre : str
+
+class NovelShowBase(BaseModel) : 
+    novel_pk : int
+    title: str
+    created_date : datetime  
+    updated_date : datetime   # 이거 뭐로 해야 하냐? 
+    novel_img : str 
+    views : int
+    likes : int
+    is_completed : bool
+    genre: List[GenreGetBase] 
+    
+    class Config:
+        from_attributes = True
 
 class NovelCreateBase(BaseModel):
     title: str
@@ -45,6 +73,8 @@ class NovelBase(NovelCreateBase):
 
     class Config:
         from_attributes = True
+
+    
 
 
 # 소설 부분 업데이트 요청
@@ -124,7 +154,7 @@ class CoComentBase(BaseModel):
         return v
 
 class CharacterBase(BaseModel) : 
-    novel_pk : int
+    # novel_pk : int
     name : str
     role : str
     age : int 
@@ -132,8 +162,7 @@ class CharacterBase(BaseModel) :
     job : str
     profile : str
 
-class CharacterUpdateBase(BaseModel) : 
-    novel_pk: Optional[int] = None
+class CharacterUpdateBase(BaseModel) :
     name: Optional[str] = None
     role: Optional[str] = None
     age: Optional[int] = None
@@ -144,18 +173,66 @@ class CharacterUpdateBase(BaseModel) :
     @field_validator("name","role","job","profile")
     @classmethod
     def validate_not_empty(cls, v):
-        if v is not None and not v.strip():
+        if v is None and v.strip():
             raise ValueError("이 필드는 비워둘 수 없습니다.")
+        return v  # 값을 반환해야 함
     
     @field_validator("age")
     @classmethod
     def validate_age(cls, v) :
         if v < 0 : 
             raise ValueError("나이는 0살 이하일 수 없습니다.")
+        return v
     
     @field_validator("sex")
     @classmethod
     def validate_sex(cls, v) :
         if v > 2 or v < 0 : 
             raise ValueError("성별은 3가지 옵션 중 하나로 선택해주십시오.")
+        return v
     
+
+
+# 소설 생성 AI 모델 응답용 스키마
+
+class WorldviewRequest(BaseModel):
+    genre: str
+    title: str
+
+class SynopsisRequest(BaseModel):
+    genre: str
+    title: str
+    worldview: str
+
+class CharacterModel(BaseModel):
+    name: str
+    sex: str
+    age: str
+    role: str
+    job: str
+    profile: str
+    특징: str
+
+class CharacterRequest(BaseModel):
+    genre: str
+    title: str
+    worldview: str
+    synopsis: str
+    characters: List[CharacterModel] = []  # 기존 캐릭터가 있으면 함께 전달 가능
+
+
+class CreateChapterRequest(BaseModel):
+    novel_pk: Optional[int] = None 
+    title: str
+    genre: str
+    synopsis: str
+    worldview: str
+    characters: List[Dict] = []
+
+
+class ImageRequest(BaseModel):
+    genre: str
+    style: str
+    title: str
+    worldview: str
+    keywords: List[str]

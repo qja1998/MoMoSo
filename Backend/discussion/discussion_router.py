@@ -2,54 +2,71 @@ from fastapi import Depends, HTTPException, APIRouter, status
 from sqlalchemy.orm import Session
 from typing import List
 
+
 from . import discussion_crud, discussion_schema
 from database import get_db
 
-app = APIRouter(
+from models import User, Episode
+from utils.auth_utils import get_current_user
+
+router = APIRouter(
     prefix='/api/v1/discussion',
 )
 
-@app.get('/', description="토론 방 전체 조회", response_model=List[discussion_schema.Discussion])
-def get_all_discussions(db:Session=Depends(get_db)):
+@router.get('/', description="토론 방 전체 조회", response_model=List[discussion_schema.Discussion])
+def get_all_discussions(db: Session = Depends(get_db)):
     """
     모든 토론 방 목록 조회.
     """
-    discussions = discussion_crud.get_discussions(db)
-    return discussions
+    return discussion_crud.get_discussions(db)
 
-@app.get("/{discussion_pk}", response_model=discussion_schema.Discussion)
+@router.get("/{discussion_pk}", response_model=discussion_schema.Discussion)
 def get_discussion(discussion_pk: int, db: Session = Depends(get_db)):
     """
-    특정 토론 방 조회.
+    특정 토론 방 조회
     """
-    discussion = discussion_crud.get_discussion(db, discussion_pk)
-    return discussion
+    return discussion_crud.get_discussion(db, discussion_pk)
 
-@app.post("/", response_model=discussion_schema.Discussion, status_code=status.HTTP_201_CREATED)
-def create_discussion(discussion: discussion_schema.NewDiscussionForm, db: Session = Depends(get_db)):
+
+@router.get("/enter-room/{discussion_pk}")
+def enter_discussion_room(discussion_pk: int, user_pk:int, db: Session = Depends(get_db)):
     """
-    새로운 토론 방 생성.
+    특정 토론 방 접속 : user가 해당 토론 방에 예약된 participant인지 확인 후, 예약된 방의 session_id 던져주는 로직
     """
-    new_discussion = discussion_crud.create_discussion(db, discussion)
+    return discussion_crud.get_discussion_sessionid(db, discussion_pk, user_pk)
+
+
+@router.post("/", response_model=discussion_schema.GetNewDiscussion, status_code=status.HTTP_201_CREATED)
+def create_discussion(
+    discussion: discussion_schema.NewDiscussionForm,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    새로운 토론 방 생성 (로그인한 사용자만 가능)
+    """
+    new_discussion = discussion_crud.create_discussion(db, discussion, current_user)
+
     return new_discussion
 
-@app.post("/{discussion_pk}/participants/{user_pk}", response_model=discussion_schema.Discussion, description="토론방 유저 참여")
+
+@router.post("/{discussion_pk}/participants/{user_pk}", response_model=discussion_schema.Discussion, description="토론방 유저 추가")
 def add_participant(discussion_pk: int, user_pk: int, db: Session = Depends(get_db)):
     """
-    토론 방에 유저 참여.
+    토론 방에 유저 추가.
     """
-    updated_discussion = discussion_crud.add_participant(db, discussion_pk, user_pk)
-    return updated_discussion
+    return discussion_crud.add_participant(db, discussion_pk, user_pk)
 
-@app.delete("/{discussion_pk}/participants/{user_pk}", response_model=discussion_schema.Discussion, description="토론방 유저 삭제")
+
+@router.delete("/{discussion_pk}/participants/{user_pk}", response_model=discussion_schema.Discussion, description="토론방 유저 삭제")
 def remove_participant(discussion_pk: int, user_pk: int, db: Session = Depends(get_db)):
     """
     토론 방에서 유저 삭제.
     """
-    updated_discussion = discussion_crud.remove_participant(db, discussion_pk, user_pk)
-    return updated_discussion
+    return discussion_crud.remove_participant(db, discussion_pk, user_pk)
 
-@app.put("/{discussion_pk}", response_model=discussion_schema.Discussion)
+
+@router.put("/{discussion_pk}", response_model=discussion_schema.Discussion)
 def update_discussion(discussion_pk: int, discussion_update: discussion_schema.NewDiscussionForm, db: Session = Depends(get_db)):
     """
     토론 방 정보 수정.
@@ -57,17 +74,399 @@ def update_discussion(discussion_pk: int, discussion_update: discussion_schema.N
     updated_discussion = discussion_crud.update_discussion(db, discussion_pk, discussion_update)
     return updated_discussion
 
-@app.delete("/{discussion_pk}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{discussion_pk}", status_code=status.HTTP_200_OK)
 def delete_discussion(discussion_pk: int, db: Session = Depends(get_db)):
     """
     토론 방 삭제.
     """
     discussion_crud.delete_discussion(db, discussion_pk)
-    return
+    return {"message":"토론 방 삭제 완료"}
 
-@app.post('/note', description="토론 요약본 저장")
-def create_discussion_summary(db:Session=Depends(get_db)):
+
+# =============================AI 어셈블==================================
+from .discussion_func.discussion_rag import GeminiDiscussionAssistant
+from models import Novel, Note, Discussion
+from .discussion_schema import SummaryRequest, FactCheckRequest, SubjectRequest
+import os
+
+document_path = ".document_path"  # txt 저장될 디렉토리
+GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
+
+def get_assistant(document_path: str = None):
+    return GeminiDiscussionAssistant(document_path, GEMINI_API_KEY)
+
+DOCUMENT_PATH = "./document_path"  # txt 파일 저장 디렉토리
+
+@router.post('/create-txt', description="토론 시작 시, 소설 txt 파일 생성")
+def create_txt_file(discussion_pk: int, db: Session = Depends(get_db)):
     """
-    AI 쪽에서 정보 받아와서 저장 필요
+    AI 기능을 위해 토론 시작 시, 소설 폴더에 소설 내용을 담은 txt 파일을 생성하는 기능
     """
-    pass
+
+    # 소설 및 토론 정보 조회
+    discussion = db.query(Discussion).filter(Discussion.discussion_pk == discussion_pk).first()
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+    
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
+
+    # 소설의 모든 에피소드 조회 (생성 날짜순 정렬)
+    episodes = db.query(Episode).filter(Episode.novel_pk == novel.novel_pk).order_by(Episode.created_date).all()
+
+    if not episodes:
+        raise HTTPException(status_code=400, detail="No episodes found for this novel")
+
+    # txt 파일 제목 설정 (토론 세션 ID + 소설 제목)
+    txt_title = f"{novel.title}_{discussion.session_id}.txt"
+
+    # 파일 저장 경로 설정
+    os.makedirs(DOCUMENT_PATH, exist_ok=True)  # 폴더가 없으면 생성
+    file_path = os.path.join(DOCUMENT_PATH, txt_title)
+
+    # 소설 내용 구성
+    content = f" 소설 제목: {novel.title}\n\n"
+    
+    for idx, episode in enumerate(episodes):
+        content += f"\n\n {idx + 1}화 에피소드 : {episode.ep_title}\n\n{episode.ep_content}\n\n"
+
+    # 파일 생성 및 저장
+    try:
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"파일 저장 실패: {str(e)}")
+
+    return { 
+        "file_name": txt_title,
+        "document_path": os.path.abspath(file_path)  # 절대 경로 반환
+    }
+
+
+@router.post('/delete-txt', description="토론 종료 시, 소설 txt 파일 삭제")
+def delete_txt_file(discussion_pk: int, db: Session = Depends(get_db)):
+    """
+    토론 종료 시, 해당 토론에서 사용된 txt 파일을 삭제하는 기능
+    """
+
+    # 1️⃣ 해당 토론 조회
+    discussion = db.query(Discussion).filter(Discussion.discussion_pk == discussion_pk).first()
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
+
+    # 2️⃣ 토론과 연결된 소설 조회
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+
+    # 3️⃣ 삭제할 txt 파일명 설정 (토론 세션 ID + 소설 제목)
+    txt_title = f"{novel.title}_{discussion.session_id}.txt"
+    file_path = os.path.join(DOCUMENT_PATH, txt_title)
+
+    # 4️⃣ 파일 존재 여부 확인 후 삭제
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)  # 파일 삭제
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"파일 삭제 실패: {str(e)}")
+        return { 
+            "message": "TXT file successfully deleted.",
+            "file_name": txt_title
+        }
+    else:
+        # 파일이 이미 삭제되었거나 존재하지 않으면 204 No Content 반환
+        return { 
+            "message": "TXT file not found or already deleted.",
+            "file_name": txt_title
+        }
+
+
+@router.post('/note', description="토론 요약본 저장")
+def create_discussion_summary(
+    request: SummaryRequest, 
+    db: Session = Depends(get_db),
+):
+    """
+    토론이 끝나면 rtc에서 넘겨받은 회의록으로 토론 요약본 저장
+    """
+
+    # 소설 및 토론 정보 조회
+    discussion = db.query(Discussion).filter(Discussion.discussion_pk == request.discussion_pk).first()
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
+    
+    # 사용자 요청에 따른 file_path 생성
+    txt_filename = f"{novel.title}_{discussion.session_id}.txt"
+    file_path = os.path.join(DOCUMENT_PATH, txt_filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="TXT file not found. Please start the discussion first.")
+    
+    assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
+    
+    # 유저 발화 기반 요약 실행
+    summary_response = assistant.generate_meeting_notes(request.content)
+    summary = summary_response.content if hasattr(summary_response, "content") else str(summary_response)
+    
+    new_note = Note(novel_pk=novel.novel_pk, user_pk=novel.user_pk, summary=summary)
+
+    try:
+        db.add(new_note)
+        db.commit()
+        db.refresh(new_note)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"DB 저장 실패: {str(e)}")
+    
+    return new_note
+
+
+@router.post('/subject', description="토론 주제 추천")
+def create_discussion_subject(
+    request: SubjectRequest,
+    db: Session = Depends(get_db)
+):
+    """사용자가 요청할 때마다 바뀌는 file_path를 반영하여 토론 주제를 추천"""
+
+    # 소설 및 토론 정보 조회
+    discussion = db.query(Discussion).filter(Discussion.discussion_pk == request.discussion_pk).first()
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
+
+    # 사용자 요청에 따른 file_path 생성
+    txt_filename = f"{novel.title}_{discussion.session_id}.txt"
+    file_path = os.path.join(DOCUMENT_PATH, txt_filename)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="TXT file not found. Please start the discussion first.")
+
+    assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
+
+    # 유저 발화 기반 주제 추천 실행
+    subject = assistant.recommend_discussion_topic(request.content)
+
+    return {"subject": subject}
+
+
+@router.post('/fact-check', description="토론 팩트 체크")
+def create_discussion_factcheck(
+    request: FactCheckRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    토론 중 제기된 주장에 대한 팩트 체크 수행
+    """
+    # 소설 및 토론 정보 조회
+    discussion = db.query(Discussion).filter(Discussion.discussion_pk == request.discussion_pk).first()
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
+
+    # 사용자 요청에 따른 file_path 생성
+    txt_filename = f"{novel.title}_{discussion.session_id}.txt"
+    file_path = os.path.join(DOCUMENT_PATH, txt_filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="TXT file not found. Please start the discussion first.")
+    
+    assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
+
+    factcheck = assistant.fact_check(request.content)
+    return { "factcheck": factcheck }
+
+    
+
+
+# =============================WebRTC 어셈블==================================
+from fastapi import UploadFile, File, Form, HTTPException
+from pathlib import Path
+import datetime
+import aiofiles
+import os
+import json
+import uuid
+import speech_recognition as sr
+from pydantic import BaseModel
+from typing import List
+from concurrent.futures import ThreadPoolExecutor
+# from contextlib import asynccontextmanager
+
+# # ThreadPoolExecutor를 전역 변수로 선언
+# thread_pool = None
+
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # startup
+#     global thread_pool
+#     thread_pool = ThreadPoolExecutor(max_workers=4)
+#     print("ThreadPoolExecutor initialized")
+    
+#     yield
+    
+#     # shutdown
+#     if thread_pool:
+#         thread_pool.shutdown(wait=True)
+#         print("ThreadPoolExecutor shutdown complete")
+
+
+UPLOAD_DIR = Path("audio_uploads")
+
+class MeetingMinutesData(BaseModel):
+    room_name: str
+    host_name: str
+    start_time: str
+    end_time: str
+    duration: float
+    participants: List[str]
+    messages: List[dict]
+
+def process_audio_sync(file_path):
+    """
+    동기식 음성 처리 함수
+    ThreadPoolExecutor에서 실행될 함수
+    """
+    recognizer = sr.Recognizer()
+    try:
+        with sr.AudioFile(str(file_path)) as source:
+            audio_data = recognizer.record(source)
+            text = recognizer.recognize_google(audio_data, language='ko-KR')
+        return text
+    except sr.UnknownValueError:
+        print(f"음성을 인식할 수 없습니다: {file_path}")
+        return ""
+    except sr.RequestError as e:
+        print(f"Google 음성 인식 서비스 오류: {e}")
+        return "음성 인식 서비스 오류"
+    except Exception as e:
+        print(f"음성 처리 중 오류 발생: {e}")
+        return "음성 처리 오류"
+
+async def process_audio_to_text(file_path):
+    """
+    ThreadPoolExecutor를 사용하여 비동기적으로 음성 처리를 수행
+    """
+    global thread_pool
+    import asyncio
+    
+    if thread_pool is None:
+        raise RuntimeError("ThreadPoolExecutor is not initialized")
+        
+    # ThreadPoolExecutor에서 동기 함수 실행
+    loop = asyncio.get_event_loop()
+    text = await loop.run_in_executor(thread_pool, process_audio_sync, file_path)
+    return text
+
+@router.post("/audio")
+async def receive_audio(
+    audio: UploadFile = File(...),
+    roomName: str = Form(...),
+    userName: str = Form(...),
+):
+    try:
+        # 방 폴더 생성
+        room_dir = UPLOAD_DIR / roomName
+        room_dir.mkdir(parents=True, exist_ok=True)
+
+        # 사용자 폴더 생성
+        user_dir = room_dir / userName
+        user_dir.mkdir(exist_ok=True)
+
+        # transcriptions 폴더 생성
+        transcription_dir = user_dir / "transcriptions"
+        transcription_dir.mkdir(exist_ok=True)
+
+        # 오디오 파일 저장
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        audio_filename = f"audio_{timestamp}.wav"
+        audio_path = user_dir / audio_filename
+
+        # 파일 저장
+        async with aiofiles.open(audio_path, "wb") as out_file:
+            content = await audio.read()
+            await out_file.write(content)
+
+        # ThreadPoolExecutor를 사용하여 STT 변환
+        text = await process_audio_to_text(audio_path)
+
+        # 변환된 텍스트 저장
+        if text:
+            text_filename = f"audio_{timestamp}.txt"
+            text_path = transcription_dir / text_filename
+            async with aiofiles.open(text_path, "w", encoding="utf-8") as f:
+                await f.write(text)
+
+        return {
+            "message": "Audio processed successfully",
+            "room": roomName,
+            "user": userName,
+            "filename": audio_filename,
+            "text": text,
+            "timestamp": timestamp
+        }
+    
+    except Exception as e:
+        print(f"Error processing audio: {e}")
+        return {"error": str(e)}
+
+@router.post("/meeting-minutes")
+async def create_meeting_minutes(
+    room_name: str = Form(...),
+    host_name: str = Form(...),
+    start_time: str = Form(...),
+    end_time: str = Form(...),
+    duration: float = Form(...),
+    participants: str = Form(...),
+    messages: str = Form(...),
+):
+    try:
+        # JSON 문자열을 파이썬 객체로 변환
+        participants_list = json.loads(participants)
+        messages_list = json.loads(messages)
+
+        # 회의록 데이터 저장 로직
+        meeting_data = {
+            "id": str(uuid.uuid4()),
+            "room_name": room_name,
+            "host_name": host_name,
+            "start_time": start_time,
+            "end_time": end_time,
+            "duration": duration,
+            "participants": participants_list,
+            "messages": messages_list
+        }
+
+        # 회의록 디렉토리 생성
+        os.makedirs('meeting_minutes', exist_ok=True)
+        
+        # 파일명 생성
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"meeting_{timestamp}_{meeting_data['room_name']}.json"
+        filepath = os.path.join('meeting_minutes', filename)
+        
+        # JSON 파일로 저장
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(meeting_data, f, ensure_ascii=False, indent=4)
+        
+        return {
+            "message": "회의록이 성공적으로 저장되었습니다.",
+            "meeting_id": meeting_data['id'],
+            "filename": filename
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
