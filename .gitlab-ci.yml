@@ -93,11 +93,15 @@ deploy:
   stage: deploy
   tags:
     - deploy
+  before_script:
+    - 'echo "$SSH_PRIVATE_KEY" > id_rsa'
+    - 'chmod 600 id_rsa'
+    - 'mkdir -p ~/.ssh'
+    - 'ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts'
+    - 'ssh -i id_rsa ubuntu@$SSH_HOST "echo SSH 연결 성공"'
+
   script:
-    - echo "$DEPLOY_SSH_PRIVATE_KEY" > I12B106T.pem
-    - chmod 400 I12B106T.pem
-    - ssh -i I12B106T.pem ubuntu@i12b106.p.ssafy.io "echo '✅ SSH connection successful'"
-    - ssh ubuntu@i12b106.p.ssafy.io << EOF
+    - ssh ubuntu@$SSH_HOST << EOF
         set -e
         docker pull $IMAGE_BACKEND:$TAG || { echo "Backend pull failed! Rolling back..."; exit 1; }
         docker pull $IMAGE_FRONTEND:$TAG || { echo "Frontend pull failed! Rolling back..."; exit 1; }
