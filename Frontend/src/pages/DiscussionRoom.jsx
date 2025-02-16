@@ -1,4 +1,8 @@
-import { useEffect, useState } from 'react'
+import axios from 'axios'
+import { OpenVidu as OpenViduBrowser } from 'openvidu-browser'
+import { OpenVidu as OpenViduNode } from 'openvidu-node-client'
+
+import { useEffect, useRef, useState } from 'react'
 
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -21,31 +25,109 @@ import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 
+// 경로 상수
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
+const OPENVIDU_SERVER_URL = `${import.meta.env.VITE_OPENVIDU_PROTOCOL}://${import.meta.env.VITE_OPENVIDU_IP}:${import.meta.env.VITE_OPENVIDU_PORT}`
+const OPENVIDU_SERVER_SECRET = import.meta.env.VITE_OPENVIDU_SERVER_SECRET
+
+// // OpenVidu 세션 생성 함수
+// const createSession = async (sessionId) => {
+//   // OpenVidu 서버에 세션 생성 요청
+//   await axios
+//     .post(
+//       `${OPENVIDU_SERVER_URL}/openvidu/api/sessions`,
+//       { customSessionId: sessionId },
+//       {
+//         headers: {
+//           Authorization: `Basic ${btoa(`OPENVIDUAPP:${OPENVIDU_SERVER_SECRET}`)}`,
+//           'Content-Type': 'application/json',
+//         },
+//         withCredentials: true,
+//         responseType: 'json',
+//         validateStatus: (status) => {
+//           return status === 200 || status === 409 // 200과 409를 정상 응답으로 처리
+//         },
+//       }
+//     )
+//     .then((response) => {
+//       console.log('[createSession] 세션 생성 응답', response)
+//       if (response.status === 409) {
+//         // 409 에러는 이미 세션이 존재한다는 의미이므로 단순 return
+//         console.log('[createSession] 이미 세션이 존재합니다.')
+//         return sessionId
+//       } else {
+//         console.log('[createSession] 세션을 생성했습니다.', response)
+//         return sessionId
+//       }
+//     })
+//     .catch((error) => {
+//       if (error.response?.status === 400) {
+//         console.error('[createSession] 전송한 데이터의 형식이 올바르지 않습니다.', error)
+//       } else {
+//         console.error('[createSession] 알 수 없는 에러', error)
+//       }
+//     })
+// }
+
+// // 토큰 생성 함수 - 세션 참가를 위한 인증 토큰 발급
+// const createToken = async (sessionId) => {
+//   const response = await axios
+//     .post(
+//       `${OPENVIDU_CONFIG.SERVER_URL}/openvidu/api/sessions/${sessionId}/connection`,
+//       {},
+//       {
+//         headers: {
+//           Authorization: `Basic ${btoa(`OPENVIDUAPP:${OPENVIDU_CONFIG.SERVER_SECRET}`)}`,
+//           'Content-Type': 'application/json',
+//         },
+//         withCredentials: true,
+//         responseType: 'json',
+//         validateStatus: (status) => status === 200,
+//       }
+//     )
+//     .then((response) => {
+//       console.log('[createToken] 200 OK', response)
+//       return response.data.token
+//     })
+//     .catch((error) => {
+//       if (error.response?.status === 400) {
+//         console.error('[createToken] Problem with some body parameter.', error)
+//       } else if (error.response?.status === 404) {
+//         console.error('[createToken] 해당 SESSION_ID가 존재하지 않습니다.', error)
+//       } else {
+//         console.error('[createToken] 알 수 없는 에러', error)
+//       }
+//     })
+// }
+
+// debounce 유틸리티 함수 추가
+const debounce = (func, wait) => {
+  let timeout
+  return (...args) => {
+    clearTimeout(timeout)
+    timeout = setTimeout(() => func(...args), wait)
+  }
+}
 
 export default function DiscussionRoom() {
   const navigate = useNavigate()
   const { discussionId } = useParams()
 
-  const [discussionInfo, setDiscussionInfo] = useState({
-    discussion_pk: null,
-    session_id: '',
-    novel: {
-      novel_pk: null,
-      title: '',
-    },
-    episode: null,
-    topic: '',
-    start_time: '',
-    end_time: null,
-    participants: [],
-  })
+  const isComponentMountedRef = useRef(true)
+  const [discussionInfo, setDiscussionInfo] = useState(null)
   const [isMicOn, setIsMicOn] = useState(true)
   const [volume, setVolume] = useState(50)
   const [speakingUsers, setSpeakingUsers] = useState([]) // VAD로 현재 말하고 있는 사용자들의 ID 배열
   const [isVolumeHovered, setIsVolumeHovered] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
+
+  const loginInfo = useRef(null)
+
+  // OpenVidu 관련 상태 추가
+  const [serverSession, setServerSession] = useState(null) // OpenVidu 세션 객체
+  const [clientSession, setClientSession] = useState(null) // OpenVidu 세션 객체
+  const [connection, setConnection] = useState(null) // OpenVidu 연결 객체
+  const [publisher, setPublisher] = useState(null) // 로컬 스트림(자신의 비디오/오디오)
+  const [participants, setParticipants] = useState([]) // 나를 포함한 참가자들의 스트림 객체 배열
 
   // 채팅 관련 상태 추가
   const [messages, setMessages] = useState([
@@ -97,44 +179,311 @@ export default function DiscussionRoom() {
   const [factChecks, setFactChecks] = useState([])
   const [isGeneratingTopic, setIsGeneratingTopic] = useState(false)
 
+  // 토론방 초기화 로직
   useEffect(() => {
-    const fetchDiscussionInfo = async () => {
+    let openViduNode = null
+    let openViduBrowser = null
+    let serverSideSession = null
+    let clientSideSession = null
+    let connection = null
+    let publisher = null
+
+    const initializeDiscussionRoom = async () => {
       try {
-        const response = await fetch(`${BACKEND_URL}/api/v1/discussion/${discussionId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
+        // TODO: 로그인 상태가 아닌 경우 로그인 페이지로 리다이렉트
+        if (!loginInfo.current) {
+          navigate('/login')
+          return
+        }
+
+        // 1. OpenVidu 객체 초기화
+        try {
+          openViduNode = new OpenViduNode(OPENVIDU_SERVER_URL, OPENVIDU_SERVER_SECRET)
+          openViduNode.enableProdMode()
+          console.log('[Step 1-1] OpenViduNode 객체 초기화 성공', openViduNode)
+        } catch (error) {
+          console.error('[Step 1-1] OpenViduNode 객체 초기화 실패:', error)
+          throw error
+        }
+
+        try {
+          openViduBrowser = new OpenViduBrowser()
+          openViduBrowser.enableProdMode()
+          console.log('[Step 1-2] OpenViduBrowser 객체 초기화 성공', openViduBrowser)
+        } catch (error) {
+          console.error('[Step 1-2] OpenViduBrowser 객체 초기화 실패:', error)
+          throw error
+        }
+
+        // 2. 토론방 정보 불러오기
+        const { data: discussionData } = await axios.get(`${BACKEND_URL}/api/v1/discussion/${discussionId}`)
+
+        setDiscussionInfo(discussionData)
+        console.log('[Step 2] 토론방 정보 불러오기 성공', discussionData)
+
+        // 3. 세션(session) 생성
+        const sessionId = discussionData.session_id
+        // 409 에러(이미 해당 세션이 있음)도 알아서 처리해줌
+        try {
+          serverSideSession = await openViduNode.createSession({ customSessionId: sessionId })
+          console.log('[Step 3] Server-Side Session 생성 성공', serverSideSession)
+        } catch (error) {
+          console.error('[Step 3] Server-Side Session 생성 실패:', error)
+          throw error
+        }
+
+        // 4. 연결(connection) 생성
+        try {
+          connection = await serverSideSession.createConnection({
+            role: 'PUBLISHER',
+            data: JSON.stringify({
+              user_pk: loginInfo.current.user_pk,
+              name: loginInfo.current.name,
+              nickname: loginInfo.current.nickname,
+            }),
+          })
+          console.log('[Step 4] 연결 생성 성공', connection)
+          setConnection(connection)
+        } catch (error) {
+          console.error('[Step 4] 연결 생성 실패:', error)
+        }
+
+        // console.log('[Step 4] 연결 생성 성공', connection)
+        console.log('[Step 4] 연결 생성 성공')
+
+        // 5. 로컬 스트림 초기화
+        try {
+          publisher = await openViduBrowser.initPublisherAsync(undefined, {
+            audioSource: undefined, // 기본 마이크 사용
+            videoSource: false, // 비디오 미사용
+            publishAudio: true, // 오디오 사용
+            publishVideo: false, // 비디오 미사용
+          })
+          console.log('[Step 5] 로컬 스트림 초기화 성공', publisher)
+          setPublisher(publisher)
+        } catch (error) {
+          console.error('[Step 5] 로컬 스트림 초기화 실패:', error)
+        }
+
+        // 6. 접속을 위한 Client-Side Session 생성
+        try {
+          clientSideSession = await openViduBrowser.initSession()
+          setClientSession(clientSideSession) // clientSideSession을 상태에 저장
+          console.log('[Step 6] 접속을 위한 Client-Side Session 생성 성공', clientSideSession)
+        } catch (error) {
+          console.error('[Step 6] 접속을 위한 Client-Side Session 생성 실패:', error)
+        }
+
+        // 7. 세션 이벤트 핸들러 설정
+        // 7-1. 이벤트 핸들러 정의
+        const eventHandlers = {
+          // 세션에 새로운 스트림 객체가 생성될 때 발생 (누군가 스트림 발행을 시작할 때)
+          streamCreated: (event) => {
+            const subscriber = clientSideSession.subscribe(event.stream, undefined)
+            const connectionData = JSON.parse(event.stream.connection.data)
+            setParticipants((prev) => [
+              ...prev,
+              {
+                connectionId: event.stream.connection.connectionId,
+                streamManager: subscriber,
+                ...connectionData,
+              },
+            ])
+            // VAD(Voice Activity Detection) 이벤트 핸들러 설정
+            subscriber.on('publisherStartSpeaking', () => {
+              setSpeakingUsers((prev) => [...prev, connectionData.user_pk])
+            })
+            subscriber.on('publisherStopSpeaking', () => {
+              setSpeakingUsers((prev) => prev.filter((id) => id !== connectionData.user_pk))
+            })
           },
-          credentials: 'include', // 쿠키를 포함한 인증 정보 전송
+          // 기존 스트림이 제거될 때 발생 (누군가 스트림 발행을 중단할 때)
+          streamDestroyed: (event) => {
+            setParticipants((prev) =>
+              prev.filter((participant) => participant.connectionId !== event.stream.connection.connectionId)
+            )
+          },
+          // 새로운 사용자가 세션에 연결될 때 발생. 이벤트에서 새로운 Connection 객체의 세부 정보를 얻을 수 있음.
+          connectionCreated: (event) => {
+            // 자신의 연결은 제외
+            if (event.connection.connectionId === connection.connectionId) return
+
+            const connectionData = JSON.parse(event.connection.data)
+            setParticipants((prev) => [
+              ...prev,
+              {
+                connectionId: event.connection.connectionId,
+                ...connectionData,
+              },
+            ])
+          },
+          // 사용자가 세션을 나갈 때 발생. 제거된 Connection 객체의 정보를 제공함.
+          connectionDestroyed: (event) => {
+            setParticipants((prev) =>
+              prev.filter((participant) => participant.connectionId !== event.connection.connectionId)
+            )
+          },
+          // 세션 연결이 끊겼을 때 발생
+          sessionDisconnected: (event) => {
+            if (event.reason === 'networkDisconnect') {
+              console.warn('네트워크 연결이 끊겼습니다.')
+              // 재연결 시도 로직
+              let retryCount = 0
+              const maxRetries = 3
+              const retryInterval = 3000
+
+              const retryConnection = async () => {
+                if (retryCount < maxRetries) {
+                  try {
+                    console.log(`재연결 시도 ${retryCount + 1}/${maxRetries}`)
+                    await clientSideSession.connect(connection.token)
+                    console.log('재연결 성공')
+
+                    // 재연결 후 스트림 재발행
+                    if (publisher) {
+                      await clientSideSession.publish(publisher)
+                    }
+                  } catch (error) {
+                    console.error('재연결 실패:', error)
+                    retryCount++
+                    setTimeout(retryConnection, retryInterval)
+                  }
+                } else {
+                  console.error('최대 재시도 횟수 초과')
+                  // TODO: 사용자에게 재연결 실패 알림
+                }
+              }
+
+              retryConnection()
+            }
+          },
+          // 세션에 처음 연결됐을 때 발생
+          sessionConnected: () => {
+            clientSideSession.streamManagers.forEach((streamManager) => {
+              if (streamManager !== publisher) {
+                const subscriber = clientSideSession.subscribe(streamManager.stream, undefined)
+                const connectionData = JSON.parse(streamManager.stream.connection.data)
+                setParticipants((prev) => [
+                  ...prev,
+                  {
+                    connectionId: streamManager.stream.connection.connectionId,
+                    streamManager: subscriber,
+                    ...connectionData,
+                  },
+                ])
+              }
+            })
+          },
+        }
+        // 7-2.이벤트 핸들러 등록
+        Object.entries(eventHandlers).forEach(([event, handler]) => {
+          clientSideSession.on(event, handler)
         })
+        console.log('[Step 7] 이벤트 핸들러 등록 성공')
 
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('토론방을 찾을 수 없습니다.')
-          }
-          const errorData = await response.text()
-          console.error('Server response:', errorData)
-          throw new Error('토론방 정보를 불러오는데 실패했습니다.')
+        // 8. 세션 연결
+        await clientSideSession.connect(connection.token)
+        console.log('[Step 8] 세션 연결 성공')
+
+        // 9. 세션에 스트림 발행
+        await clientSideSession.publish(publisher)
+        console.log('[Step 9] 세션에 스트림 발행 성공')
+
+        // 10. 전체 데이터 확인
+        console.log('[Step 10] 전체 데이터 확인', {
+          clientSideSession,
+          serverSideSession,
+          connection,
+          publisher,
+          participants,
+        })
+      } catch (error) {
+        console.error('[] 토론방 초기화 실패', error)
+        if (error.response?.status === 404) {
+          // Handle 404
+          console.error('Discussion room not found')
         }
-
-        const contentType = response.headers.get('content-type')
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('서버가 잘못된 응답 형식을 반환했습니다.')
-        }
-
-        const data = await response.json()
-        setDiscussionInfo(data)
-      } catch (err) {
-        setError(err.message || '알 수 없는 오류가 발생했습니다.')
-        console.error('Error fetching discussion info:', err)
-      } finally {
-        setIsLoading(false)
+        // Handle other errors appropriately
       }
     }
 
-    if (discussionId) {
-      fetchDiscussionInfo()
+    const initializeLoginInfo = async () => {
+      const { data: loginData } = await axios.get(`${BACKEND_URL}/api/v1/users/logged-in`)
+      loginInfo.current = loginData
+    }
+
+    initializeLoginInfo()
+    initializeDiscussionRoom()
+    // Cleanup 함수
+    return () => {
+      isComponentMountedRef.current = false
+
+      const cleanup = async () => {
+        try {
+          // 1. 참가자들의 스트림 정리
+          participants.forEach((participant) => {
+            if (participant.streamManager) {
+              // 이벤트 리스너 제거
+              participant.streamManager.off('publisherStartSpeaking')
+              participant.streamManager.off('publisherStopSpeaking')
+
+              // 스트림 정리
+              participant.streamManager.stream?.removeAllVideos()
+              participant.streamManager.stream?.dispose()
+            }
+          })
+
+          // 2. 로컬 스트림 정리
+          if (publisher) {
+            publisher.stream?.removeAllVideos()
+            publisher.stream?.dispose()
+            publisher.off('*')
+          }
+
+          // 3. 세션 정리
+          if (clientSession) {
+            // 이벤트 리스너 제거
+            clientSession.off('*')
+            // 연결 해제
+            try {
+              await clientSession.disconnect()
+            } catch (error) {
+              console.error('세션 연결 해제 중 오류:', error)
+            }
+          }
+
+          // 3-1. 서버 사이드 세션 정리
+          if (serverSideSession) {
+            try {
+              await serverSideSession.close()
+            } catch (error) {
+              console.error('서버 사이드 세션 정리 중 오류:', error)
+            }
+          }
+
+          // 4. OpenVidu 객체 정리
+          if (openViduNode) {
+            openViduNode = null
+          }
+          if (openViduBrowser) {
+            openViduBrowser = null
+          }
+
+          // 5. 상태 초기화
+          setClientSession(null)
+          setConnection(null)
+          setPublisher(null)
+          setParticipants([])
+          setDiscussionInfo(null)
+          setSpeakingUsers([])
+
+          console.log('토론방 리소스 정리 완료')
+        } catch (error) {
+          console.error('리소스 정리 중 예상치 못한 오류 발생:', error)
+        }
+      }
+
+      cleanup()
     }
   }, [discussionId])
 
@@ -146,24 +495,38 @@ export default function DiscussionRoom() {
 
   const handleMicToggle = () => {
     setIsMicOn(!isMicOn)
-    // TODO: OpenVidu 마이크 제어 로직 구현
+    if (publisher) {
+      publisher.publishAudio(!isMicOn)
+    }
   }
+
+  // 볼륨 조절에 debounce 적용
+  const debouncedVolumeChange = debounce((newValue) => {
+    participants.forEach((participant) => {
+      if (participant.streamManager) {
+        participant.streamManager.setAudioVolume(newValue)
+      }
+    })
+  }, 100)
 
   const handleVolumeChange = (event, newValue) => {
     setVolume(newValue)
-    // TODO: OpenVidu 볼륨 제어 로직 구현
+    debouncedVolumeChange(newValue)
   }
 
-  // 채팅 관련 핸들러 함수 추가
+  // 메시지 입력에 debounce 적용
+  const debouncedMessageChange = debounce((value) => {
+    setNewMessage(value)
+  }, 150)
+
   const handleMessageChange = (event) => {
-    setNewMessage(event.target.value)
+    debouncedMessageChange(event.target.value)
   }
 
   const handleMessageSubmit = async (event) => {
     event.preventDefault()
     if (!newMessage.trim()) return
 
-    setIsLoading(true)
     try {
       // TODO: 메시지 전송 API 호출 구현
       const messageData = {
@@ -180,8 +543,6 @@ export default function DiscussionRoom() {
     } catch (error) {
       console.error('Failed to send message:', error)
       // TODO: 에러 처리 구현
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -223,22 +584,8 @@ export default function DiscussionRoom() {
         overflow: 'hidden',
       }}
     >
-      {error ? (
-        <Stack
-          alignItems="center"
-          justifyContent="center"
-          spacing={2}
-          sx={{ width: '100%', height: '100%' }}
-        >
-          <Typography variant="h6" color="error">
-            {error}
-          </Typography>
-          <Button variant="contained" onClick={handleBack}>
-            토론방 목록으로 돌아가기
-          </Button>
-        </Stack>
-      ) : isLoading ? (
-        <Stack alignItems="center" justifyContent="center" sx={{ width: '100%', height: '100%' }}>
+      {!discussionInfo ? (
+        <Stack alignItems="center" justifyContent="center" spacing={2} sx={{ width: '100%', height: '100%' }}>
           <Typography>토론방 정보를 불러오는 중...</Typography>
         </Stack>
       ) : (
@@ -258,8 +605,7 @@ export default function DiscussionRoom() {
                 </IconButton>
                 <Stack>
                   <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 500 }}>
-                    {discussionInfo.novel.title}{' '}
-                    {discussionInfo.episode && `- ${discussionInfo.episode}화`} 토론방
+                    {discussionInfo.novel.title} {discussionInfo.episode && `- ${discussionInfo.episode}화`} 토론방
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
                     {discussionInfo.topic}
@@ -563,7 +909,7 @@ export default function DiscussionRoom() {
                     placeholder="메시지를 입력하세요"
                     value={newMessage}
                     onChange={handleMessageChange}
-                    disabled={isLoading}
+                    disabled={isGeneratingTopic}
                     style={{
                       flex: 1,
                       border: 'none',
@@ -572,7 +918,7 @@ export default function DiscussionRoom() {
                       fontSize: '0.875rem',
                     }}
                   />
-                  <IconButton type="submit" size="small" disabled={isLoading || !newMessage.trim()}>
+                  <IconButton type="submit" size="small" disabled={isGeneratingTopic || !newMessage.trim()}>
                     <SendIcon />
                   </IconButton>
                 </Stack>
@@ -609,12 +955,7 @@ export default function DiscussionRoom() {
 
               {/* 토론 주제 추천 */}
               <Stack sx={{ p: 2 }}>
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  sx={{ mb: 1 }}
-                >
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
                     토론 주제 추천
                   </Typography>
@@ -638,8 +979,7 @@ export default function DiscussionRoom() {
                   }}
                 >
                   <Typography variant="body2" color="text.secondary">
-                    카리나가 사용하는 타임 폴더의 기원과 목적에 대한 추측과 아이디어에 대해
-                    토론해보세요.
+                    카리나가 사용하는 타임 폴더의 기원과 목적에 대한 추측과 아이디어에 대해 토론해보세요.
                   </Typography>
                 </Stack>
               </Stack>
@@ -666,11 +1006,7 @@ export default function DiscussionRoom() {
                           minute: '2-digit',
                         })}
                       </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ fontStyle: 'italic' }}
-                      >
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                         &ldquo;{check.message}&rdquo;
                       </Typography>
                       <Typography variant="body2">{check.result}</Typography>
