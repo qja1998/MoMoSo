@@ -104,7 +104,7 @@ deploy:
 
   script:
     - |
-      ssh ubuntu@$SSH_HOST << EOF
+      ssh -i id_rsa ubuntu@$SSH_HOST << EOF
       set -e
       docker pull $IMAGE_BACKEND:$TAG || { echo "Backend pull failed! Rolling back..."; exit 1; }
       docker pull $IMAGE_FRONTEND:$TAG || { echo "Frontend pull failed! Rolling back..."; exit 1; }
