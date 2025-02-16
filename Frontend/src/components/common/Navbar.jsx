@@ -20,6 +20,7 @@ import Stack from '@mui/material/Stack'
 import Toolbar from '@mui/material/Toolbar'
 import { useTheme } from '@mui/material/styles'
 import useMediaQuery from '@mui/material/useMediaQuery'
+import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '/src/hooks/useAuth'; // 경로 수정
 
@@ -47,8 +48,8 @@ const Navbar = () => {
   }
 
   const handleLogoutClick = () => {
-    logout(); // 로그아웃 함수 호출
     handleUserMenuClose();
+    logout(); // 로그아웃 함수 호출
   };
 
   const handleProfileClick = () => {
