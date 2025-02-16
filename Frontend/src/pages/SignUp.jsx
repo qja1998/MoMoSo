@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-
 import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 
 import CheckIcon from '@mui/icons-material/Check'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -44,9 +44,16 @@ const PasswordGuideItem = styled(Box)(({ theme, isvalid, focused }) => ({
 
 const SignUp = () => {
   const navigate = useNavigate()
+  const { setIsLoggedIn } = useAuth()
   const [errors, setErrors] = useState({})
   const [isVerified, setIsVerified] = useState(false)
   const [isPhoneVerified, setIsPhoneVerified] = useState(false)
+  
+  useEffect(() => {
+    axios.defaults.withCredentials = true;
+    axios.defaults.headers.common['Accept'] = 'application/json';
+    axios.defaults.headers.post['Content-Type'] = 'application/x-www-form-urlencoded'
+  }, [])
 
   const [showPassword, setShowPassword] = useState(false)
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
@@ -92,14 +99,13 @@ const SignUp = () => {
   }
 
   const handleVerificationCodeSend = async () => {
-    // TODO: 인증번호 전송 로직 구현
     try {
       console.log("인증번호 전송 요청:", formData.phone);
-      const response = await axios.post("http://127.0.0.1:8000/api/v1/auth/send-sms", null, { // ✅ phone을 query parameter로 전달
+      const response = await axios.post("http://localhost:8000/api/v1/auth/send-sms", null, {
         params: { phone: formData.phone },
       });
   
-      alert(response.data.message); // "Verification code sent successfully" 출력
+      alert(response.data.message);
     } catch (error) {
       console.error("인증번호 전송 오류:", error);
       setErrors({ phone: error.response?.data?.detail || "인증번호 전송에 실패했습니다." });
@@ -107,10 +113,9 @@ const SignUp = () => {
   };
 
   const handleVerificationCodeCheck = async () => {
-    // TODO: 인증번호 확인 로직 구현
     try {
       console.log("인증번호 확인 요청:", formData.phone, formData.verificationCode);
-      const response = await axios.post("http://127.0.0.1:8000/api/v1/auth/verify-sms-code", null, { // ✅ phone과 code를 query parameter로 전달
+      const response = await axios.post("http://localhost:8000/api/v1/auth/verify-sms-code", null, {
         params: {
           phone: formData.phone,
           code: formData.verificationCode,
@@ -118,7 +123,7 @@ const SignUp = () => {
       });
   
       setIsPhoneVerified(true);
-      alert(response.data.message); // "Phone number verified successfully" 출력
+      alert(response.data.message);
     } catch (error) {
       console.error("인증번호 확인 오류:", error);
       setErrors({ verificationCode: error.response?.data?.detail || "인증번호가 올바르지 않습니다." });
@@ -127,55 +132,63 @@ const SignUp = () => {
 
   const handleSignUp = async () => {
     console.log("회원가입 버튼 클릭됨");
-  console.log("회원가입 요청 데이터:", formData); // 요청 데이터 확인
+    console.log("회원가입 요청 데이터:", formData);
 
-  try {
-    const requestData = {
-      email: formData.email || "", // ✅ 필수 항목
-      name: formData.name || "",
-      nickname: formData.penName || "", // ✅ "nickname"으로 변경
-      phone: formData.phone || "",
-      password: formData.password || "",
-      confirm_password: formData.passwordConfirm || "", // ✅ "confirm_password"으로 변경
-    };
+    try {
+      const requestData = {
+        email: formData.email || "",
+        name: formData.name || "",
+        nickname: formData.penName || "",
+        phone: formData.phone || "",
+        password: formData.password || "",
+        confirm_password: formData.passwordConfirm || "",
+      };
 
-    const signUpResponse = await axios.post(
-      "http://127.0.0.1:8000/api/v1/auth/signup",
-      requestData
-    );
+      const signUpResponse = await axios.post(
+        "http://localhost:8000/api/v1/auth/signup",
+        requestData,
+        {
+          headers: {
+            'Content-Type': 'application/json',  // 이 부분만 수정
+            'Accept': 'application/json'
+          },
+          withCredentials: true,  // 명시적으로 추가
+        }
+      );
 
-    console.log("회원가입 성공:", signUpResponse.data);
+      console.log("회원가입 성공:", signUpResponse.data);
 
-    // 회원가입 성공 후 자동 로그인
-    // ✅ 로그인 요청을 `form-data` 형식으로 변경
-    const loginFormData = new URLSearchParams();
-    loginFormData.append("username", formData.email);
-    loginFormData.append("password", formData.password);
+      const loginFormData = new URLSearchParams();
+      loginFormData.append("username", formData.email);
+      loginFormData.append("password", formData.password);
 
-    const loginResponse = await axios.post(
-      "http://127.0.0.1:8000/api/v1/auth/login", // ✅ FastAPI에서 기대하는 로그인 방식
-      loginFormData,
-      {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" }, // ✅ 필수 헤더 추가
-        withCredentials: true, // ✅ 쿠키 저장 활성화
+      const loginResponse = await axios.post(
+        "http://localhost:8000/api/v1/auth/login",
+        loginFormData,
+        {
+          headers: { "Content-Type": "application/x-www-form-urlencoded",
+            'Accept': 'application/json'
+            },
+          withCredentials: true,
+          credentials: 'include'
+        }
+      );
+
+      console.log("로그인 성공:", loginResponse.data);
+      await new Promise(resolve => setTimeout(resolve, 100)); // 100ms 딜레이
+      setIsLoggedIn(true);
+      navigate("/");
+    } catch (error) {
+      console.error("회원가입 오류:", error);
+
+      if (error.response && error.response.data) {
+        setErrors(error.response.data);
+      } else {
+        setErrors({ general: "회원가입 중 오류가 발생했습니다." });
       }
-    );
-
-    console.log("로그인 성공:", loginResponse.data);
-    navigate("/"); // 메인 페이지로 이동
-  } catch (error) {
-    console.error("회원가입 오류:", error);
-
-    if (error.response && error.response.data) {
-      setErrors(error.response.data);
-    } else {
-      setErrors({ general: "회원가입 중 오류가 발생했습니다." });
     }
-  }
-};
-  
+  };
 
-  // 비밀번호 조합 조건 검사
   const checkPasswordCombination = (password) => {
     const hasLetter = /[a-zA-Z]/.test(password)
     const hasNumber = /[0-9]/.test(password)
@@ -189,21 +202,17 @@ const SignUp = () => {
     )
   }
 
-  // 연속/중복 문자 검사
   const checkNoRepeatOrSequence = (password) => {
     if (!password) return false
-    if (/\s/.test(password)) return false // 공백 검사
+    if (/\s/.test(password)) return false
 
-    // 3자 이상 연속 문자 검사
     for (let i = 0; i < password.length - 2; i++) {
       const char1 = password[i]
       const char2 = password[i + 1]
       const char3 = password[i + 2]
 
-      // 동일 문자 3번 연속
       if (char1 === char2 && char2 === char3) return false
 
-      // 연속된 문자/숫자 (오름차순/내림차순)
       if (
         (char1.charCodeAt(0) + 1 === char2.charCodeAt(0) &&
           char2.charCodeAt(0) + 1 === char3.charCodeAt(0)) ||
@@ -239,7 +248,6 @@ const SignUp = () => {
       spacing={2}
       sx={{ mt: 4, width: '40%', mx: 'auto' }}
     >
-      {/* 헤더 섹션 */}
       <Typography variant="h4" align="center" fontWeight={950}>
         회원가입
       </Typography>
@@ -249,7 +257,6 @@ const SignUp = () => {
         함께 모여 소설을 창작해보세요!
       </Typography>
 
-      {/* 회원가입 폼 섹션 */}
       <TextField
         id="email"
         name="email"
@@ -303,7 +310,6 @@ const SignUp = () => {
         }}
       />
 
-      {/* 연락처 인증 섹션 */}
       <Stack spacing={2} sx={{ width: '100%' }}>
         <Stack direction="row" spacing={0}>
           <TextField

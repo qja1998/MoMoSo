@@ -193,7 +193,7 @@ const FindId = () => {
         {/* 찾은 아이디 표시 */}
         {foundEmail && (
           <Typography variant="body1" align="center" sx={{ mt: 2 }}>
-            찾으시는 아이디는: <b>{foundEmail}</b> 입니다.
+            찾으시는 아이디는 <b>{foundEmail}</b> 입니다.
           </Typography>
         )}
       </FindIdBox>

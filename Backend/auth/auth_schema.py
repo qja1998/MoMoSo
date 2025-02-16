@@ -108,3 +108,7 @@ class OAuthUserForm(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PasswordVerifyForm(BaseModel):
+    password: str
