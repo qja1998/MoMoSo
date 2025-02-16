@@ -11,10 +11,14 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: kwon0528/b106-frontend:release
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile.prod
+    # image: kwon0528/b106-frontend:release
     container_name: prod-frontend
+    # command: cp -r /app/dist /app/frontend_build
     volumes:
-      - ./frontend_build:/app/build  # ✅ `build/` 폴더를 공유 볼륨으로 유지
+      - ./frontend_build:/app/frontend_build
     ports:
       - "5173:5173"
     networks:

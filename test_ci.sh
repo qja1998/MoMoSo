@@ -8,6 +8,7 @@ export $(grep -v '^#' .env | xargs)
 
 # 1️⃣ GitLab Runner 환경과 동일하게 Docker 컨테이너 내부에서 실행
 docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$(pwd)":/workspace \
   -w /workspace \
   --env DOCKER_USERNAME="$DOCKER_USERNAME" \
@@ -24,19 +25,19 @@ docker run --rm \
 
     # 3️⃣ Backend 빌드 및 푸시
     echo "🏗  Building Backend..."
-    docker build -t kwon0528/b106-backend:local-test -f Backend/Dockerfile.dev ./Backend
-    docker push kwon0528/b106-backend:local-test
+    docker build -t kwon0528/b106-backend:release -f Backend/Dockerfile.prod ./Backend
+    docker push kwon0528/b106-backend:release
 
     # 4️⃣ Frontend 빌드 및 푸시
     echo "🎨 Building Frontend..."
-    docker build -t kwon0528/b106-frontend:local-test -f Frontend/Dockerfile.dev ./Frontend
-    docker push kwon0528/b106-frontend:local-test
+    docker build -t kwon0528/b106-frontend:release -f Frontend/Dockerfile.prod ./Frontend
+    docker push kwon0528/b106-frontend:release
 
 
     # 1️⃣ Docker 컨테이너 실행
     echo "🧪 Running Tests..."
-    BACKEND_CONTAINER_ID=$(docker run -d kwon0528/b106-backend:local-test)
-    FRONTEND_CONTAINER_ID=$(docker run -d kwon0528/b106-frontend:local-test)
+    BACKEND_CONTAINER_ID=$(docker run -d kwon0528/b106-backend:release)
+    FRONTEND_CONTAINER_ID=$(docker run -d kwon0528/b106-frontend:release)
 
     # 2️⃣ 컨테이너 로그 출력 (비동기 실행)
     echo "🔍 Checking Backend logs..."
