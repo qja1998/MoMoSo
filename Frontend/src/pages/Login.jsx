@@ -33,32 +33,45 @@ const Login = () => {
         console.error('구글 로그인 URL 가져오기 실패:', error);
       });
 
-    const handleMessage = (event) => {
-      if (event.origin !== 'http://localhost:8000') return;
-
-      if (event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
-        console.log('소셜 로그인 성공:', event.data.data);
-        axios.defaults.withCredentials = true;
-        navigate('/');
-      } else if (event.data.type === 'GOOGLE_LOGIN_ERROR') {
-        console.error('소셜 로그인 실패');
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-
-    return () => {
-      window.removeEventListener('message', handleMessage);
-    };
-  }, [navigate]);
+      const handleMessage = (event) => {
+        console.log('Received message:', event.data); // 1. 수신된 메시지 전체 내용 확인
+        if (!event.origin.includes('localhost')) {
+          console.log('Origin mismatch:', event.origin); // 2. 오리진 불일치 확인
+          return;
+        }
+      
+        if (event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
+          console.log('소셜 로그인 성공:', event.data.data); // 3. 성공 메시지 확인
+          setIsLoggedIn(true);
+          navigate('/');
+        } else if (event.data.type === 'GOOGLE_LOGIN_ERROR') {
+          console.error('소셜 로그인 실패'); // 4. 실패 메시지 확인
+        }
+      };
+  
+      // 팝업 닫기 요청 처리
+      const closePopupHandler = (event) => {
+        if (event.origin !== 'http://localhost:8000') return;
+        if (event.data.type === 'CLOSE_POPUP') {
+          window.removeEventListener('message', closePopupHandler);
+          window.close(); // 팝업 창 닫기
+        }
+      };
+      window.addEventListener('message', handleMessage);
+  
+      return () => {
+        window.removeEventListener('message', handleMessage);
+      };
+    }, [navigate, setIsLoggedIn]);
 
   // isLoggedIn 상태 변화 감지하여 리다이렉션
   useEffect(() => {
     if (isLoggedIn) {
+      console.log('isLoggedIn is true, navigating to /'); // isLoggedIn 상태 확인
       navigate('/');
     }
     else {
-      console.log(isLoggedIn)
+      console.log('isLoggedIn is false'); // isLoggedIn 상태 확인
     }
   }, [isLoggedIn, navigate]);
 

@@ -4,6 +4,7 @@ import { styled } from '@mui/material/styles';
 import { PrimaryButton } from '../components/common/buttons';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
 const ResetPasswordContainer = styled(Box)({
     display: 'flex',
@@ -14,7 +15,7 @@ const ResetPasswordContainer = styled(Box)({
     padding: '0 2rem',
     marginTop: '-64px',
     paddingTop: '64px',
-})
+});
 
 const ResetPasswordBox = styled(Box)({
     width: '100%',
@@ -22,7 +23,7 @@ const ResetPasswordBox = styled(Box)({
     display: 'flex',
     flexDirection: 'column',
     gap: '1rem',
-})
+});
 
 const ResetPassword = () => {
     const [newPassword, setNewPassword] = useState('');
@@ -30,10 +31,10 @@ const ResetPassword = () => {
     const [error, setError] = useState('');
     const navigate = useNavigate();
     const location = useLocation();
+    const { isAuthenticated, user, setAuthState, logout } = useAuth(); // logout 함수 추가
 
-    // Get email from query parameters
     const queryParams = new URLSearchParams(location.search);
-    const email = queryParams.get('email');
+    const emailFromQuery = queryParams.get('email');
 
     const handleResetPassword = async () => {
         if (newPassword !== confirmPassword) {
@@ -41,7 +42,6 @@ const ResetPassword = () => {
             return;
         }
 
-        // 비밀번호 길이 유효성 검사
         if (newPassword.length < 8 || newPassword.length > 128) {
             setError('비밀번호는 8자 이상 128자 이하여야 합니다.');
             return;
@@ -49,46 +49,66 @@ const ResetPassword = () => {
 
         try {
             const response = await axios.post(
-                'http://127.0.0.1:8000/api/v1/auth/reset-password',
+                'http://localhost:8000/api/v1/auth/reset-password',
                 {
-                    email: email,
                     new_password: newPassword,
                     confirm_password: confirmPassword,
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    withCredentials: true
                 }
             );
-            alert(response.data.message);
-            navigate('/auth/login'); // 비밀번호 변경 성공 후 로그인 페이지로 이동
+            
+            if (isAuthenticated) {
+                try {
+                    await logout(); // 로그아웃 함수 호출
+                    alert(response.data.message);
+                    window.location.href = '/auth/login'; // 강제로 로그인 페이지로 이동
+                } catch (logoutError) {
+                    console.error('로그아웃 실패:', logoutError);
+                    // 로그아웃에 실패하더라도 로그인 페이지로 이동
+                    window.location.href = '/auth/login';
+                }
+            } else {
+                alert(response.data.message);
+                window.location.href = '/auth/login';
+            }
         } catch (error) {
             console.error('비밀번호 재설정 오류:', error);
-            setError(error.response?.data?.detail || '비밀번호 재설정에 실패했습니다.');
+            const errorMessage = error.response?.data?.detail;
+            setError(typeof errorMessage === 'string' ? errorMessage : '비밀번호 재설정에 실패했습니다.');
         }
     };
 
     useEffect(() => {
-        if (!email) {
+        // 비로그인 상태이면서 이메일 쿼리가 없는 경우에만 접근 차단
+        if (!isAuthenticated && !emailFromQuery) {
             setError('잘못된 접근입니다. 비밀번호 찾기 페이지를 통해 접근해주세요.');
+            navigate('/');
         }
-    }, [email]);
+    }, [isAuthenticated, emailFromQuery, navigate]);
 
     return (
         <ResetPasswordContainer>
             <ResetPasswordBox>
-                {/* 헤더 섹션 */}
                 <Typography variant="h4" align="center" gutterBottom fontWeight={950}>
                     비밀번호 변경
                 </Typography>
                 <Typography variant="body1" align="center" gutterBottom>
-                    새로운 비밀번호를 입력해주세요.
+                    {isAuthenticated 
+                        ? '새로운 비밀번호를 입력해주세요.' 
+                        : '이메일 인증 후 새로운 비밀번호를 입력해주세요.'}
                 </Typography>
 
-                {/* 에러 메시지 */}
                 {error && (
                     <Typography color="error" align="center">
                         {error}
                     </Typography>
                 )}
 
-                {/* 새 비밀번호 입력 필드 */}
                 <InputLabel htmlFor="newPassword" sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}>
                     새로운 비밀번호
                 </InputLabel>
@@ -103,7 +123,6 @@ const ResetPassword = () => {
                     onChange={(e) => setNewPassword(e.target.value)}
                 />
 
-                {/* 비밀번호 확인 입력 필드 */}
                 <InputLabel htmlFor="confirmPassword" sx={{ mb: -1, fontSize: '1em', fontWeight: 'bold' }}>
                     비밀번호 확인
                 </InputLabel>
@@ -121,13 +140,13 @@ const ResetPassword = () => {
                 <PrimaryButton
                     fullWidth
                     onClick={handleResetPassword}
-                    disabled={!email}
+                    disabled={!isAuthenticated && !emailFromQuery}
                 >
                     비밀번호 변경
                 </PrimaryButton>
             </ResetPasswordBox>
         </ResetPasswordContainer>
     );
-}
+};
 
 export default ResetPassword;

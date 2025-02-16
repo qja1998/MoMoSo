@@ -1,9 +1,11 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom'
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+  const navigate = useNavigate(); // 여기에 선언
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -31,6 +33,8 @@ export const AuthProvider = ({ children }) => {
     try {
       await axios.post('/api/v1/auth/logout', {}, { withCredentials: true }); // 쿠키 포함 요청
       setIsLoggedIn(false); // 상태 업데이트
+      alert('성공적으로 로그아웃되었습니다.')
+      navigate('/auth/login')
     } catch (error) {
       console.error("로그아웃 실패:", error);
     }
