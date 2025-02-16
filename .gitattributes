@@ -1,6 +1,0 @@
-# ours의 파일을 현재 branch로 유지 == 병합 시에 운영 branch에 병합 안됨
-.env merge=ours
-docker-compose.override.yml merge=ours
-Dockerfile.dev merge=ours
-*.log merge=ours
-config.local.json merge=ours

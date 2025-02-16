@@ -9,18 +9,18 @@ from database import get_db
 from models import User, Episode
 from utils.auth_utils import get_current_user
 
-app = APIRouter(
+router = APIRouter(
     prefix='/api/v1/discussion',
 )
 
-@app.get('/', description="토론 방 전체 조회", response_model=List[discussion_schema.Discussion])
+@router.get('/', description="토론 방 전체 조회", response_model=List[discussion_schema.Discussion])
 def get_all_discussions(db: Session = Depends(get_db)):
     """
     모든 토론 방 목록 조회.
     """
     return discussion_crud.get_discussions(db)
 
-@app.get("/{discussion_pk}", response_model=discussion_schema.Discussion)
+@router.get("/{discussion_pk}", response_model=discussion_schema.Discussion)
 def get_discussion(discussion_pk: int, db: Session = Depends(get_db)):
     """
     특정 토론 방 조회
@@ -28,7 +28,7 @@ def get_discussion(discussion_pk: int, db: Session = Depends(get_db)):
     return discussion_crud.get_discussion(db, discussion_pk)
 
 
-@app.get("/enter-room/{discussion_pk}")
+@router.get("/enter-room/{discussion_pk}")
 def enter_discussion_room(discussion_pk: int, user_pk:int, db: Session = Depends(get_db)):
     """
     특정 토론 방 접속 : user가 해당 토론 방에 예약된 participant인지 확인 후, 예약된 방의 session_id 던져주는 로직
@@ -36,7 +36,7 @@ def enter_discussion_room(discussion_pk: int, user_pk:int, db: Session = Depends
     return discussion_crud.get_discussion_sessionid(db, discussion_pk, user_pk)
 
 
-@app.post("/", response_model=discussion_schema.GetNewDiscussion, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=discussion_schema.GetNewDiscussion, status_code=status.HTTP_201_CREATED)
 def create_discussion(
     discussion: discussion_schema.NewDiscussionForm,
     db: Session = Depends(get_db),
@@ -50,7 +50,7 @@ def create_discussion(
     return new_discussion
 
 
-@app.post("/{discussion_pk}/participants/{user_pk}", response_model=discussion_schema.Discussion, description="토론방 유저 추가")
+@router.post("/{discussion_pk}/participants/{user_pk}", response_model=discussion_schema.Discussion, description="토론방 유저 추가")
 def add_participant(discussion_pk: int, user_pk: int, db: Session = Depends(get_db)):
     """
     토론 방에 유저 추가.
@@ -58,7 +58,7 @@ def add_participant(discussion_pk: int, user_pk: int, db: Session = Depends(get_
     return discussion_crud.add_participant(db, discussion_pk, user_pk)
 
 
-@app.delete("/{discussion_pk}/participants/{user_pk}", response_model=discussion_schema.Discussion, description="토론방 유저 삭제")
+@router.delete("/{discussion_pk}/participants/{user_pk}", response_model=discussion_schema.Discussion, description="토론방 유저 삭제")
 def remove_participant(discussion_pk: int, user_pk: int, db: Session = Depends(get_db)):
     """
     토론 방에서 유저 삭제.
@@ -66,7 +66,7 @@ def remove_participant(discussion_pk: int, user_pk: int, db: Session = Depends(g
     return discussion_crud.remove_participant(db, discussion_pk, user_pk)
 
 
-@app.put("/{discussion_pk}", response_model=discussion_schema.Discussion)
+@router.put("/{discussion_pk}", response_model=discussion_schema.Discussion)
 def update_discussion(discussion_pk: int, discussion_update: discussion_schema.NewDiscussionForm, db: Session = Depends(get_db)):
     """
     토론 방 정보 수정.
@@ -74,7 +74,7 @@ def update_discussion(discussion_pk: int, discussion_update: discussion_schema.N
     updated_discussion = discussion_crud.update_discussion(db, discussion_pk, discussion_update)
     return updated_discussion
 
-@app.delete("/{discussion_pk}", status_code=status.HTTP_200_OK)
+@router.delete("/{discussion_pk}", status_code=status.HTTP_200_OK)
 def delete_discussion(discussion_pk: int, db: Session = Depends(get_db)):
     """
     토론 방 삭제.
@@ -97,7 +97,7 @@ def get_assistant(document_path: str = None):
 
 DOCUMENT_PATH = "./document_path"  # txt 파일 저장 디렉토리
 
-@app.post('/create-txt', description="토론 시작 시, 소설 txt 파일 생성")
+@router.post('/create-txt', description="토론 시작 시, 소설 txt 파일 생성")
 def create_txt_file(discussion_pk: int, db: Session = Depends(get_db)):
     """
     AI 기능을 위해 토론 시작 시, 소설 폴더에 소설 내용을 담은 txt 파일을 생성하는 기능
@@ -145,7 +145,7 @@ def create_txt_file(discussion_pk: int, db: Session = Depends(get_db)):
     }
 
 
-@app.post('/delete-txt', description="토론 종료 시, 소설 txt 파일 삭제")
+@router.post('/delete-txt', description="토론 종료 시, 소설 txt 파일 삭제")
 def delete_txt_file(discussion_pk: int, db: Session = Depends(get_db)):
     """
     토론 종료 시, 해당 토론에서 사용된 txt 파일을 삭제하는 기능
@@ -183,7 +183,7 @@ def delete_txt_file(discussion_pk: int, db: Session = Depends(get_db)):
         }
 
 
-@app.post('/note', description="토론 요약본 저장")
+@router.post('/note', description="토론 요약본 저장")
 def create_discussion_summary(
     request: SummaryRequest, 
     db: Session = Depends(get_db),
@@ -227,7 +227,7 @@ def create_discussion_summary(
     return new_note
 
 
-@app.post('/subject', description="토론 주제 추천")
+@router.post('/subject', description="토론 주제 추천")
 def create_discussion_subject(
     request: SubjectRequest,
     db: Session = Depends(get_db)
@@ -258,7 +258,7 @@ def create_discussion_subject(
     return {"subject": subject}
 
 
-@app.post('/fact-check', description="토론 팩트 체크")
+@router.post('/fact-check', description="토론 팩트 체크")
 def create_discussion_factcheck(
     request: FactCheckRequest,
     db: Session = Depends(get_db)
@@ -301,6 +301,25 @@ import uuid
 import speech_recognition as sr
 from pydantic import BaseModel
 from typing import List
+from concurrent.futures import ThreadPoolExecutor
+# from contextlib import asynccontextmanager
+
+# # ThreadPoolExecutor를 전역 변수로 선언
+# thread_pool = None
+
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # startup
+#     global thread_pool
+#     thread_pool = ThreadPoolExecutor(max_workers=4)
+#     print("ThreadPoolExecutor initialized")
+    
+#     yield
+    
+#     # shutdown
+#     if thread_pool:
+#         thread_pool.shutdown(wait=True)
+#         print("ThreadPoolExecutor shutdown complete")
 
 
 UPLOAD_DIR = Path("audio_uploads")
@@ -314,17 +333,17 @@ class MeetingMinutesData(BaseModel):
     participants: List[str]
     messages: List[dict]
 
-
-async def process_audio_to_text(file_path):
+def process_audio_sync(file_path):
+    """
+    동기식 음성 처리 함수
+    ThreadPoolExecutor에서 실행될 함수
+    """
     recognizer = sr.Recognizer()
     try:
         with sr.AudioFile(str(file_path)) as source:
-            # 주변 노이즈 처리
-            # recognizer.adjust_for_ambient_noise(source, duration=1)
-            # recognizer.adjust_for_ambient_noise(source)
             audio_data = recognizer.record(source)
             text = recognizer.recognize_google(audio_data, language='ko-KR')
-            return text
+        return text
     except sr.UnknownValueError:
         print(f"음성을 인식할 수 없습니다: {file_path}")
         return ""
@@ -335,12 +354,26 @@ async def process_audio_to_text(file_path):
         print(f"음성 처리 중 오류 발생: {e}")
         return "음성 처리 오류"
 
+async def process_audio_to_text(file_path):
+    """
+    ThreadPoolExecutor를 사용하여 비동기적으로 음성 처리를 수행
+    """
+    global thread_pool
+    import asyncio
+    
+    if thread_pool is None:
+        raise RuntimeError("ThreadPoolExecutor is not initialized")
+        
+    # ThreadPoolExecutor에서 동기 함수 실행
+    loop = asyncio.get_event_loop()
+    text = await loop.run_in_executor(thread_pool, process_audio_sync, file_path)
+    return text
 
-@app.post("/api/audio", description="STT wav. 파일 생성")
+@router.post("/audio")
 async def receive_audio(
     audio: UploadFile = File(...),
     roomName: str = Form(...),
-    userName: str = Form(...)
+    userName: str = Form(...),
 ):
     try:
         # 방 폴더 생성
@@ -365,7 +398,7 @@ async def receive_audio(
             content = await audio.read()
             await out_file.write(content)
 
-        # STT 변환
+        # ThreadPoolExecutor를 사용하여 STT 변환
         text = await process_audio_to_text(audio_path)
 
         # 변환된 텍스트 저장
@@ -388,8 +421,7 @@ async def receive_audio(
         print(f"Error processing audio: {e}")
         return {"error": str(e)}
 
-
-@app.post("/api/meeting-minutes", description="STT 내용 저장")
+@router.post("/meeting-minutes")
 async def create_meeting_minutes(
     room_name: str = Form(...),
     host_name: str = Form(...),
@@ -397,7 +429,7 @@ async def create_meeting_minutes(
     end_time: str = Form(...),
     duration: float = Form(...),
     participants: str = Form(...),
-    messages: str = Form(...)
+    messages: str = Form(...),
 ):
     try:
         # JSON 문자열을 파이썬 객체로 변환
@@ -415,13 +447,12 @@ async def create_meeting_minutes(
             "participants": participants_list,
             "messages": messages_list
         }
-        
+
         # 회의록 디렉토리 생성
         os.makedirs('meeting_minutes', exist_ok=True)
         
         # 파일명 생성
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        # filename = f"meeting_{timestamp}_{meeting_data['id'][:8]}.json"
         filename = f"meeting_{timestamp}_{meeting_data['room_name']}.json"
         filepath = os.path.join('meeting_minutes', filename)
         
@@ -437,4 +468,5 @@ async def create_meeting_minutes(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 

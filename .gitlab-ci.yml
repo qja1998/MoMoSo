@@ -1,26 +1,20 @@
-image: docker:latest
-
-services:
-  - docker:dind  # ✅ Docker-in-Docker 활성화
-
 stages:
   - build
   - test
   - deploy
 
 variables:
-  DOCKER_HOST: "tcp://docker:2375"  # ✅ Docker-in-Docker 연결
-  DOCKER_TLS_CERTDIR: ""  # ✅ TLS 인증 비활성화
-  DOCKER_AUTH_CONFIG: '{"auths":{"https://index.docker.io/v1/":{"username":"$DOCKER_USERNAME","password":"$DOCKER_PASSWORD"}}}'
-  IMAGE_BACKEND: kwon0528/test-backend
-  IMAGE_FRONTEND: kwon0528/test-frontend
+  IMAGE_BACKEND: kwon0528/backend
+  IMAGE_FRONTEND: kwon0528/frontend
   TAG: $CI_COMMIT_REF_NAME
 
 before_script:
+  - docker --version
+  - docker-compose --version
+
   - docker info
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
-  - apk add --no-cache docker-compose
   - mkdir -p ~/.ssh
   - echo "🔑 Set ENV"
 
@@ -48,24 +42,44 @@ before_script:
 
 build_backend:
   stage: build
+  tags:
+    - backend-runner
   script:
-    - docker build -t $IMAGE_BACKEND:$TAG -f Backend/Dockerfile.dev
+    - cd Backend
+    - |
+      if [[ "$TAG" == "develop" ]]; then
+        docker build -t $IMAGE_BACKEND:$TAG -f Dockerfile.dev .
+      else
+        docker build -t $IMAGE_BACKEND:$TAG -f Dockerfile.prod .
+      fi
     - docker push $IMAGE_BACKEND:$TAG
   only:
     - develop
+    - release
     - master
 
 build_frontend:
   stage: build
+  tags:
+    - frontend-runner
   script:
-    - docker build -t $IMAGE_FRONTEND:$TAG -f Frontend/Dockerfile.dev
+    - cd Frontend
+    - |
+      if [[ "$TAG" == "develop" ]]; then
+        docker build -t $IMAGE_FRONTEND:$TAG -f Dockerfile.dev .
+      else
+        docker build -t $IMAGE_FRONTEND:$TAG -f Dockerfile.prod .
+      fi
     - docker push $IMAGE_FRONTEND:$TAG
   only:
     - develop
+    - release
     - master
 
 test:
   stage: test
+  tags:
+    - test
   script:
     - docker-compose -f docker-compose.yml run --rm backend bash -c "
         uvicorn main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips='*'
@@ -77,6 +91,8 @@ test:
 
 deploy:
   stage: deploy
+  tags:
+    - deploy
   script:
     - echo "$DEPLOY_SSH_PRIVATE_KEY" > I12B106T.pem
     - chmod 400 I12B106T.pem

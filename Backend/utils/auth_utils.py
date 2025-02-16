@@ -1,18 +1,32 @@
-from redis import Redis
-from fastapi import HTTPException
-from twilio.rest import Client
-import random
+from fastapi import HTTPException, Depends, status, Header, Response, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, JWTError, ExpiredSignatureError
+from sqlalchemy.orm import Session
+from database import get_db
+from user import user_crud
 import os
-
-# Redis 설정
-redis_client = Redis(host="127.0.0.1", port=6379, db=0, decode_responses=True)
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+import random
+import string
+from twilio.rest import Client
+from redis import Redis
+from utils.redis_utils import get_redis  # utils.redis_utils에서 get_redis 함수 import
 
 # Twilio 설정
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_VERIFY_SID = os.getenv("TWILIO_VERIFY_SID")
-
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+# JWT 발급 설정
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = float(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+REFRESH_TOKEN_EXPIRE_DAYS = float(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+
+# Bearer 인증 설정 : auto_error=False 비로그인 사용자 refresh_token 미입력
+security = HTTPBearer(auto_error=False)
 
 # ====================================================== 휴대전화 인증 로직 ==========================================================
 
@@ -26,15 +40,15 @@ def send_sms(phone: str):
             to=e164_phone,
             channel="sms"
         )
-        return {"message": "Verification code sent successfully"}
+        return {"message": "인증번호가 성공적으로 전송되었습니다."}
     except ValueError as e:
-        raise HTTPException(status_code=422, detail="Invalid phone number format.")
+        raise HTTPException(status_code=422, detail="전화번호는 010-xxxx-xxxx 형식으로 입력해주세요.")
     except Exception as e:
         # 로깅 추가 (예: Sentry 또는 파일 로그)
         print(f"Twilio error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to send SMS. Please try again later.")
+        raise HTTPException(status_code=500, detail="인증번호 전송에 실패했습니다. 잠시 후 다시 시도해주세요.")
 
-def verify_code(phone: str, code: str):
+async def verify_code(phone: str, code: str, redis_client: Redis = Depends(get_redis)):
     """
     인증번호 검증 및 Redis에 인증 상태 저장
     """
@@ -45,21 +59,14 @@ def verify_code(phone: str, code: str):
             code=code
         )
         if verification_check.status == "approved":
-            # Redis에 인증 상태 저장 (24시간간 유효)
-            redis_client.setex(f"verified:{phone}", 86400, "true")
-            return {"message": "Phone number verified successfully"}
-        raise HTTPException(status_code=400, detail="Invalid verification code")
+            # Redis에 인증 상태 저장 (24시간 유효)
+            await redis_client.setex(f"verified:{phone}", 86400, "true")
+            return {"message": "전화번호 인증이 성공적으로 완료되었습니다."}
+        raise HTTPException(status_code=400, detail="유효한 인증번호가 아닙니다.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-def check_verified(phone: str):
-    """
-    Redis에서 인증 상태 확인
-    """
-    verified = redis_client.get(f"verified:{phone}")
-    if not verified or verified != "true":
-        raise HTTPException(status_code=400, detail="Phone number not verified")
-    return True
+
 
 def to_e164(phone: str) -> str:
     """
@@ -79,145 +86,143 @@ def from_e164(e164_phone: str) -> str:
 
 # ====================================================== 이메일일 인증 로직 ==========================================================
 
-import string
 
 def generate_verification_code():
     """6자리 랜덤 인증번호 생성"""
     return "".join(random.choices(string.digits, k=6))
 
-def save_verification_code(email: str, code: str, name: str, expiration: int = 600):
+async def save_verification_code(email: str, code: str, name: str, redis_client: Redis, expiration: int = 600):
     """Redis에 인증번호 저장 (10분 유효)"""
-    redis_client.setex(f"email_verification:{email}", expiration, code)
-    redis_client.setex(f"email_verification_name:{email}", expiration, name)  # 이름도 저장
+    await redis_client.setex(f"email_verification:{email}", expiration, code)
+    await redis_client.setex(f"email_verification_name:{email}", expiration, name)
 
 # ================================== 로그인 여부 확인 ===============================================
 
-from fastapi import Depends, HTTPException, status, Header, Response, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError, ExpiredSignatureError
-from sqlalchemy.orm import Session
-from database import get_db
-from user import user_crud
-import os
-from auth.auth_router import create_access_token
-from datetime import timedelta
-from typing import Optional
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """
+    Access Token 생성 함수
+    """
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})  # 만료 시간 추가
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
-ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
+def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """
+    Refresh Token 생성 함수
+    """
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire})  # 만료 시간 추가
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
-# Bearer 인증 설정 : auto_error=False 비로그인 사용자 refresh_token 미입력
-security = HTTPBearer(auto_error=False)
+
 
 async def get_refresh_token(request: Request) -> str:
     """요청 헤더에서 refresh_token을 추출 (Swagger에서 감춤)"""
     return request.headers.get("refresh_token")  # 없으면 None 반환
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,  # 쿠키를 가져오기 위해 Request 객체 사용
     response: Response = None,
     db: Session = Depends(get_db),
-    refresh_token: str = Depends(get_refresh_token)
+    refresh_token: str = Depends(get_refresh_token),  # 리프레시 토큰 검증용
+    redis_client: Redis = Depends(get_redis)  # Redis 클라이언트 의존성 주입
 ):
     """
     현재 로그인된 사용자 검증.
-    Access Token이 만료된 경우 Refresh Token을 이용하여 자동으로 재발급
+    Access Token이 만료된 경우 Refresh Token을 이용하여 자동으로 재발급.
     """
+    # 1️⃣ Access Token을 쿠키에서 가져옴
+    access_token = request.cookies.get("access_token")
 
-    # Access Token이 `None`이면 예외 발생 방지
-    if credentials is None or credentials.credentials is None:
+    if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Access token is missing."
         )
 
-    token = credentials.credentials  # Authorization 헤더에서 Access Token 추출
-
     try:
-        # Access Token 검증
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # 2️⃣ JWT 검증
+        payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
 
         if email is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token payload",
-            )
-        
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+
+        # 3️⃣ DB에서 사용자 정보 가져오기
+        user = user_crud.get_user_by_email(db, email)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        return user
+
     except ExpiredSignatureError:
-        # **Access Token이 만료된 경우 → Refresh Token을 사용하여 새 Access Token 발급**
+        # 4️⃣ Access Token 만료 시 Refresh Token을 이용해 재발급
         if not refresh_token:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Access token expired. Please login again."
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Access token expired. Please login again.")
 
         try:
-            # Refresh Token 검증
             payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
             email = payload.get("sub")
 
             if email is None:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
-            # Redis에서 저장된 Refresh Token 검증
-            stored_token = redis_client.get(f"refresh_token:{email}")
+            stored_token = await redis_client.get(f"refresh_token:{email}")
             if stored_token != refresh_token:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
 
             # 새로운 Access Token 발급
             access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-            access_token = create_access_token(data={"sub": email}, expires_delta=access_token_expires)
+            new_access_token = create_access_token(data={"sub": email}, expires_delta=access_token_expires)
 
-            # **쿠키에 새로운 Access Token 저장**
+            # 5️⃣ 새 Access Token을 쿠키에 저장
             if response:
                 response.set_cookie(
                     key="access_token",
-                    value=access_token,
+                    value=new_access_token,
                     httponly=True,
-                    secure=True,
-                    samesite="Strict",
+                    secure=False,
+                    samesite="Lax",
                     max_age=int(access_token_expires.total_seconds())
                 )
 
-            return user_crud.get_user_by_email(db, email)
+            return user
 
         except JWTError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
 
     except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid access token",
-        )
-
-    # DB에서 사용자 정보 가져오기
-    user = user_crud.get_user_by_email(db, email)
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    return user  # 유저 객체 반환
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
 
 
 async def get_optional_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    request: Request,  # 요청 객체에서 쿠키를 가져오기 위함
     response: Response = None,
-    request: Request = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    redis_client: Redis = Depends(get_redis) # Redis 클라이언트 의존성 주입
 ):  
     """
-    로그인하지 않은 사용자도 허용하는 인증 함수
+    로그인하지 않은 사용자도 허용하는 인증 함수 (쿠키 기반)
     """
-    if credentials is None:
-        return None  # 토큰이 없으면 비로그인 사용자로 처리
+    access_token = request.cookies.get("access_token")  # 쿠키에서 Access Token 가져오기
+    refresh_token = request.cookies.get("refresh_token")  # 쿠키에서 Refresh Token 가져오기
 
-    token = credentials.credentials  # Authorization 헤더에서 Access Token 추출
-    refresh_token = request.headers.get("refresh_token")  # request 객체에서 직접 refresh_token 추출
+    if not access_token:
+        return None  # 비로그인 사용자 처리
 
     try:
         # Access Token 검증
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
 
         if email is None:
@@ -235,18 +240,22 @@ async def get_optional_user(
             if email is None:
                 return None  # 비로그인 처리
 
-            stored_token = redis_client.get(f"refresh_token:{email}")
+            stored_token = await redis_client.get(f"refresh_token:{email}")
             if stored_token != refresh_token:
                 return None  # Refresh Token이 유효하지 않으면 비로그인 처리
 
+            # 새로운 Access Token 발급
             access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-            access_token = create_access_token(data={"sub": email}, expires_delta=access_token_expires)
+            new_access_token = create_access_token(data={"sub": email}, expires_delta=access_token_expires)
 
+            # 새 Access Token을 쿠키에 저장
             if response:
                 response.set_cookie(
                     key="access_token",
-                    value=access_token,
+                    value=new_access_token,
                     httponly=True,
+                    secure=False,
+                    samesite="Lax",
                     max_age=int(access_token_expires.total_seconds())
                 )
 

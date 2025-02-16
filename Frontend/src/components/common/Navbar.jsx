@@ -1,3 +1,5 @@
+import textLogo from '@/assets/logo/text-logo.svg'
+
 import { useState } from 'react'
 
 import { Link } from 'react-router-dom'
@@ -18,11 +20,14 @@ import Stack from '@mui/material/Stack'
 import Toolbar from '@mui/material/Toolbar'
 import { useTheme } from '@mui/material/styles'
 import useMediaQuery from '@mui/material/useMediaQuery'
+import { useNavigate } from 'react-router-dom'
+
+import { useAuth } from '/src/hooks/useAuth'; // 경로 수정
 
 const Navbar = () => {
+  const { isLoggedIn, logout, loading } = useAuth(); // 상태 및 함수 가져오기
   const [anchorEl, setAnchorEl] = useState(null)
   const [userMenuAnchorEl, setUserMenuAnchorEl] = useState(null)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
@@ -42,11 +47,10 @@ const Navbar = () => {
     setUserMenuAnchorEl(null)
   }
 
-  const handleLogout = () => {
-    setIsLoggedIn(false)
-    // TODO: 로그아웃 로직 구현
-    handleUserMenuClose()
-  }
+  const handleLogoutClick = () => {
+    handleUserMenuClose();
+    logout(); // 로그아웃 함수 호출
+  };
 
   const handleProfileClick = () => {
     // TODO: 프로필 페이지 이동 로직 구현
@@ -61,6 +65,11 @@ const Navbar = () => {
   }
 
   const renderMenuItems = () => {
+    console.log({ isLoggedIn });
+    if (loading) {
+      return <MenuItem>로딩중...</MenuItem>;
+    }
+    
     if (isLoggedIn) {
       return (
         <>
@@ -72,7 +81,7 @@ const Navbar = () => {
             <ManageAccountsIcon sx={{ mr: 1 }} />
             회원정보 수정
           </MenuItem>
-          <MenuItem onClick={handleLogout}>
+          <MenuItem onClick={handleLogoutClick}>
             <LogoutIcon sx={{ mr: 1 }} />
             로그아웃
           </MenuItem>
@@ -108,11 +117,7 @@ const Navbar = () => {
     >
       <Toolbar sx={{ justifyContent: 'space-between' }}>
         <Link to="/" style={{ textDecoration: 'none', height: '30px' }}>
-          <img
-            src="/src/assets/logo/text-logo.svg"
-            alt="MOMOSO"
-            style={{ height: '30px', width: 'auto' }}
-          />
+          <img src={textLogo} alt="MOMOSO" style={{ height: '30px', width: 'auto' }} />
         </Link>
         {isMobile ? (
           <IconButton
@@ -129,15 +134,17 @@ const Navbar = () => {
               onClose={handleClose}
               onClick={handleClose}
             >
-              <MenuItem component={Link} to="/novel/edit">
-                AI소설 에디터
-              </MenuItem>
-              <MenuItem component={Link} to="/community">
-                그룹 토론
-              </MenuItem>
-              <MenuItem component={Link} to="/novel/viewer/list">
-                소설 게시판
-              </MenuItem>
+              <div>
+                <MenuItem component={Link} to="/novel/edit">
+                  AI소설 에디터
+                </MenuItem>
+                <MenuItem component={Link} to="/community">
+                  그룹 토론
+                </MenuItem>
+                <MenuItem component={Link} to="/novel/viewer/list">
+                  소설 게시판
+                </MenuItem>
+              </div>
             </Menu>
           </IconButton>
         ) : (
@@ -186,7 +193,7 @@ const Navbar = () => {
               onClose={handleUserMenuClose}
               onClick={handleUserMenuClose}
             >
-              {renderMenuItems()}
+              <div>{renderMenuItems()}</div>
             </Menu>
           </Stack>
         )}
