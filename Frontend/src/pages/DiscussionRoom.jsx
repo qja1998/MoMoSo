@@ -129,6 +129,11 @@ export default function DiscussionRoom() {
   const [publisher, setPublisher] = useState(null) // 로컬 스트림(자신의 비디오/오디오)
   const [participants, setParticipants] = useState([]) // 나를 포함한 참가자들의 스트림 객체 배열
 
+  // participants 변경 감지를 위한 useEffect
+  useEffect(() => {
+    console.log('[Participants 변경]', participants)
+  }, [participants])
+
   // 채팅 관련 상태 추가
   const [messages, setMessages] = useState([
     {
@@ -191,10 +196,6 @@ export default function DiscussionRoom() {
     const initializeDiscussionRoom = async () => {
       try {
         // TODO: 로그인 상태가 아닌 경우 로그인 페이지로 리다이렉트
-        if (!loginInfo.current) {
-          navigate('/login')
-          return
-        }
 
         // 1. OpenVidu 객체 초기화
         try {
@@ -226,6 +227,7 @@ export default function DiscussionRoom() {
         // 409 에러(이미 해당 세션이 있음)도 알아서 처리해줌
         try {
           serverSideSession = await openViduNode.createSession({ customSessionId: sessionId })
+          setServerSession(serverSideSession)
           console.log('[Step 3] Server-Side Session 생성 성공', serverSideSession)
         } catch (error) {
           console.error('[Step 3] Server-Side Session 생성 실패:', error)
@@ -258,6 +260,13 @@ export default function DiscussionRoom() {
             videoSource: false, // 비디오 미사용
             publishAudio: true, // 오디오 사용
             publishVideo: false, // 비디오 미사용
+            mediaOptions: {
+              audio: {
+                echoCancellation: true, // 에코 제거
+                noiseSuppression: true, // 잡음 제거
+                autoGainControl: true, // 자동 볼륨 조절
+              },
+            },
           })
           console.log('[Step 5] 로컬 스트림 초기화 성공', publisher)
           setPublisher(publisher)

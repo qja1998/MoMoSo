@@ -50,8 +50,8 @@ function App() {
               {/* 실제 프로덕션용 라우트 */}
               <Route path="/novel">
                 <Route path="" element={<NovelList />} />
-                <Route path="viewer/:novelId" element={<NovelEpisodeList />} />
-                <Route path="viewer/:novelId/:episodeId" element={<NovelEpisodeViewer />} />
+                <Route path=":novelId" element={<NovelEpisodeList />} />
+                <Route path=":novelId/:episodeId" element={<NovelEpisodeViewer />} />
                 <Route path="edit/:novelId" element={<NovelEditor />} />
               </Route>
 
