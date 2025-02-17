@@ -240,8 +240,11 @@ def momoso_recommend(db : Session) :
 #에피소드
 
 # 특정 소설의 에피소드 조회
+
+# 이건 detail 의 에피소드 정보 보내자.
 def novel_episode(novel_pk: int, db: Session):
     return db.query(Episode).filter(Episode.novel_pk == novel_pk).all()
+
 
 # 에피소드 저장
 def save_episode(novel_pk: int, episode_data: novel_schema.EpisodeCreateBase, db: Session):

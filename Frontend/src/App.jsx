@@ -60,6 +60,12 @@ function App() {
               <Route path="/debug/viewer" element={<NovelEpisodeViewer />} />
             </Route>
 
+            {/* 실제 프로덕션용 라우트 */}
+            <Route path="/novel">
+              <Route path=":novelId" element={<NovelEpisodeList />} />
+              <Route path=":novelId/:episodeId" element={<NovelEpisodeViewer />} />
+              <Route path="edit/" element={<NovelEditor />} />
+            </Route>
             {/* Sidebar Layout */}
             <Route element={<SidebarLayout />}>
               <Route path="/discussion">
