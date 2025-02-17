@@ -1,36 +1,54 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import axios from 'axios'
+import dayjs from 'dayjs'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+
 import { useParams, useNavigate } from 'react-router-dom';
+
 import axios from 'axios';
 import styled from '@emotion/styled';
-import dayjs from 'dayjs';
 
-import AddIcon from '@mui/icons-material/Add';
-import FavoriteIcon from '@mui/icons-material/Favorite';
-import MenuBookIcon from '@mui/icons-material/MenuBook';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Select from '@mui/material/Select';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+// 아이콘
+import AddIcon from '@mui/icons-material/Add'
+import FavoriteIcon from '@mui/icons-material/Favorite'
+import ImageIcon from '@mui/icons-material/Image'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import InsertEmoticonIcon from '@mui/icons-material/InsertEmoticon'
+import MenuBookIcon from '@mui/icons-material/MenuBook'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
+import RefreshIcon from '@mui/icons-material/Refresh'
+import SendIcon from '@mui/icons-material/Send'
+import SettingsIcon from '@mui/icons-material/Settings'
+import SmartToyIcon from '@mui/icons-material/SmartToy'
+import ThumbDownIcon from '@mui/icons-material/ThumbDown'
+import ThumbUpIcon from '@mui/icons-material/ThumbUp'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+// 디자인 컴포넌트
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import FormControl from '@mui/material/FormControl'
+import FormHelperText from '@mui/material/FormHelperText'
+import IconButton from '@mui/material/IconButton'
+import InputLabel from '@mui/material/InputLabel'
+import MenuItem from '@mui/material/MenuItem'
+import Paper from '@mui/material/Paper'
+import Select from '@mui/material/Select'
+import Stack from '@mui/material/Stack'
+import Table from '@mui/material/Table'
+import TableBody from '@mui/material/TableBody'
+import TableCell from '@mui/material/TableCell'
+import TableContainer from '@mui/material/TableContainer'
+import TableHead from '@mui/material/TableHead'
+import TableRow from '@mui/material/TableRow'
+import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import IconButton from '@mui/material/IconButton';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -43,35 +61,9 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import ThumbDownIcon from '@mui/icons-material/ThumbDown';
 
-import coverPlaceholder from '/src/assets/placeholder/cover-image-placeholder.png';
+import coverPlaceholder from '/src/assets/placeholder/cover-image-placeholder.png'
 
-const NovelInfo = styled(Paper)({
-padding: '24px',
-display: 'flex',
-gap: '24px',
-marginBottom: '24px',
-borderRadius: '16px',
-backgroundColor: '#ffffff',
-boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-});
-
-const StyledTableCell = styled(TableCell)(({ theme }) => ({
-'&.MuiTableCell-head': {
-backgroundColor: theme.palette.grey[100],
-fontWeight: 700,
-},
-}));
-
-const DiscussionBadge = styled(Box)(({ status }) => ({
-display: 'inline-block',
-padding: '4px 12px',
-borderRadius: '16px',
-fontSize: '14px',
-fontWeight: 'bold',
-backgroundColor: status === '2화 토론' ? '#E3F2FD' : '#E8F5E9',
-color: status === '2화 토론' ? '#1976D2' : '#2E7D32',
-marginBottom: '8px',
-}));
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
 
 const NovelEpisodeList = () => {
 const { novelId } = useParams();
@@ -127,16 +119,41 @@ const { totalViews, totalLikes } = useMemo(() => {
     return { totalViews: views, totalLikes: likes };
 }, [episodes, novelInfo]);
 
-// 토론방 생성 폼 초기값
-const initialDiscussionForm = {
-    type: 'default',
-    dateTime: null,
-    topic: '',
-    maxParticipants: 5,
-};
+  // 토론방 생성 폼 초기값
+  const initialDiscussionForm = {
+    novel_pk: 1, // TODO: 소설 ID는 실제 URL에서 추출
+    topic: '', // 토론 주제
+    category: false, // 전체 작품 토론의 경우 false, 회차별 토론의 경우 true
+    ep_pk: null, // 회차별 토론의 경우 회차 ID, 전체 작품 토론의 경우 null
+    start_time: null, // 토론 시작 시간
+    max_participants: 6, // 최대 참여 인원
+  }
 
-const [openModal, setOpenModal] = useState(false);
-const [discussionForm, setDiscussionForm] = useState(initialDiscussionForm);
+  const [discussions, setDiscussions] = useState([])
+  const [openModal, setOpenModal] = useState(false)
+  const [discussionForm, setDiscussionForm] = useState(initialDiscussionForm)
+  const [formErrors, setFormErrors] = useState({
+    dateTime: false,
+    topic: false,
+    maxParticipants: false,
+    episode: false,
+  })
+
+  // 토론 목록 가져오기
+  useEffect(() => {
+    const fetchDiscussions = async () => {
+      try {
+        const response = await axios.get(`${BACKEND_URL}/api/v1/discussion/`, {
+          withCredentials: true,
+        })
+        setDiscussions(response.data)
+        console.log(response.data)
+      } catch (error) {
+        console.error('토론 목록을 가져오는데 실패했습니다:', error)
+      }
+    }
+    fetchDiscussions()
+  }, [])
 
 // 모달 핸들러 함수들
 const handleOpenModal = useCallback(() => setOpenModal(true), []);
@@ -151,12 +168,81 @@ const handleCreateDiscussion = useCallback(() => {
         return;
     }
 
-    // TODO: 토론방 생성 로직 구현 (API 연동)
-    console.log('Create discussion:', discussionForm);
-    handleCloseModal();
-}, [discussionForm]);
+    // 서버에 토론 생성 요청
+    await axios
+      .post(`${BACKEND_URL}/api/v1/discussion/`, requestData, {
+        withCredentials: true,
+      })
+      .then((response) => {
+        console.log(response)
+        // 성공적으로 생성된 경우 로컬 상태 업데이트
+        const newDiscussion = {
+          id: discussions.length + 1,
+          ...discussionForm,
+          createdAt: new Date().toISOString(),
+          participants: [],
+        }
+        setDiscussions((prev) => [...prev, newDiscussion])
+        handleCloseModal()
+      })
+      .catch((error) => {
+        switch (error.response.status) {
+          case 401:
+            console.error('로그인이 필요합니다:', error)
+            // TODO: 에러 처리
+            break
+          case 404:
+            console.error('Failed to create discussion:', error)
+            // TODO: 에러 처리
+            break
+          default:
+            console.error('Failed to create discussion:', error)
+            // TODO: 에러 처리
+            break
+        }
+      })
+  }, [discussionForm, discussions.length])
 
-const [commentInput, setCommentInput] = useState('');
+  // 토론방 입장 핸들러
+  const handleEnterDiscussion = useCallback(
+    (discussion) => {
+      navigate(`/discussion/${discussion.discussion_pk}`, {
+        state: {
+          discussion: {
+            topic: discussion.topic,
+            startTime: discussion.start_time,
+            participants: discussion.participants,
+            novelTitle: discussion.novel.title,
+            episode: discussion.episode,
+            sessionId: discussion.session_id,
+          },
+        },
+      })
+    },
+    [navigate]
+  )
+
+  const [comments, setComments] = useState([
+    // TODO: 댓글 데이터 추가
+    {
+      id: 1,
+      author: '밍(dkgk****)',
+      date: '2024-10-06 13:55',
+      content: '너무 재미있습니다! 볼까말까 고민 중이시라면 보세요!',
+      likes: 19,
+      dislikes: 2,
+      isBest: true,
+    },
+    {
+      id: 2,
+      author: 'nv_(nv_w****)',
+      date: '18시간 전',
+      content: 'ㅎㅎ',
+      likes: 0,
+      dislikes: 0,
+      isBest: false,
+    },
+  ])
 
 // 댓글 좋아요/싫어요 핸들러
 const handleLike = useCallback((commentPk) => {
@@ -345,30 +431,64 @@ return (
                             </Select>
                         </FormControl>
 
-                        <FormControl fullWidth>
-                            <LocalizationProvider dateAdapter={AdapterDayjs}>
-                                <DateTimePicker
-                                    value={discussionForm.dateTime}
-                                    onChange={(newValue) =>
-                                        setDiscussionForm({ ...discussionForm, dateTime: newValue })
-                                    }
-                                    minDateTime={dayjs()}
-                                    format="YYYY/MM/DD HH:mm"
-                                    ampm={false}
-                                    slotProps={{
-                                        inputLabel: {
-                                            shrink: true,
-                                        },
-                                        textField: {
-                                            fullWidth: true,
-                                            required: true,
-                                            label: '토론 일시',
-                                            variant: 'outlined',
-                                        },
-                                    }}
-                                />
-                            </LocalizationProvider>
-                        </FormControl>
+              {discussionForm.category && (
+                <FormControl fullWidth error={formErrors.episode}>
+                  <InputLabel>토론할 회차</InputLabel>
+                  <Select
+                    value={discussionForm.ep_pk || ''}
+                    label="토론할 회차"
+                    required
+                    onChange={(e) => {
+                      setDiscussionForm({
+                        ...discussionForm,
+                        ep_pk: e.target.value,
+                      })
+                      setFormErrors((prev) => ({
+                        ...prev,
+                        episode: false,
+                      }))
+                    }}
+                  >
+                    {episodes.map((episode) => (
+                      <MenuItem key={episode.id} value={episode.id}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Typography>{episode.id}화</Typography>
+                          <Typography color="text.secondary">{episode.title}</Typography>
+                        </Stack>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {formErrors.episode && <FormHelperText error>토론할 회차를 선택해주세요</FormHelperText>}
+                </FormControl>
+              )}
+
+              <FormControl fullWidth error={formErrors.dateTime}>
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DateTimePicker
+                    value={discussionForm.start_time}
+                    onChange={(newValue) => {
+                      setDiscussionForm({ ...discussionForm, start_time: newValue })
+                      setFormErrors((prev) => ({
+                        ...prev,
+                        dateTime: false,
+                      }))
+                    }}
+                    minDateTime={dayjs()}
+                    format="YYYY/MM/DD HH:mm"
+                    ampm={false}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        required: true,
+                        label: '토론 일시',
+                        variant: 'outlined',
+                        error: formErrors.dateTime,
+                        helperText: formErrors.dateTime ? '토론 일시를 선택해주세요' : '',
+                      },
+                    }}
+                  />
+                </LocalizationProvider>
+              </FormControl>
 
                         <TextField
                             fullWidth

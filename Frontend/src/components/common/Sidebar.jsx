@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import axios from 'axios'
+
+import { useEffect, useState } from 'react'
 
 import { useNavigate } from 'react-router-dom'
 
@@ -21,9 +23,30 @@ import Stack from '@mui/material/Stack'
 
 const drawerWidth = 240
 
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
+
 const Sidebar = () => {
   const [open, setOpen] = useState(true)
+  const [userInfo, setUserInfo] = useState(null)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const { data: loginData } = await axios.get(`${BACKEND_URL}/api/v1/users/logged-in`)
+        setUserInfo({
+          nickname: loginData.nickname,
+          email: loginData.email,
+          userImg: loginData.user_img,
+        })
+      } catch (error) {
+        console.error('Failed to fetch user info:', error)
+        setUserInfo(null)
+      }
+    }
+
+    fetchUserInfo()
+  }, [])
 
   const menuItems = [
     { text: 'Dashboard', icon: <Home fontSize="large" />, path: '/' },
@@ -167,7 +190,7 @@ const Sidebar = () => {
         <Divider />
         <ListItem disablePadding>
           <ListItemButton
-            onClick={handleProfileClick}
+            onClick={userInfo ? handleProfileClick : () => navigate('/auth/login')}
             sx={{
               justifyContent: open ? 'initial' : 'center',
               alignItems: 'center',
@@ -183,13 +206,20 @@ const Sidebar = () => {
                 justifyContent: 'center',
               }}
             >
-              <Avatar sx={{ width: 32, height: 32, border: '2px solid #FFB347' }} />
+              <Avatar
+                src={userInfo?.userImg}
+                sx={{
+                  width: 32,
+                  height: 32,
+                  border: '2px solid #FFB347',
+                }}
+              />
             </ListItemIcon>
             {open && (
               <Stack sx={{ flex: 1 }}>
                 <ListItemText
-                  primary="UserName"
-                  secondary="UserEmail@example.com"
+                  primary={userInfo ? userInfo.nickname : '로그인이 필요합니다'}
+                  secondary={userInfo ? userInfo.email : null}
                   slotProps={{
                     primary: {
                       sx: { color: '#1E1E1E', fontSize: '16px', fontWeight: 'bold', mb: 0 },
