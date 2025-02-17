@@ -92,7 +92,7 @@ def all_novel(db: Session = Depends(get_db)):
     return novel_crud.get_all_novel(db)
 
 # 디테일 페이지, 아직 미완
-@app.get("/novel/{novel_pk}/detail")
+@router.get("/novel/{novel_pk}/detail")
 def novel_detail(novel_pk : int, db : Session = Depends(get_db)) : 
     episode = novel_crud.novel_episode(novel_pk, db)
     novel_info  = novel_crud.search_novel(novel_pk, db)
@@ -241,7 +241,7 @@ def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session
 """
 
 
-@app.post("/save")
+@router.post("/save")
 async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), db: Session = Depends(get_db)) : 
     if user_novel == "user" :
         drive_path = "1M6KHgGMhmN0AiPaf5Ltb3f0JhZZ7Bnm5"
@@ -270,7 +270,7 @@ async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), d
     # Local static에서 이미지 삭제
     os.remove(file_path)
 
-@app.delete("/image")
+@router.delete("/image")
 def delete_img(file_id : str, drive_folder_id : str, novel_pk : int , db: Session = Depends(get_db)) :
     return novel_crud.delete_image(file_id, drive_folder_id)
 
