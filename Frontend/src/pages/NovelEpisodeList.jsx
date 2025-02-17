@@ -47,6 +47,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 
 import coverPlaceholder from '/src/assets/placeholder/cover-image-placeholder.png'
 
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
+
 const NovelEpisodeList = () => {
   const navigate = useNavigate()
   // TODO: 소설 에피소드 목록 조회 API 호출
@@ -129,7 +131,7 @@ const NovelEpisodeList = () => {
   useEffect(() => {
     const fetchDiscussions = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/v1/discussion/`)
+        const response = await axios.get(`${BACKEND_URL}/api/v1/discussion/`)
         setDiscussions(response.data)
         console.log(response.data)
       } catch (error) {
@@ -178,7 +180,7 @@ const NovelEpisodeList = () => {
 
     // 서버에 토론 생성 요청
     await axios
-      .post(`http://localhost:8000/api/v1/discussion/`, requestData)
+      .post(`${BACKEND_URL}/api/v1/discussion/`, requestData)
       .then((response) => {
         console.log(response)
         // 성공적으로 생성된 경우 로컬 상태 업데이트

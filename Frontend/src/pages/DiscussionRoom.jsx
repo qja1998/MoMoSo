@@ -22,9 +22,9 @@ import Grid from '@mui/material/Grid2'
 import IconButton from '@mui/material/IconButton'
 import Slider from '@mui/material/Slider'
 import Stack from '@mui/material/Stack'
+import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
-import TextField from '@mui/material/TextField'
 
 // 경로 상수
 const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
@@ -152,7 +152,7 @@ export default function DiscussionRoom() {
 
         // 2. 토론방 정보 불러오기
         const { data: discussionData } = await axios.get(`${BACKEND_URL}/api/v1/discussion/${discussionId}`, {
-          withCredentials: true // 쿠키를 포함하여 요청
+          withCredentials: true, // 쿠키를 포함하여 요청
         })
 
         setDiscussionInfo(discussionData)
@@ -167,10 +167,10 @@ export default function DiscussionRoom() {
             recordingMode: 'MANUAL',
             defaultRecordingProperties: {
               hasAudio: true,
-              hasVideo: false
-            }
+              hasVideo: false,
+            },
           }
-          
+
           serverSideSession = await openViduNode.createSession(sessionProperties)
           setServerSession(serverSideSession)
           console.log('[Step 3] Server-Side Session 생성 성공', serverSideSession)
@@ -361,19 +361,34 @@ export default function DiscussionRoom() {
     }
 
     const initializeLoginInfo = async () => {
-      try {
-        const { data: loginData } = await axios.get(`${BACKEND_URL}/api/v1/users/logged-in`, {
-          withCredentials: true // 쿠키를 포함하여 요청
-        })
-        loginInfo.current = loginData
-      } catch (error) {
-        console.error('로그인 정보를 가져오는데 실패했습니다:', error)
-        // 로그인 페이지로 리다이렉트
-        navigate('/auth/login', { 
-          replace: true,
-          state: { from: `/discussion/${discussionId}` }
-        })
+      const maxRetries = 3
+      const retryDelay = 2000 // 2초
+      let retryCount = 0
+
+      const attemptInitialize = async () => {
+        try {
+          const { data: loginData } = await axios.get(`${BACKEND_URL}/api/v1/users/logged-in`, {
+            withCredentials: true,
+          })
+          loginInfo.current = loginData
+          console.log('로그인 정보 초기화 성공')
+        } catch (error) {
+          console.error('로그인 정보 초기화 실패:', error)
+
+          if (retryCount < maxRetries) {
+            retryCount++
+            console.log(`재시도 중... (${retryCount}/${maxRetries})`)
+            await new Promise((resolve) => setTimeout(resolve, retryDelay))
+            return attemptInitialize()
+          } else {
+            console.error('최대 재시도 횟수 초과')
+            // 로그인 페이지로 리다이렉트
+            navigate('/auth/login', { replace: true })
+          }
+        }
       }
+
+      await attemptInitialize()
     }
 
     initializeLoginInfo()
@@ -488,9 +503,9 @@ export default function DiscussionRoom() {
         data: JSON.stringify({
           message: newMessage,
           user_pk: loginInfo.current.user_pk,
-          nickname: loginInfo.current.nickname
+          nickname: loginInfo.current.nickname,
         }),
-        type: 'chat'
+        type: 'chat',
       })
       setNewMessage('')
     } catch (error) {
@@ -503,14 +518,17 @@ export default function DiscussionRoom() {
     if (clientSession) {
       const handleChatSignal = (event) => {
         const data = JSON.parse(event.data)
-        setMessages(prev => [...prev, {
-          content: data.message,
-          timestamp: new Date().toISOString(),
-          sender: {
-            user_pk: data.user_pk,
-            nickname: data.nickname,
-          }
-        }])
+        setMessages((prev) => [
+          ...prev,
+          {
+            content: data.message,
+            timestamp: new Date().toISOString(),
+            sender: {
+              user_pk: data.user_pk,
+              nickname: data.nickname,
+            },
+          },
+        ])
       }
 
       clientSession.on('signal:chat', handleChatSignal)
@@ -897,14 +915,10 @@ export default function DiscussionRoom() {
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 2,
                       bgcolor: '#F5F5F5',
-                    }
+                    },
                   }}
                 />
-                <IconButton 
-                  type="submit" 
-                  disabled={!clientSession || !newMessage.trim()}
-                  color="primary"
-                >
+                <IconButton type="submit" disabled={!clientSession || !newMessage.trim()} color="primary">
                   <SendIcon />
                 </IconButton>
               </Stack>
