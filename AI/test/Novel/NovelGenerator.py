@@ -200,6 +200,28 @@ class NovelGenerator:
         self.synopsis = response.text
         print("소설 줄거리:\n", self.synopsis)
         return self.synopsis
+    
+    def generate_introduction(self) -> str:
+        """소설 소개글 생성 함수: 장르, 제목, 세계관, 줄거리를 반영하여 100-200자 분량의 소개글을 작성합니다."""
+        instruction = """
+        당신은 전문적인 소설 소개글 작가입니다.
+        아래 조건을 충족하는 소개글을 작성해주세요.
+        - 소설의 장르, 제목, 세계관, 줄거리를 기반으로 작성합니다.
+        - 소개글은 100~200자 분량의 짧은 문장이어야 합니다.
+        - 텍스트는 순수한 일반 텍스트 형식이어야 하며, 어떠한 마크다운 문법도 사용하지 마세요.
+        """
+        model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)
+        prompt = (
+            f"## 소설 장르: {self.genre}\n"
+            f"## 소설 제목: {self.title}\n"
+            f"## 소설 세계관: {self.worldview}\n"
+            f"## 소설 줄거리: {self.synopsis}\n\n"
+            "**소설 소개글 (100-200자)**\n"
+        )
+        response = model.generate_content(prompt)
+        introduction = response.text.strip()
+        print("소설 소개글:\n", introduction)
+        return introduction
 
     def recommend_characters(self) -> str:
         """소설 등장인물 생성 함수"""
@@ -343,27 +365,30 @@ class NovelGenerator:
         if not previous_episodes:
             # 이전 에피소드가 없다면 첫 번째 에피소드(초안) 생성
             instruction = """
-            당신은 창의적이고 독창적인 소설 작가입니다. 
-            주어진 장르, 제목, 세계관, 줄거리, 등장인물을 기반으로 소설의 초안을 작성해야 합니다.
-            각 에피소드는 500-1000자 정도로 작성해야 합니다.
+            당신은 탁월한 창의력과 독창성을 가진 전문 소설 작가입니다.
+            아래 지시사항에 따라 소설 초안을 작성해주세요. 
+            생성되는 텍스트는 순수한 일반 텍스트 형식이어야 하며, 어떠한 마크다운 문법(예: **, ## 등)도 사용하지 마세요.
+            주어진 장르, 제목, 세계관, 줄거리, 등장인물의 정보를 바탕으로 에피소드 초안이 작성되어야 합니다.
+            에피소드는 700-1500자 분량으로 작성하세요.
 
-            <작성 지침>
-            - 소설의 분위기는 주어진 장르에 맞게 설정하세요.
-            - 첫 번째 에피소드에서는 주인공을 등장시키고, 소설의 시작점을 설정하세요.
-            - 분량을 준수하되, 에피소드가 끝날 때 문장이 완결되도록 작성하세요.
+            작성 시 다음 항목들을 반드시 반영합니다:
+            1. 소설의 분위기와 문체를 장르에 맞게 설정합니다.
+            2. 텍스트의 마지막 문장은 반드시 완성된 문장으로 구성되고, 자연스러운 마무리로 작성합니다.
             """
             episode_label = "**소설 초안**\n"
         else:
             # 이전 에피소드가 있다면 DB의 모든 내용을 기반으로 다음 화 생성
             instruction = """
-            당신은 창의적이고 독창적인 소설 작가입니다. 
-            주어진 장르, 제목, 세계관, 줄거리, 등장인물, 소설 이전화를 기반으로 소설의 다음화를 작성해야 합니다.
-            각 에피소드는 500-1000자 정도로 작성해야 합니다.
+            당신은 탁월한 창의력과 독창성을 가진 전문 소설 작가입니다. 
+            아래 지시사항에 따라 소설의 다음 화를 작성해주세요. 
+            생성되는 텍스트는 순수한 일반 텍스트 형식이어야 하며, 어떠한 마크다운 문법(예: **, ## 등)도 사용하지 마세요.
+            주어진 장르, 제목, 세계관, 줄거리, 등장인물 및 이전 에피소드의 내용을 기반으로 다음 에피소드를 작성해야 합니다.
+            에피소드는 700-1500자 분량으로 작성하세요.
 
-            <작성 지침>
-            - 소설의 분위기는 주어진 장르에 맞게 설정하세요.
-            - 이전화의 내용을 참고하여 내용이 자연스럽게 연결되도록 작성하세요.
-            - 분량을 준수하되, 에피소드가 끝날 때 문장이 완결되도록 작성하세요.
+            작성 시 다음 항목들을 반드시 반영합니다:
+            1. 소설의 분위기와 문체를 장르에 맞게 유지하며, 이전 에피소드의 흐름과 일관되게 전개합니다.
+            2. 이전 에피소드의 내용을 참고하여 내용이 자연스럽게 연결되도록 작성하세요.
+            3. 텍스트의 마지막 문장은 반드시 완성된 문장으로 구성되고, 이야기의 흐름이 자연스럽게 마무리되도록 작성합니다.
             """
             episode_label = "**소설 다음화**\n"
         
@@ -376,7 +401,7 @@ class NovelGenerator:
             f"## 소설 등장인물: {self.characters}\n"
         )
         if previous_episodes:
-            prompt += f"## 소설 이전화: {previous_episodes}\n\n"
+            prompt += f"## 소설 이전 에피소드: {previous_episodes}\n\n"
         prompt += episode_label
 
         response = model.generate_content(prompt)
@@ -401,6 +426,7 @@ class NovelGenerator:
             print(f"에피소드 {ep_number}화:\n", episode_content)
         return episode_content
 
+
 # 예시 사용법:
 if __name__ == "__main__":
     # 소설의 장르와 제목을 입력합니다.
@@ -414,6 +440,9 @@ if __name__ == "__main__":
     novel_gen.recommend_worldview()
     input("줄거리 생성을 시작합니다. 엔터를 눌러주세요.")
     novel_gen.recommend_synopsis()
+    input("소개글 생성을 시작합니다. 엔터를 눌러주세요.")
+    novel_gen.generate_introduction()
+
     input("등장인물 생성을 시작합니다. 엔터를 눌러주세요.")
     novel_gen.recommend_characters()
     
