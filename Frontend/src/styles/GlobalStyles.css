@@ -1,0 +1,16 @@
+body {
+  font-family:
+    'Pretendard Variable',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-weight: 450;
+}
+
+@font-face {
+  font-family: 'Pretendard Variable';
+  src: url('../fonts/PretendardVariable.ttf') format('truetype');
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+}
