@@ -5,12 +5,20 @@ from novel import novel_crud, novel_schema
 from models import Novel, User, Discussion
 from typing import List, Optional
 from utils.auth_utils import get_optional_user
-from fastapi import Request, File, UploadFile # 삭제 예정 
+from fastapi import File, UploadFile # 삭제 예정 
 import os
-from discussion import discussion_crud
 
 # AI 이미지 생성 
 from ai.gen_image import ImageGenerator
+from ai.gen_novel import NovelGenerator
+from PIL import Image
+from fastapi.responses import Response
+import requests
+from io import BytesIO
+from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
+from .novel_crud import get_previous_chapters
+from utils.auth_utils import get_current_user
+
 
 router = APIRouter(
     prefix='/api/v1',
@@ -74,7 +82,6 @@ export default VideoPlayer;
 
 """
 
-
 # 소설(Novel) CRUD
 print("router has started")
 
@@ -90,7 +97,8 @@ def novel_detail(novel_pk : int, db : Session = Depends(get_db)) :
     episode = novel_crud.novel_episode(novel_pk, db)
     novel_info  = novel_crud.search_novel(novel_pk, db)
     discussion = db.query(Discussion).filter(Discussion.novel_pk == novel_pk).all()
-    return {"episode" : episode, "novel_info" : novel_info, "discussion": discussion}
+    comment = novel_crud.get_novel_comment(novel_pk, db)
+    return {"episode" : episode, "novel_info" : novel_info, "discussion": discussion, "comment" : comment}
 
 @router.get("/novel/{novel_pk}") 
 def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
@@ -130,12 +138,7 @@ def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Ses
 def delete_novel(novel_pk: int, db: Session = Depends(get_db)):
     return novel_crud.delete_novel(novel_pk, db)
 
-#소설 detail page 
 
-
-"""
-디버깅 필요, 에피소드 가져오는 기능도 없음.
-"""
 #소설 좋아요 
 @router.put("/novel/{novel_pk}/{user_pk}")
 def like_novel(novel_pk: int, user_pk: int, db: Session = Depends(get_db)):
@@ -229,7 +232,7 @@ def get_cocoment(comment_pk : int, db: Session = Depends(get_db) ) :
 # 표지 이미지
 """
 import os
-@router.post("/image")
+@app.post("/image")
 
 #아래 리턴되는 값은 드라이브 내부의 img id임. 수정이 필요한경우 해당 걸로 하면 됨.
 def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session = Depends(get_db)) : 
@@ -242,14 +245,25 @@ def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session
 async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), db: Session = Depends(get_db)) : 
     if user_novel == "user" :
         drive_path = "1M6KHgGMhmN0AiPaf5Ltb3f0JhZZ7Bnm5"
+        data = db.query(User).filter(User.user_pk == pk).first()
+        img_info = data.user_img
     elif user_novel == "novel" : 
+        data = db.query(Novel).filter(Novel.novel_pk == pk).first()
         drive_path = "1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N"
+        img_info = data.novel_img
     else : 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="need to choose user or novel")
     
     # Local static에 이미지 저장
     file_path = await novel_crud.image_upload(file)
 
+    # 여기서 기존에 있던 이미지 삭제해야 함
+    if img_info :
+        novel_crud.delete_image(img_info, drive_path)
+
+    else :
+        print("삭제할 이미지 없음.") 
+    
     # 원격 저장소에 이미지 저장
     novel_crud.save_cover(user_novel, pk, file_path, drive_path, db)
 
@@ -260,14 +274,10 @@ async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), d
 def delete_img(file_id : str, drive_folder_id : str, novel_pk : int , db: Session = Depends(get_db)) :
     return novel_crud.delete_image(file_id, drive_folder_id)
 
-from ai.gen_image import ImageGenerator
-from ai.gen_novel import NovelGenerator
-from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
-from .novel_crud import get_previous_chapters
-from utils.auth_utils import get_current_user
 
 @router.post("/ai/worldview")
 def recommend_worldview(request: WorldviewRequest) : 
+    print(request.model_dump())
     novel_gen = NovelGenerator(request.genre, request.title)
     worldview = novel_gen.recommend_worldview()
     return {"worldview": worldview}
@@ -340,32 +350,32 @@ from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, C
 from .novel_crud import get_previous_chapters
 from utils.auth_utils import get_current_user
 
-@router.post("/ai/worldview")
+@app.post("/ai/worldview")
 def recommend_worldview(request: WorldviewRequest) : 
     novel_gen = NovelGenerator(request.genre, request.title)
     worldview = novel_gen.recommend_worldview()
     return {"worldview": worldview}
 
-@router.post("/ai/synopsis")
+@app.post("/ai/synopsis")
 def recommend_synopsis(request: SynopsisRequest) : 
     novel_gen = NovelGenerator(request.genre, request.title, request.worldview)
     synopsis = novel_gen.recommend_synopsis()
     return {"synopsis": synopsis}
 
-@router.post("/ai/characters/new")
+@app.post("/ai/characters/new")
 def add_new_characters(request : CharacterRequest) : 
     novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis)
     new_characters = novel_gen.add_new_characters()
     return {"new_characters" : new_characters}
 
-@router.post("/ai/character")
+@app.post("/ai/character")
 def recommend_characters(request: CharacterRequest):
     novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.characters)
     updated_characters = novel_gen.recommend_characters()
     return {"characters": updated_characters}
 
 
-@router.post("/ai/episode")
+@app.post("/ai/episode")
 def create_episode(request: CreateChapterRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     novel = None
     if request.novel_pk:
@@ -417,19 +427,19 @@ from io import BytesIO
 
 JUPYTER_URL = os.environ["JUPYTER_URL"]
 
-payload = {
-    "genre": "fantasy",
-    "style": "watercolor",
-    "title": "The Last Dragon",
-    "worldview": "high",
-    "keywords": ["dragon", "knight", "adventure"]
-}
+# payload = {
+#     "genre": "fantasy",
+#     "style": "watercolor",
+#     "title": "The Last Dragon",
+#     "worldview": "high",
+#     "keywords": ["dragon", "knight", "adventure"]
+# }
 
 # payload는 
 @router.post("/image/generate")
 async def AI_img_generate(req: novel_schema.ImageRequest) :
     headers = {"Content-Type": "application/json"}
-    response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=payload, headers=headers)
+    response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=req, headers=headers)
     if response.status_code == 200:
         print("✅ 이미지 생성 성공!")
         img_data = BytesIO(response.content)
@@ -439,20 +449,11 @@ async def AI_img_generate(req: novel_schema.ImageRequest) :
         # image.show()
 
         # 💾 이미지 저장
-        img_name = f"{payload['title']}.png"
+        img_name = f"{req['title']}.png"
         save_path = os.path.join(os.getcwd(), "static", img_name)
         image.save(save_path, format="PNG")
-        
-        # print("📸 이미지가 'generated_image.png'로 저장되었습니다.)
-
-        # novel_crud.save_cover("novel", novel_pk, save_path, "1i_n_3NcwzKhESXw1tJqMtQRk7WVczI2N", db)
         print("📸 이미지가 저장되었습니다.")
         
-        # for delete_image in delete_files : 
-        #     path = os.path.join(os.getcwd(), "static", delete_image)
-        #     os.remove(path)
-        # print("이미지를 전체 삭제하였습니다.")
-
         return HTTPException(status_code=status.HTTP_201_CREATED)
 
 
@@ -474,25 +475,5 @@ async def generate_image(req: novel_schema.ImageRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

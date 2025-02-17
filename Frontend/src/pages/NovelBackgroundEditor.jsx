@@ -1,7 +1,5 @@
 import styled from '@emotion/styled'
-
 import { useState } from 'react'
-
 import AddIcon from '@mui/icons-material/Add'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
@@ -68,23 +66,17 @@ const NovelBackgroundEditor = () => {
   const [results, setResults] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [uploadLoading, setUploadLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false); // Save State
 
   const genres = [
     '판타지',
-    '로맨스',
     '무협',
-    '역사',
+    '액션',
+    '로맨스',
+    '스릴러',
     '드라마',
     'SF',
-    '일상',
-    '창작',
-    '전쟁',
-    '개그',
-    '일상물',
-    '미스터리',
-    '추리',
-    '스릴러',
-    '호러',
+    '기타'
   ]
 
   const handleGenerate = () => {
@@ -92,6 +84,32 @@ const NovelBackgroundEditor = () => {
     // TODO: AI 생성 로직 구현
     setResults(Array(4).fill(null))
   }
+
+    const handleWorldviewGenerate = async () => {
+        try {
+            const response = await fetch("http://127.0.0.1:8000/api/v1/ai/worldview", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    genre: selectedGenre,
+                    title: title,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            setWorldView(data.worldview);
+        } catch (error) {
+            console.error("Error generating worldview:", error);
+            // Handle error appropriately (e.g., display an error message to the user)
+        }
+    };
+
 
   const handleCharacterChange = (characterId) => (newCharacterData) => {
     setCharacters((prev) =>
@@ -144,6 +162,62 @@ const NovelBackgroundEditor = () => {
     setKeywords(keywords.filter((k) => k !== keywordToDelete))
   }
 
+    const handleSynopsisGenerate = async () => {
+        try {
+            const response = await fetch("http://127.0.0.1:8000/api/v1/ai/synopsis", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    genre: selectedGenre,
+                    title: title,
+                    worldview: worldView, // Corrected variable name
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            setBackground(data.synopsis);
+        } catch (error) {
+            console.error("Error generating synopsis:", error);
+        }
+    };
+    // Save Function
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            const response = await fetch("http://127.0.0.1:8000/api/v1/novel", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    title: title,
+                    worldview: worldView,
+                    synopsis: background,
+                    genres: [selectedGenre], // 장르를 리스트 형태로 전달
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("Novel saved successfully:", data); // 저장 성공 로그
+            // TODO: 저장 성공 알림 또는 UI 업데이트
+        } catch (error) {
+            console.error("Error saving novel:", error);
+            // TODO: 저장 실패 알림
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
   return (
     <Box
       component="main"
@@ -158,24 +232,6 @@ const NovelBackgroundEditor = () => {
           <Typography variant="h1" sx={{ fontSize: '2rem', fontWeight: 950 }}>
             작품의 배경에 대한 정보를 입력해주세요.
           </Typography>
-          <Stack direction="row" spacing={1}>
-            <PrimaryButton
-              startIcon={<SaveIcon />}
-              backgroundColor="#111111"
-              hoverBackgroundColor="#404040"
-              sx={{ py: 0.5 }}
-            >
-              저장
-            </PrimaryButton>
-            <PrimaryButton
-              startIcon={<DeleteIcon />}
-              backgroundColor="#D32F2F"
-              hoverBackgroundColor="#A82525"
-              sx={{ py: 0.5 }}
-            >
-              삭제
-            </PrimaryButton>
-          </Stack>
         </Stack>
         <Divider sx={{ mb: 4 }} />
 
@@ -246,13 +302,7 @@ const NovelBackgroundEditor = () => {
             <Typography variant="h3" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
               제목
             </Typography>
-            <PrimaryButton
-              startIcon={<OfflineBoltIcon />}
-              onClick={handleGenerate}
-              sx={{ py: 0.5 }}
-            >
-              AI 생성
-            </PrimaryButton>
+            {/* 삭제: 제목 옆 AI 생성 버튼 */}
           </Stack>
           <TextField
             fullWidth
@@ -280,9 +330,9 @@ const NovelBackgroundEditor = () => {
               세계관
             </Typography>
             <PrimaryButton
-              startIcon={<OfflineBoltIcon />}
-              onClick={handleGenerate}
-              sx={{ py: 0.5 }}
+                startIcon={<OfflineBoltIcon />}
+                onClick={handleWorldviewGenerate}
+                sx={{ py: 0.5 }}
             >
               AI 생성
             </PrimaryButton>
@@ -316,7 +366,7 @@ const NovelBackgroundEditor = () => {
             </Typography>
             <PrimaryButton
               startIcon={<OfflineBoltIcon />}
-              onClick={handleGenerate}
+              onClick={handleSynopsisGenerate}
               sx={{ py: 0.5 }}
             >
               AI 생성
@@ -337,7 +387,28 @@ const NovelBackgroundEditor = () => {
               },
             }}
           />
+          <Stack direction="row" spacing={1}>
+            <PrimaryButton
+              startIcon={<SaveIcon />}
+              backgroundColor="#111111"
+              hoverBackgroundColor="#404040"
+              sx={{ py: 0.5 }}
+              onClick={handleSave} // Save Function
+              disabled={isSaving}
+            >
+              {isSaving ? "저장 중..." : "저장"}
+            </PrimaryButton>
+            <PrimaryButton
+              startIcon={<DeleteIcon />}
+              backgroundColor="#D32F2F"
+              hoverBackgroundColor="#A82525"
+              sx={{ py: 0.5 }}
+            >
+              삭제
+            </PrimaryButton>
+          </Stack>
         </Stack>
+        <Divider sx={{ my: 4 }} /> {/* 구분선 */}
 
         {/* 캐릭터 입력 섹션 */}
         <Stack direction="column" spacing={1}>
