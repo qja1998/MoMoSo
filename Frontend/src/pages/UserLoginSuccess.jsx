@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '/src/hooks/useAuth';
 
-const LoginSuccess = () => {
+const UserLoginSuccess = () => {
   const navigate = useNavigate();
   const { setIsLoggedIn } = useAuth();
 
@@ -40,4 +40,4 @@ const LoginSuccess = () => {
   );
 };
 
-export default LoginSuccess;
+export default UserLoginSuccess;

@@ -25,7 +25,8 @@ const ResetPasswordBox = styled(Box)({
     gap: '1rem',
 });
 
-const ResetPassword = () => {
+const UserResetPassword = () => {
+    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
@@ -49,7 +50,7 @@ const ResetPassword = () => {
 
         try {
             const response = await axios.post(
-                'http://localhost:8000/api/v1/auth/reset-password',
+                BACKEND_URL+'/api/v1/auth/reset-password',
                 {
                     new_password: newPassword,
                     confirm_password: confirmPassword,
@@ -149,4 +150,4 @@ const ResetPassword = () => {
     );
 };
 
-export default ResetPassword;
+export default UserResetPassword;

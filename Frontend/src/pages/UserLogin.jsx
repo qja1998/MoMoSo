@@ -13,7 +13,8 @@ import { useEffect, useState } from "react";
 import axios from 'axios';
 import { useAuth } from '../hooks/useAuth';
 
-const Login = () => {
+const UserLogin = () => {
+  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
   const [googleLoginUrl, setGoogleLoginUrl] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,7 +26,7 @@ const Login = () => {
     axios.defaults.withCredentials = true;
 
     axios
-      .get('http://localhost:8000/api/v1/oauth/google/login')
+      .get(BACKEND_URL+'/api/v1/oauth/google/login')
       .then((response) => {
         setGoogleLoginUrl(response.data.login_url);
       })
@@ -51,7 +52,7 @@ const Login = () => {
   
       // 팝업 닫기 요청 처리
       const closePopupHandler = (event) => {
-        if (event.origin !== 'http://localhost:8000') return;
+        if (event.origin !== BACKEND_URL+'') return;
         if (event.data.type === 'CLOSE_POPUP') {
           window.removeEventListener('message', closePopupHandler);
           window.close(); // 팝업 창 닫기
@@ -115,7 +116,7 @@ const Login = () => {
       formData.append('password', password);
 
       await axios.post(
-        'http://localhost:8000/api/v1/auth/login',
+        BACKEND_URL+'/api/v1/auth/login',
         formData,
         {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -274,4 +275,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default UserLogin;
