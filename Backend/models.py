@@ -101,6 +101,7 @@ class Novel(Base):
     title = Column(String(200), nullable=False)
     worldview = Column(Text, nullable=False)
     synopsis = Column(Text, nullable=False)  # = description
+    summary = Column(Text, nullable=True)
     novel_img = Column(Text, default="static_url")
     created_date = Column(DateTime, default=func.now())
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now())
