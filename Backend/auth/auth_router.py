@@ -61,30 +61,9 @@ router = APIRouter(
 )
 
 
-@router.get("/me", description="현재 로그인 한 사용자 조회", response_model=dict)
-async def get_user_info(request: Request, db: Session = Depends(get_db)):
-    access_token = request.cookies.get("access_token")  # 쿠키에서 access_token 가져오기
-
-    if not access_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Access token is missing.")
-
-    try:
-        payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-
-        if email is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
-
-        user = user_crud.get_user_by_email(db, email)
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-        return {"user_pk": user.user_pk, "email": user.email}
-
-    except ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Access token expired. Please login again.")
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
+@router.get("/me", description="현재 로그인 한 사용자 조회")
+async def get_user_info(current_user: User = Depends(get_current_user)):
+    return {"user_pk": current_user.user_pk, "email": current_user.email, "nickname":current_user.nickname}
 
 
 # ======================================= 회원가입 로직 ======================================= 
