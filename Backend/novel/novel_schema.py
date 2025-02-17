@@ -40,7 +40,7 @@ class NovelShowBase(BaseModel) :
     title: str
     created_date : datetime  
     updated_date : datetime   # 이거 뭐로 해야 하냐? 
-    summary : str
+    summary : Optional[str] = None
     novel_img : str 
     views : int
     likes : int
@@ -54,7 +54,7 @@ class NovelCreateBase(BaseModel):
     title: str
     worldview: str
     synopsis: str
-    summary : str
+    summary : Optional[str] = None
     genres: List[str] = Field(description="List of genre names")
 
     class Config:
