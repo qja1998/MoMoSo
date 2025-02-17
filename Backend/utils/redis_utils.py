@@ -1,7 +1,7 @@
 import os
-import redis.asyncio as redis  # ✅ 비동기 Redis 사용
+import redis.asyncio as redis
 from redis.exceptions import ConnectionError
-from fastapi import FastAPI, Request
+from fastapi import Request
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
 REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
@@ -14,7 +14,7 @@ async def create_redis_client():
         client = redis.Redis(
             host=REDIS_HOST, port=redis_port, password=REDIS_PASSWORD, decode_responses=True
         )
-        await client.ping()  # ✅ 비동기 방식으로 Redis 연결 확인
+        await client.ping()  # 비동기 방식으로 Redis 연결 확인
         print("✅ Redis 연결 성공!")
         return client
     except ConnectionError as e:
