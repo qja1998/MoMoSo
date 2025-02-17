@@ -7,6 +7,7 @@ from jose import jwt
 from datetime import datetime, timedelta, timezone
 import os
 import requests
+from utils.auth_utils import set_auth_cookies
 
 # JWT 설정
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -99,8 +100,8 @@ async def google_callback(request: Request, response: Response, db: Session = De
             user_info_response = requests.get(GOOGLE_USERINFO_URL, headers={"Authorization": f"Bearer {access_token}"})
             user_info_response.raise_for_status() # HTTP 에러 발생 시 예외 발생
         except requests.exceptions.RequestException as e:
-             logger.error(f"Google 사용자 정보 요청 실패: {e}")
-             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching user info: {e}")
+            logger.error(f"Google 사용자 정보 요청 실패: {e}")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching user info: {e}")
         
         user_info = user_info_response.json()
         email = user_info.get("email")
@@ -151,14 +152,13 @@ async def google_callback(request: Request, response: Response, db: Session = De
         redis_client.setex(f"refresh_token:{email}", int(refresh_token_expires.total_seconds()), jwt_refresh_token)
 
         # 6. 쿠키에 JWT 저장 (자동 로그인)
-        response.set_cookie(key="access_token", value=jwt_access_token, httponly=True, secure=False, samesite="Lax", max_age=int(access_token_expires.total_seconds()),
-                            path="/", # 모든 경로에서 쿠키 사용
-                            domain=None #개발환경에서는 localhost로 설정, 프로덕션에서는 실제 도메인
-                            )
-        response.set_cookie(key="refresh_token", value=jwt_refresh_token, httponly=True, secure=False, samesite="Lax", max_age=int(refresh_token_expires.total_seconds()),
-                            path="/",  # 모든 경로에서 쿠키 사용
-                            domain=None #개발환경에서는 localhost로 설정, 프로덕션에서는 실제 도메인
-                            )
+        set_auth_cookies(
+            response=response,
+            access_token=jwt_access_token,
+            refresh_token=jwt_refresh_token,
+            access_token_expires_delta=access_token_expires,
+            refresh_token_expires_delta=refresh_token_expires
+        )
 
         # 7. 프론트엔드로 리다이렉션
         return RedirectResponse(FRONTEND_REDIRECT_URI, status_code=302) # 프론트엔드 URI 설정
