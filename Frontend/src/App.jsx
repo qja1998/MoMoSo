@@ -8,21 +8,22 @@ import DiscussionSummary from './pages/DiscussionSummary'
 import NavbarLayout from '/src/components/layout/NavbarLayout'
 import SidebarLayout from '/src/components/layout/SidebarLayout'
 import { AuthProvider } from '/src/hooks/useAuth'
-import ChangeUserInfo from '/src/pages/ChangeUserInfo'
-import FindId from '/src/pages/FindId'
-import FindPassword from '/src/pages/FindPassword'
-import Login from '/src/pages/Login'
-import LoginSuccess from '/src/pages/LoginSuccess'
+import UserChangeInfo from '/src/pages/UserChangeInfo'
+import UserFindId from '/src/pages/UserFindId'
+import UserFindPassword from '/src/pages/UserFindPassword'
+import UserLogin from '/src/pages/UserLogin'
+import UserLoginSuccess from '/src/pages/UserLoginSuccess'
+import UserResetPassword from '/src/pages/UserResetPassword'
 // import MyPage from '/src/pages/MyPage'
 import NotFound from '/src/pages/NotFound'
 import NovelBackgroundEditor from '/src/pages/NovelBackgroundEditor'
 import NovelEditor from '/src/pages/NovelEditor'
-import NovelEpisodeEditor from '/src/pages/NovelEpisodeEditor'
+import NovelEditorNovelDetail from '/src/pages/NovelEditorNovelDetail'
+import NovelEditorEpisode from '/src/pages/NovelEditorEpisode'
 import NovelEpisodeList from '/src/pages/NovelEpisodeList'
 import NovelEpisodeViewer from '/src/pages/NovelEpisodeViewer'
 import NovelList from '/src/pages/NovelList'
-import ResetPassword from '/src/pages/ResetPassword'
-import SignUp from '/src/pages/SignUp'
+import UserSignUp from '/src/pages/UserSignUp'
 import theme from '/src/styles/theme'
 
 function App() {
@@ -37,14 +38,14 @@ function App() {
               {/* Auth routes */}
               <Route path="/" element={<NovelList />} />
               <Route path="/auth">
-                <Route path="login" element={<Login />} />
-                <Route path="login-success" element={<LoginSuccess />} />
-                <Route path="signup" element={<SignUp />} />
-                <Route path="find-id" element={<FindId />} />
-                <Route path="find-password" element={<FindPassword />} />
-                <Route path="reset-password" element={<ResetPassword />} />
+                <Route path="login" element={<UserLogin />} />
+                <Route path="login-success" element={<UserLoginSuccess />} />
+                <Route path="signup" element={<UserSignUp />} />
+                <Route path="find-id" element={<UserFindId />} />
+                <Route path="find-password" element={<UserFindPassword />} />
+                <Route path="reset-password" element={<UserResetPassword />} />
                 {/* <Route path="mypage" element={<MyPage />} /> */}
-                <Route path="change-info" element={<ChangeUserInfo />} />
+                <Route path="change-info" element={<UserChangeInfo />} />
               </Route>
 
               {/* 실제 프로덕션용 라우트 */}
@@ -64,10 +65,11 @@ function App() {
             <Route path="/novel">
               <Route path=":novelId" element={<NovelEpisodeList />} />
               <Route path=":novelId/:episodeId" element={<NovelEpisodeViewer />} />
-              <Route path="edit/" element={<NovelEditor />} />
             </Route>
             {/* Sidebar Layout */}
             <Route element={<SidebarLayout />}>
+            <Route path="/novel/edit" element={<NovelEditor />} />
+            <Route path="/novel/edit/episodelist/:novelId" element={<NovelEditorNovelDetail />} />
               <Route path="/discussion">
                 <Route path=":discussionId" element={<DiscussionRoom />} />
                 <Route path=":discussionId/summary" element={<DiscussionSummary />} />
@@ -75,7 +77,9 @@ function App() {
 
               <Route path="/novel/edit">
                 <Route path="background" element={<NovelBackgroundEditor />} />
-                <Route path="episode/:episodeId" element={<NovelEpisodeEditor />} />
+                <Route path="background/:novelId" element={<NovelBackgroundEditor />} />
+                <Route path="episode/:novelId" element={<NovelEditorEpisode />} />
+                <Route path="episode/:novelId/:episodeId" element={<NovelEditorEpisode />} />
               </Route>
 
               {/* 디버그용 라우트 */}

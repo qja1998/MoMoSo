@@ -58,7 +58,8 @@ const InfoItem = ({ children }) => (
   </Box>
 )
 
-const ChangeUserInfo = () => {
+const UserChangeInfo = () => {
+  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
   const navigate = useNavigate()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(true)
@@ -81,7 +82,7 @@ const ChangeUserInfo = () => {
   // 사용자 정보 조회
   const fetchUserInfo = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/v1/users/logged-in', {
+      const response = await axios.get(BACKEND_URL+'/api/v1/users/logged-in', {
         withCredentials: true
       })
       setProfileData(response.data)
@@ -95,7 +96,7 @@ const ChangeUserInfo = () => {
   const handlePasswordSubmit = async () => {
     try {
       await axios.post(
-        'http://localhost:8000/api/v1/auth/verify-password',
+        BACKEND_URL+'/api/v1/auth/verify-password',
         { password },
         {
           headers: { 'Content-Type': 'application/json' },
@@ -122,7 +123,7 @@ const ChangeUserInfo = () => {
   const handleUpdateInfo = async () => {
     try {
       await axios.put(
-        'http://localhost:8000/api/v1/users/',
+        BACKEND_URL+'/api/v1/users/',
         {
           nickname: profileData.nickname,
           phone: profileData.phone,
@@ -318,4 +319,4 @@ const ChangeUserInfo = () => {
   )
 }
 
-export default ChangeUserInfo
+export default UserChangeInfo
