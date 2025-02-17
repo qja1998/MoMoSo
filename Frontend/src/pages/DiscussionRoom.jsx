@@ -24,81 +24,12 @@ import Slider from '@mui/material/Slider'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
+import TextField from '@mui/material/TextField'
 
 // 경로 상수
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
 const OPENVIDU_SERVER_URL = `${import.meta.env.VITE_OPENVIDU_PROTOCOL}://${import.meta.env.VITE_OPENVIDU_IP}:${import.meta.env.VITE_OPENVIDU_PORT}`
 const OPENVIDU_SERVER_SECRET = import.meta.env.VITE_OPENVIDU_SERVER_SECRET
-
-// // OpenVidu 세션 생성 함수
-// const createSession = async (sessionId) => {
-//   // OpenVidu 서버에 세션 생성 요청
-//   await axios
-//     .post(
-//       `${OPENVIDU_SERVER_URL}/openvidu/api/sessions`,
-//       { customSessionId: sessionId },
-//       {
-//         headers: {
-//           Authorization: `Basic ${btoa(`OPENVIDUAPP:${OPENVIDU_SERVER_SECRET}`)}`,
-//           'Content-Type': 'application/json',
-//         },
-//         withCredentials: true,
-//         responseType: 'json',
-//         validateStatus: (status) => {
-//           return status === 200 || status === 409 // 200과 409를 정상 응답으로 처리
-//         },
-//       }
-//     )
-//     .then((response) => {
-//       console.log('[createSession] 세션 생성 응답', response)
-//       if (response.status === 409) {
-//         // 409 에러는 이미 세션이 존재한다는 의미이므로 단순 return
-//         console.log('[createSession] 이미 세션이 존재합니다.')
-//         return sessionId
-//       } else {
-//         console.log('[createSession] 세션을 생성했습니다.', response)
-//         return sessionId
-//       }
-//     })
-//     .catch((error) => {
-//       if (error.response?.status === 400) {
-//         console.error('[createSession] 전송한 데이터의 형식이 올바르지 않습니다.', error)
-//       } else {
-//         console.error('[createSession] 알 수 없는 에러', error)
-//       }
-//     })
-// }
-
-// // 토큰 생성 함수 - 세션 참가를 위한 인증 토큰 발급
-// const createToken = async (sessionId) => {
-//   const response = await axios
-//     .post(
-//       `${OPENVIDU_CONFIG.SERVER_URL}/openvidu/api/sessions/${sessionId}/connection`,
-//       {},
-//       {
-//         headers: {
-//           Authorization: `Basic ${btoa(`OPENVIDUAPP:${OPENVIDU_CONFIG.SERVER_SECRET}`)}`,
-//           'Content-Type': 'application/json',
-//         },
-//         withCredentials: true,
-//         responseType: 'json',
-//         validateStatus: (status) => status === 200,
-//       }
-//     )
-//     .then((response) => {
-//       console.log('[createToken] 200 OK', response)
-//       return response.data.token
-//     })
-//     .catch((error) => {
-//       if (error.response?.status === 400) {
-//         console.error('[createToken] Problem with some body parameter.', error)
-//       } else if (error.response?.status === 404) {
-//         console.error('[createToken] 해당 SESSION_ID가 존재하지 않습니다.', error)
-//       } else {
-//         console.error('[createToken] 알 수 없는 에러', error)
-//       }
-//     })
-// }
 
 // debounce 유틸리티 함수 추가
 const debounce = (func, wait) => {
@@ -201,6 +132,8 @@ export default function DiscussionRoom() {
         try {
           openViduNode = new OpenViduNode(OPENVIDU_SERVER_URL, OPENVIDU_SERVER_SECRET)
           openViduNode.enableProdMode()
+          // 설정 적용 - 이 부분 제거
+          // openViduNode.setAdvancedConfiguration(OPENVIDU_CONFIG.nodeClient)
           console.log('[Step 1-1] OpenViduNode 객체 초기화 성공', openViduNode)
         } catch (error) {
           console.error('[Step 1-1] OpenViduNode 객체 초기화 실패:', error)
@@ -209,6 +142,7 @@ export default function DiscussionRoom() {
 
         try {
           openViduBrowser = new OpenViduBrowser()
+          // 개발 환경에서는 프로덕션 모드 비활성화
           openViduBrowser.enableProdMode()
           console.log('[Step 1-2] OpenViduBrowser 객체 초기화 성공', openViduBrowser)
         } catch (error) {
@@ -217,16 +151,27 @@ export default function DiscussionRoom() {
         }
 
         // 2. 토론방 정보 불러오기
-        const { data: discussionData } = await axios.get(`${BACKEND_URL}/api/v1/discussion/${discussionId}`)
+        const { data: discussionData } = await axios.get(`${BACKEND_URL}/api/v1/discussion/${discussionId}`, {
+          withCredentials: true // 쿠키를 포함하여 요청
+        })
 
         setDiscussionInfo(discussionData)
         console.log('[Step 2] 토론방 정보 불러오기 성공', discussionData)
 
         // 3. 세션(session) 생성
         const sessionId = discussionData.session_id
-        // 409 에러(이미 해당 세션이 있음)도 알아서 처리해줌
         try {
-          serverSideSession = await openViduNode.createSession({ customSessionId: sessionId })
+          const sessionProperties = {
+            customSessionId: sessionId,
+            mediaMode: 'ROUTED',
+            recordingMode: 'MANUAL',
+            defaultRecordingProperties: {
+              hasAudio: true,
+              hasVideo: false
+            }
+          }
+          
+          serverSideSession = await openViduNode.createSession(sessionProperties)
           setServerSession(serverSideSession)
           console.log('[Step 3] Server-Side Session 생성 성공', serverSideSession)
         } catch (error) {
@@ -240,7 +185,6 @@ export default function DiscussionRoom() {
             role: 'PUBLISHER',
             data: JSON.stringify({
               user_pk: loginInfo.current.user_pk,
-              name: loginInfo.current.name,
               nickname: loginInfo.current.nickname,
             }),
           })
@@ -290,14 +234,14 @@ export default function DiscussionRoom() {
           streamCreated: (event) => {
             const subscriber = clientSideSession.subscribe(event.stream, undefined)
             const connectionData = JSON.parse(event.stream.connection.data)
-            setParticipants((prev) => [
-              ...prev,
-              {
-                connectionId: event.stream.connection.connectionId,
-                streamManager: subscriber,
-                ...connectionData,
-              },
-            ])
+            // setParticipants((prev) => [
+            //   ...prev,
+            //   {
+            //     connectionId: event.stream.connection.connectionId,
+            //     streamManager: subscriber,
+            //     ...connectionData,
+            //   },
+            // ])
             // VAD(Voice Activity Detection) 이벤트 핸들러 설정
             subscriber.on('publisherStartSpeaking', () => {
               setSpeakingUsers((prev) => [...prev, connectionData.user_pk])
@@ -308,9 +252,9 @@ export default function DiscussionRoom() {
           },
           // 기존 스트림이 제거될 때 발생 (누군가 스트림 발행을 중단할 때)
           streamDestroyed: (event) => {
-            setParticipants((prev) =>
-              prev.filter((participant) => participant.connectionId !== event.stream.connection.connectionId)
-            )
+            // setParticipants((prev) =>
+            //   prev.filter((participant) => participant.connectionId !== event.stream.connection.connectionId)
+            // )
           },
           // 새로운 사용자가 세션에 연결될 때 발생. 이벤트에서 새로운 Connection 객체의 세부 정보를 얻을 수 있음.
           connectionCreated: (event) => {
@@ -417,8 +361,19 @@ export default function DiscussionRoom() {
     }
 
     const initializeLoginInfo = async () => {
-      const { data: loginData } = await axios.get(`${BACKEND_URL}/api/v1/users/logged-in`)
-      loginInfo.current = loginData
+      try {
+        const { data: loginData } = await axios.get(`${BACKEND_URL}/api/v1/users/logged-in`, {
+          withCredentials: true // 쿠키를 포함하여 요청
+        })
+        loginInfo.current = loginData
+      } catch (error) {
+        console.error('로그인 정보를 가져오는데 실패했습니다:', error)
+        // 로그인 페이지로 리다이렉트
+        navigate('/auth/login', { 
+          replace: true,
+          state: { from: `/discussion/${discussionId}` }
+        })
+      }
     }
 
     initializeLoginInfo()
@@ -497,7 +452,7 @@ export default function DiscussionRoom() {
   }, [discussionId])
 
   const handleBack = () => {
-    navigate('/discussions', {
+    navigate(-1, {
       replace: true,
     })
   }
@@ -523,13 +478,52 @@ export default function DiscussionRoom() {
     debouncedVolumeChange(newValue)
   }
 
-  // 메시지 입력에 debounce 적용
-  const debouncedMessageChange = debounce((value) => {
-    setNewMessage(value)
-  }, 150)
+  // 채팅 메시지 전송
+  const sendChatMessage = async (e) => {
+    e.preventDefault()
+    if (!newMessage.trim()) return
 
+    try {
+      await clientSession.signal({
+        data: JSON.stringify({
+          message: newMessage,
+          user_pk: loginInfo.current.user_pk,
+          nickname: loginInfo.current.nickname
+        }),
+        type: 'chat'
+      })
+      setNewMessage('')
+    } catch (error) {
+      console.error('채팅 전송 에러:', error)
+    }
+  }
+
+  // OpenVidu 시그널 이벤트 처리
+  useEffect(() => {
+    if (clientSession) {
+      const handleChatSignal = (event) => {
+        const data = JSON.parse(event.data)
+        setMessages(prev => [...prev, {
+          content: data.message,
+          timestamp: new Date().toISOString(),
+          sender: {
+            user_pk: data.user_pk,
+            nickname: data.nickname,
+          }
+        }])
+      }
+
+      clientSession.on('signal:chat', handleChatSignal)
+
+      return () => {
+        clientSession.off('signal:chat', handleChatSignal)
+      }
+    }
+  }, [clientSession])
+
+  // 메시지 입력 핸들러
   const handleMessageChange = (event) => {
-    debouncedMessageChange(event.target.value)
+    setNewMessage(event.target.value)
   }
 
   const handleMessageSubmit = async (event) => {
@@ -537,21 +531,9 @@ export default function DiscussionRoom() {
     if (!newMessage.trim()) return
 
     try {
-      // TODO: 메시지 전송 API 호출 구현
-      const messageData = {
-        content: newMessage,
-        timestamp: new Date().toISOString(),
-        sender: {
-          user_pk: 1, // TODO: 실제 사용자 ID로 교체
-          nickname: '나',
-        },
-      }
-
-      setMessages((prev) => [...prev, messageData])
-      setNewMessage('')
+      await sendChatMessage(event)
     } catch (error) {
       console.error('Failed to send message:', error)
-      // TODO: 에러 처리 구현
     }
   }
 
@@ -893,44 +875,38 @@ export default function DiscussionRoom() {
 
               {/* 메시지 입력 영역 */}
               <Stack
+                component="form"
                 direction="row"
-                spacing={2}
+                spacing={1}
                 sx={{
                   p: 2,
                   borderTop: '1px solid #EEEEEE',
                   bgcolor: '#FFFFFF',
                 }}
+                onSubmit={handleMessageSubmit}
               >
-                <Stack
-                  component="form"
-                  direction="row"
-                  spacing={1}
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={newMessage}
+                  onChange={handleMessageChange}
+                  placeholder="메시지를 입력하세요"
+                  variant="outlined"
+                  disabled={!clientSession}
                   sx={{
-                    flex: 1,
-                    bgcolor: '#F5F5F5',
-                    borderRadius: 2,
-                    p: 1,
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      bgcolor: '#F5F5F5',
+                    }
                   }}
-                  onSubmit={handleMessageSubmit}
+                />
+                <IconButton 
+                  type="submit" 
+                  disabled={!clientSession || !newMessage.trim()}
+                  color="primary"
                 >
-                  <input
-                    type="text"
-                    placeholder="메시지를 입력하세요"
-                    value={newMessage}
-                    onChange={handleMessageChange}
-                    disabled={isGeneratingTopic}
-                    style={{
-                      flex: 1,
-                      border: 'none',
-                      outline: 'none',
-                      background: 'none',
-                      fontSize: '0.875rem',
-                    }}
-                  />
-                  <IconButton type="submit" size="small" disabled={isGeneratingTopic || !newMessage.trim()}>
-                    <SendIcon />
-                  </IconButton>
-                </Stack>
+                  <SendIcon />
+                </IconButton>
               </Stack>
             </Grid>
 
