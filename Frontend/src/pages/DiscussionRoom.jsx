@@ -59,6 +59,7 @@ export default function DiscussionRoom() {
   const [connection, setConnection] = useState(null) // OpenVidu 연결 객체
   const [publisher, setPublisher] = useState(null) // 로컬 스트림(자신의 비디오/오디오)
   const [participants, setParticipants] = useState([]) // 나를 포함한 참가자들의 스트림 객체 배열
+  const [subscribers, setSubscribers] = useState([]) // 나를 포함한 참가자들의 구독자 객체 배열
 
   // participants 변경 감지를 위한 useEffect
   useEffect(() => {
@@ -66,49 +67,7 @@ export default function DiscussionRoom() {
   }, [participants])
 
   // 채팅 관련 상태 추가
-  const [messages, setMessages] = useState([
-    {
-      content: '안녕하세요! 토론에 오신 것을 환영합니다.',
-      timestamp: '2025-02-14T06:32:30.000Z',
-      sender: {
-        user_pk: 2,
-        nickname: '검은달의연금술사',
-      },
-    },
-    {
-      content: '첨지와 리나의 만남이 우연이었을까요?',
-      timestamp: '2025-02-14T06:33:15.000Z',
-      sender: {
-        user_pk: 3,
-        nickname: '천둥의시인',
-      },
-    },
-    {
-      content: '저는 운명적인 만남이었다고 생각합니다.',
-      timestamp: '2025-02-14T06:34:00.000Z',
-      sender: {
-        user_pk: 1,
-        nickname: '법의체집관',
-      },
-    },
-    {
-      content:
-        '시간 여행이라는 설정을 고려하면, 모든 만남이 우연이면서도 필연이었을 것 같아요. 과거에서 미래로, 미래에서 과거로 이어지는 시간의 흐름 속에서 그들의 만남은 이미 정해져 있었을 수도 있죠.',
-      timestamp: '2025-02-14T06:34:45.000Z',
-      sender: {
-        user_pk: 4,
-        nickname: '직막의도서관',
-      },
-    },
-    {
-      content: '동의합니다. 시간 여행이라는 소재가 이야기에 깊이를 더해주는 것 같네요.',
-      timestamp: '2025-02-14T06:35:30.000Z',
-      sender: {
-        user_pk: 5,
-        nickname: '파도타는종타가면',
-      },
-    },
-  ])
+  const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
 
   // AI 어시스턴트 관련 상태 추가
@@ -132,8 +91,6 @@ export default function DiscussionRoom() {
         try {
           openViduNode = new OpenViduNode(OPENVIDU_SERVER_URL, OPENVIDU_SERVER_SECRET)
           openViduNode.enableProdMode()
-          // 설정 적용 - 이 부분 제거
-          // openViduNode.setAdvancedConfiguration(OPENVIDU_CONFIG.nodeClient)
           console.log('[Step 1-1] OpenViduNode 객체 초기화 성공', openViduNode)
         } catch (error) {
           console.error('[Step 1-1] OpenViduNode 객체 초기화 실패:', error)
@@ -142,7 +99,6 @@ export default function DiscussionRoom() {
 
         try {
           openViduBrowser = new OpenViduBrowser()
-          // 개발 환경에서는 프로덕션 모드 비활성화
           openViduBrowser.enableProdMode()
           console.log('[Step 1-2] OpenViduBrowser 객체 초기화 성공', openViduBrowser)
         } catch (error) {
@@ -152,16 +108,17 @@ export default function DiscussionRoom() {
 
         // 2. 토론방 정보 불러오기
         const { data: discussionData } = await axios.get(`${BACKEND_URL}/api/v1/discussion/${discussionId}`, {
-          withCredentials: true, // 쿠키를 포함하여 요청
+          withCredentials: true,
         })
 
         setDiscussionInfo(discussionData)
         console.log('[Step 2] 토론방 정보 불러오기 성공', discussionData)
 
-        // 3. 세션(session) 생성
+        // 3. 세션 가져오기 또는 생성
         const sessionId = discussionData.session_id
         try {
-          const sessionProperties = {
+          // 3-1. 세션 생성 (이미 존재하면 해당 세션 반환)
+          serverSideSession = await openViduNode.createSession({
             customSessionId: sessionId,
             mediaMode: 'ROUTED',
             recordingMode: 'MANUAL',
@@ -169,18 +126,54 @@ export default function DiscussionRoom() {
               hasAudio: true,
               hasVideo: false,
             },
-          }
+          })
 
-          serverSideSession = await openViduNode.createSession(sessionProperties)
           setServerSession(serverSideSession)
-          console.log('[Step 3] Server-Side Session 생성 성공', serverSideSession)
+          console.log('[Step 3] Server-Side Session 설정 성공', serverSideSession)
         } catch (error) {
-          console.error('[Step 3] Server-Side Session 생성 실패:', error)
+          console.error('[Step 3] Server-Side Session 설정 실패:', error)
           throw error
         }
 
-        // 4. 연결(connection) 생성
+        // 4. 연결(connection) 관리 및 생성
         try {
+          // 4-1. 세션의 현재 상태 업데이트
+          await serverSideSession.fetch()
+
+          // 4-2. 현재 사용자의 기존 연결 찾기
+          const userConnections = serverSideSession.activeConnections.filter((conn) => {
+            try {
+              const data = JSON.parse(conn.serverData)
+              return data.user_pk === loginInfo.current.user_pk
+            } catch {
+              return false
+            }
+          })
+
+          // 4-3. 기존 연결 모두 정리
+          if (userConnections.length > 0) {
+            console.log(`기존 연결 ${userConnections.length}개 정리 시작`)
+            for (const conn of userConnections) {
+              // 내 정보가 아닌 경우 건너뛰기
+              if (
+                conn.serverData !==
+                JSON.stringify({
+                  user_pk: loginInfo.current.user_pk,
+                  nickname: loginInfo.current.nickname,
+                })
+              ) {
+                continue
+              }
+              try {
+                await serverSideSession.forceDisconnect(conn)
+                console.log('기존 연결 정리 성공:', conn.connectionId)
+              } catch (error) {
+                console.warn('기존 연결 정리 중 오류:', error)
+              }
+            }
+          }
+
+          // 4-4. 새로운 연결 생성
           connection = await serverSideSession.createConnection({
             role: 'PUBLISHER',
             data: JSON.stringify({
@@ -188,14 +181,13 @@ export default function DiscussionRoom() {
               nickname: loginInfo.current.nickname,
             }),
           })
-          console.log('[Step 4] 연결 생성 성공', connection)
+          console.log('[Step 4] 새 연결 생성 성공:', connection.connectionId)
+
           setConnection(connection)
         } catch (error) {
-          console.error('[Step 4] 연결 생성 실패:', error)
+          console.error('[Step 4] 연결 관리 실패:', error)
+          throw error
         }
-
-        // console.log('[Step 4] 연결 생성 성공', connection)
-        console.log('[Step 4] 연결 생성 성공')
 
         // 5. 로컬 스트림 초기화
         try {
@@ -234,41 +226,48 @@ export default function DiscussionRoom() {
           streamCreated: (event) => {
             const subscriber = clientSideSession.subscribe(event.stream, undefined)
             const connectionData = JSON.parse(event.stream.connection.data)
-            // setParticipants((prev) => [
-            //   ...prev,
-            //   {
-            //     connectionId: event.stream.connection.connectionId,
-            //     streamManager: subscriber,
-            //     ...connectionData,
-            //   },
-            // ])
-            // VAD(Voice Activity Detection) 이벤트 핸들러 설정
+
+            // VAD 이벤트 리스너 등록
             subscriber.on('publisherStartSpeaking', () => {
               setSpeakingUsers((prev) => [...prev, connectionData.user_pk])
             })
             subscriber.on('publisherStopSpeaking', () => {
               setSpeakingUsers((prev) => prev.filter((id) => id !== connectionData.user_pk))
             })
+
+            // subscribers 배열에 추가
+            setSubscribers((prev) => [...prev, subscriber])
           },
           // 기존 스트림이 제거될 때 발생 (누군가 스트림 발행을 중단할 때)
           streamDestroyed: (event) => {
-            // setParticipants((prev) =>
-            //   prev.filter((participant) => participant.connectionId !== event.stream.connection.connectionId)
-            // )
+            try {
+              const connectionData = JSON.parse(event.stream.connection.data)
+
+              // subscribers 배열에서 해당 subscriber 찾기
+              setSubscribers((prev) => {
+                const targetSubscriber = prev.find(
+                  (sub) => sub.stream.connection.connectionId === event.stream.connection.connectionId
+                )
+
+                if (targetSubscriber) {
+                  // VAD 이벤트 리스너 제거
+                  targetSubscriber.off('publisherStartSpeaking')
+                  targetSubscriber.off('publisherStopSpeaking')
+                }
+
+                // subscribers 배열에서 제거
+                return prev.filter((sub) => sub.stream.connection.connectionId !== event.stream.connection.connectionId)
+              })
+
+              // speakingUsers 배열에서도 제거
+              setSpeakingUsers((prev) => prev.filter((id) => id !== connectionData.user_pk))
+            } catch (error) {
+              console.warn('스트림 제거 중 이벤트 리스너 정리 실패:', error)
+            }
           },
           // 새로운 사용자가 세션에 연결될 때 발생. 이벤트에서 새로운 Connection 객체의 세부 정보를 얻을 수 있음.
           connectionCreated: (event) => {
-            // 자신의 연결은 제외
-            if (event.connection.connectionId === connection.connectionId) return
-
-            const connectionData = JSON.parse(event.connection.data)
-            setParticipants((prev) => [
-              ...prev,
-              {
-                connectionId: event.connection.connectionId,
-                ...connectionData,
-              },
-            ])
+            clientSideSession.fetch()
           },
           // 사용자가 세션을 나갈 때 발생. 제거된 Connection 객체의 정보를 제공함.
           connectionDestroyed: (event) => {
@@ -802,10 +801,10 @@ export default function DiscussionRoom() {
                     spacing={1}
                     alignItems="flex-start"
                     sx={{
-                      alignSelf: message.sender.user_pk === 1 ? 'flex-end' : 'flex-start',
+                      alignSelf: message.sender.user_pk === loginInfo.current?.user_pk ? 'flex-end' : 'flex-start',
                     }}
                   >
-                    {message.sender.user_pk !== 1 && (
+                    {message.sender.user_pk !== loginInfo.current?.user_pk && (
                       <Typography
                         variant="caption"
                         sx={{
@@ -823,7 +822,7 @@ export default function DiscussionRoom() {
                       </Typography>
                     )}
                     <Stack spacing={0.5}>
-                      {message.sender.user_pk !== 1 && (
+                      {message.sender.user_pk !== loginInfo.current?.user_pk && (
                         <Typography variant="caption" color="text.secondary">
                           {message.sender.nickname}
                         </Typography>
@@ -833,12 +832,12 @@ export default function DiscussionRoom() {
                         spacing={0.5}
                         alignItems="flex-end"
                         sx={{
-                          flexDirection: message.sender.user_pk === 1 ? 'row-reverse' : 'row',
+                          flexDirection: message.sender.user_pk === loginInfo.current?.user_pk ? 'row-reverse' : 'row',
                         }}
                       >
                         <Stack
                           sx={{
-                            bgcolor: message.sender.user_pk === 1 ? '#E3F2FD' : '#F5F5F5',
+                            bgcolor: message.sender.user_pk === loginInfo.current?.user_pk ? '#E3F2FD' : '#F5F5F5',
                             p: 1.5,
                             borderRadius: 2,
                             width: '70%',
@@ -875,7 +874,8 @@ export default function DiscussionRoom() {
                           alignItems="center"
                           sx={{
                             whiteSpace: 'nowrap',
-                            flexDirection: message.sender.user_pk === 1 ? 'row-reverse' : 'row',
+                            flexDirection:
+                              message.sender.user_pk === loginInfo.current?.user_pk ? 'row-reverse' : 'row',
                           }}
                         >
                           <Typography variant="caption" color="text.secondary">
