@@ -20,23 +20,23 @@ import graphicLogo from '/src/assets/logo/graphic-logo.svg'
 const UserLogin = () => {
   // 백엔드 서버 URL 설정
   const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
-  
-  // TODO: googleLoginUrl이 현재 사용되지 않음. 
+
+  // TODO: googleLoginUrl이 현재 사용되지 않음.
   // 구글 로그인 기능 구현 시 팝업 창에서 사용할 URL
   const [googleLoginUrl, setGoogleLoginUrl] = useState('')
-  
+
   // 이메일, 비밀번호 입력값 상태 관리
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  
+
   // TODO: setLoginError가 현재 사용되지 않음
   // 로그인 실패 시 에러 메시지를 표시하기 위한 상태
   const [loginError, setLoginError] = useState('')
-  
+
   // 라우터 네비게이션 훅
   const navigate = useNavigate()
   const location = useLocation()
-  
+
   // TODO: authLoginError가 현재 사용되지 않음
   // useAuth 훅에서 제공하는 인증 관련 상태와 함수들
   const { isLoggedIn, login, loginError: authLoginError, handleSocialLogin } = useAuth()
@@ -110,6 +110,8 @@ const UserLogin = () => {
       }}
     >
       <Stack
+        component="form"
+        onSubmit={handleSubmit}
         spacing={2}
         sx={{
           width: '100%',
@@ -129,11 +131,13 @@ const UserLogin = () => {
           fullWidth
           placeholder="이메일을 입력해주세요"
           variant="outlined"
+          onFocus={() => setEmailFocused(true)}
+          onBlur={() => setEmailFocused(false)}
           slotProps={{
             input: {
               startAdornment: (
                 <InputAdornment position="start">
-                  <Email sx={{ color: '#c9c9c9' }} />
+                  <Email sx={{ color: emailFocused ? 'primary.main' : '#c9c9c9' }} />
                 </InputAdornment>
               ),
             },
@@ -143,14 +147,23 @@ const UserLogin = () => {
         />
         <TextField
           fullWidth
-          type="password"
+          type={showPassword ? 'text' : 'password'}
           placeholder="비밀번호를 입력해주세요"
           variant="outlined"
+          onFocus={() => setPasswordFocused(true)}
+          onBlur={() => setPasswordFocused(false)}
           slotProps={{
             input: {
               startAdornment: (
                 <InputAdornment position="start">
-                  <Lock sx={{ color: '#c9c9c9' }} />
+                  <Lock sx={{ color: passwordFocused ? 'primary.main' : '#c9c9c9' }} />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton aria-label="비밀번호 보기 토글" onClick={() => setShowPassword(!showPassword)} edge="end">
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
                 </InputAdornment>
               ),
             },
@@ -179,7 +192,7 @@ const UserLogin = () => {
         </Stack>
 
         <Stack direction="column" justifyContent="center" alignItems="center" spacing={2}>
-          <PrimaryButton fullWidth onClick={handleLogin} sx={{ borderRadius: '4px' }}>
+          <PrimaryButton fullWidth type="submit" sx={{ borderRadius: '4px' }}>
             <img
               src={graphicLogo}
               alt="모모소 로그인"

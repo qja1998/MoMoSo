@@ -131,7 +131,7 @@ const NovelEpisodeList = () => {
   useEffect(() => {
     const fetchDiscussions = async () => {
       try {
-        const response = await axios.get(`${BACKEND_URL}/api/v1/discussion/`)
+        const response = await axios.get(`${BACKEND_URL}/api/v1/discussion/`, { withCredentials: true })
         setDiscussions(response.data)
         console.log(response.data)
       } catch (error) {
