@@ -115,4 +115,6 @@ deploy:
       echo "Starting new docker-compose services..."
       docker-compose -f docker-compose.yml up -d
       EOF
-  only
+  only:
+    - master
+    - release
