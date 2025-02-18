@@ -64,6 +64,9 @@ build_frontend:
         docker build -t $IMAGE_FRONTEND:$TAG -f Dockerfile.prod .
       fi
     - docker push $IMAGE_FRONTEND:$TAG
+    - git clean -ffdx
+    - find . -type d -name "__pycache__" -exec chmod -R 777 {} \;
+    - find . -type d -name "__pycache__" -exec rm -rf {} +
   only:
     - develop
     - release
