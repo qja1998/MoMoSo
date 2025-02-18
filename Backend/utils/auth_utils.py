@@ -121,7 +121,7 @@ def set_auth_cookies(
         refresh_token_expires_delta (timedelta): Refresh token 만료 시간
         is_development (bool): 개발 환경 여부 (기본값: True)
     """
-    domain = "localhost" if is_development else None
+    domain = "localhost" if is_development else "momoso106.duckdns.org"
     
     # Access Token 쿠키 설정
     response.set_cookie(

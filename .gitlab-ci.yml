@@ -13,6 +13,7 @@ before_script:
   - docker info
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
+  - echo $TAG
   - mkdir -p ~/.ssh
   - echo "🔑 Set ENV"
 

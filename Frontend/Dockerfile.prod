@@ -14,7 +14,6 @@ RUN npm install
 
 # 나머지 애플리케이션 소스 코드 복사
 COPY . .
-ENV NODE_ENV=production
 
 # 컨테이너가 시작될 때 실행될 명령어 설정
 # CMD ["tail", "-f", "/dev/null"]
