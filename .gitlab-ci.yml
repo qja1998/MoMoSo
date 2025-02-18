@@ -1,24 +1,11 @@
 stages:
-  # - build
-  # - cleanup
-  - test
+  - build
   - deploy
 
 variables:
-  GIT_STRATEGY: clone
-  GIT_CLEAN_FLAGS: "-ffdx"
   IMAGE_BACKEND: kwon0528/backend
   IMAGE_FRONTEND: kwon0528/frontend
   TAG: $CI_COMMIT_REF_NAME
-
-cleanup:
-  stage: cleanup
-  script:
-    - echo "Cleaning workspace..."
-    - sudo chown -R $(id -u):$(id -g) .
-    - git clean -ffdx
-    - rm -rf Backend/__pycache__
-  when: always
 
 before_script:
   - docker --version
@@ -79,17 +66,6 @@ before_script:
   - echo "REDIS_HOST=$REDIS_HOST" >> .env
   - echo "REDIS_PORT=$REDIS_PORT" >> .env
 
-
-# 클린업 단계: 이전 빌드 산출물 제거
-cleanup:
-  stage: cleanup
-  script:
-    - echo "Cleaning workspace..."
-    - find . -type d -name "__pycache__" -exec rm -rf {} +
-  tags:
-    - backend-runner
-  when: always
-
 build_backend:
   stage: build
   tags:
@@ -126,18 +102,18 @@ build_frontend:
     - release
     - master
 
-test:
-  stage: test
-  tags:
-    - test
-  script:
-    - docker-compose -f docker-compose.yml run --rm backend bash -c "
-        uvicorn main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips='*'
-      "
-    - docker-compose -f docker-compose.yml run --rm frontend npm run dev
-    - docker-compose down
-  only:
-    - develop
+# test:
+#   stage: test
+#   tags:
+#     - test
+#   script:
+#     - docker-compose -f docker-compose.yml run --rm backend bash -c "
+#         uvicorn main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips='*'
+#       "
+#     - docker-compose -f docker-compose.yml run --rm frontend npm run dev
+#     - docker-compose down
+#   only:
+#     - develop
 
 deploy:
   stage: deploy
