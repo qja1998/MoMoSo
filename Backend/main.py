@@ -43,12 +43,12 @@ app = FastAPI(lifespan=lifespan)
 from fastapi.middleware.cors import CORSMiddleware
 
 origins = [
-    # "http://localhost",
-    # "http://localhost:5173",
+    "http://localhost",
+    "http://localhost:5173",
     "http://127.0.0.1",
-    # "http://127.0.0.1:5173",
-    # "http://172.23.144.1:5173",
-    # "http://172.20.10.9:5173"
+    "http://127.0.0.1:5173",
+    "http://172.23.144.1:5173",
+    "http://172.20.10.9:5173"
 ]
 
 app.add_middleware(

@@ -203,6 +203,12 @@ class SynopsisRequest(BaseModel):
     title: str
     worldview: str
 
+class SummaryRequest(BaseModel):
+    genre: str
+    title: str
+    worldview: str
+    synopsis : str
+
 class CharacterModel(BaseModel):
     name: str
     sex: str
@@ -215,6 +221,7 @@ class CharacterRequest(BaseModel):
     genre: str
     title: str
     worldview: str
+    summary : Optional[str] = None
     synopsis: str
     characters: List[CharacterModel] = []  # 기존 캐릭터가 있으면 함께 전달 가능
 

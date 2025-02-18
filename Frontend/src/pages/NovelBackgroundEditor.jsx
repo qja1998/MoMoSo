@@ -71,6 +71,8 @@ const NovelBackgroundEditor = () => {
   const [userPk, setUserPk] = useState(null); // User PK state
   const [userInfo, setUserInfo] = useState(null);
   const [loading, setLoading] = useState(true); // Add loading state
+  const [summary, setSummary] = useState('');  // New state for summary
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false); // New state for summary generating
 
   const genres = [
     '판타지',
@@ -203,66 +205,169 @@ const NovelBackgroundEditor = () => {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-           await axios.post(`http://127.0.0.1:8000/api/v1/novel?user_pk=${userPk}`, {
+            const dataToSend = {
                 title: title,
                 worldview: worldView,
                 synopsis: background,
-                genres: [selectedGenre], // 장르를 리스트 형태로 전달
-            }, {
-               withCredentials: true,
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-
-            console.log("Novel saved successfully"); // 저장 성공 로그
-            // TODO: 저장 성공 알림 또는 UI 업데이트
+                genres: [selectedGenre],
+                summary: summary,
+            };
+    
+            // user_pk를 쿼리 파라미터로 추가
+            const response = await axios.post(
+                `http://127.0.0.1:8000/api/v1/novel?user_pk=${userPk}`, // user_pk를 쿼리 파라미터로 추가
+                dataToSend,
+                {
+                    withCredentials: true,
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+    
+            if (response.status === 200) {
+                console.log("Novel saved successfully");
+            } else {
+                console.error(
+                    "Error saving novel:",
+                    response.status,
+                    response.data
+                );
+            }
         } catch (error) {
             console.error("Error saving novel:", error);
-            // TODO: 저장 실패 알림
+            // 에러 메시지를 더 자세히 표시
+            if (error.response) {
+                console.error("Error details:", error.response.data);
+            }
         } finally {
             setIsSaving(false);
         }
     };
 
-  const handleAICharacterGenerate = async () => {
-    setIsGenerating(true);
-    try {
-      const requestData = {
-        genre: selectedGenre,
-        title: title,
-        worldview: worldView,
-        synopsis: background,
-        characters: characters,
-      };
-
-      let endpoint = "http://127.0.0.1:8000/api/v1/ai/characters"; // Default endpoint
-      if (characters.length === 0) {
-        endpoint = "http://127.0.0.1:8000/api/v1/ai/characters-new";
-        requestData.characters = []; // Ensure characters is empty if it's a new character request
+    const handleAICharacterGenerate = async () => {
+      setIsGenerating(true);
+      let endpoint = "http://127.0.0.1:8000/api/v1/ai/";
+  
+      try {
+          const hasCharacterData = characters.some(char =>
+              char.name || char.gender || char.age || char.job || char.profile
+          );
+  
+          const requestData = {
+              genre: selectedGenre,
+              title: title,
+              worldview: worldView,
+              synopsis: background,
+              characters: hasCharacterData ? characters : []
+          };
+  
+          endpoint += hasCharacterData ? "characters-new" : "characters";
+  
+          console.log("Request data:", requestData);
+  
+          const response = await axios.post(endpoint, requestData, {
+              headers: {
+                  "Content-Type": "application/json",
+              },
+          });
+  
+          console.log("API Response:", response.data);
+  
+          if (response.data) {
+              let newCharactersJSON = null;
+              if (hasCharacterData) {
+                  newCharactersJSON = response.data.new_characters;
+              } else {
+                  newCharactersJSON = response.data.characters;
+              }
+  
+              let newCharacters = []; // 기본값으로 빈 배열 설정
+  
+              try {
+                  if (newCharactersJSON) {
+                      // JSON 파싱 시도
+                      const parsedData = JSON.parse(newCharactersJSON);
+  
+                      // 파싱된 데이터가 배열인지 확인
+                      if (Array.isArray(parsedData)) {
+                          newCharacters = parsedData;
+                      } else {
+                          // 배열이 아닌 경우, 로그를 남기고 빈 배열 사용
+                          console.warn("Parsed character data is not an array, using empty array instead");
+                      }
+                  } else {
+                      console.warn("Character data is null or undefined, using empty array instead");
+                  }
+              } catch (error) {
+                  // JSON 파싱 실패 시 로그를 남기고 빈 배열 사용
+                  console.error("Failed to parse character data:", error);
+                  console.error("Raw data:", newCharactersJSON);
+                  console.warn("Using empty array instead");
+              }
+  
+  
+              const formattedCharacters = newCharacters.map((char, index) => {
+                  const formattedChar = {
+                      id: characters[index]?.id || index + 1,
+                      type: char.role || 'protagonist',
+                      name: char.name || '',
+                      gender: char.sex || '',
+                      age: char.age || '',
+                      job: char.job || '',
+                      profile: char.profile || ''
+                  };
+                  console.log(`Formatted character ${index}:`, formattedChar);
+                  return formattedChar;
+              });
+  
+              console.log("About to update characters with:", formattedCharacters);
+  
+              setCharacters(formattedCharacters);
+  
+              setTimeout(() => {
+                  console.log("Characters state after update:", characters);
+                  if (characters !== formattedCharacters) {
+                      console.log("State update might not have been reflected immediately due to React's batching");
+                  }
+              }, 0);
+  
+          } else {
+              throw new Error("Invalid response format");
+          }
+  
+      } catch (error) {
+          console.error("Error in character generation:", error);
+          if (error.response) {
+              console.error("Server error response:", error.response.data);
+          }
+          alert("캐릭터 생성 중 오류가 발생했습니다. 다시 시도해 주세요.");
+      } finally {
+          setIsGenerating(false);
       }
+  };
 
-      const response = await axios.post(endpoint, requestData, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (characters.length === 0) {
-          // Case: New characters generated
-          setCharacters(response.data.new_characters);
-      } else {
-          // Case: Existing characters updated/recommended
-          setCharacters(response.data.characters);
+  const handleAISummaryGenerate = async () => {
+      setIsGeneratingSummary(true);
+      try {
+          const requestData = {
+              genre: selectedGenre,
+              title: title,
+              worldview: worldView,
+              synopsis: background
+          };
+          const response = await axios.post("http://127.0.0.1:8000/api/v1/ai/summary", requestData, {
+              headers: {
+                  "Content-Type": "application/json",
+              },
+          });
+          setSummary(response.data.summary);
+      } catch (error) {
+          console.error("Error generating summary:", error);
+          // Handle error (e.g., display an error message)
+      } finally {
+          setIsGeneratingSummary(false);
       }
-
-    } catch (error) {
-      console.error("Error generating characters:", error);
-      // Handle error (e.g., display an error message)
-    } finally {
-      setIsGenerating(false);
-    }
   };
 
 
@@ -440,6 +545,41 @@ const NovelBackgroundEditor = () => {
               },
             }}
           />
+          {/* Summary Input Field */}
+          <Stack direction="column" spacing={1} sx={{ mb: 2 }}>
+              <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                  <Typography variant="h3" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                      한줄 요약
+                  </Typography>
+                  <PrimaryButton
+                      startIcon={<OfflineBoltIcon />}
+                      onClick={handleAISummaryGenerate}
+                      disabled={isGeneratingSummary}
+                      sx={{ py: 0.5 }}
+                  >
+                      {isGeneratingSummary ? "생성 중..." : "AI 생성"}
+                  </PrimaryButton>
+              </Stack>
+              <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  value={summary}
+                  onChange={(e) => setSummary(e.target.value)}
+                  placeholder="작품의 한줄 요약을 입력해주세요. AI 생성 후 수정도 가능합니다."
+                  variant="outlined"
+                  sx={{
+                      '& .MuiOutlinedInput-root': {
+                          borderRadius: '8px',
+                          backgroundColor: 'white',
+                      },
+                  }}
+              />
+          </Stack>
           <Stack direction="row" spacing={1}>
             <PrimaryButton
               startIcon={<SaveIcon />}

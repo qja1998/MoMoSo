@@ -15,7 +15,7 @@ from PIL import Image
 from fastapi.responses import Response
 import requests
 from io import BytesIO
-from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
+from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest, SummaryRequest
 from .novel_crud import get_previous_chapters
 from utils.auth_utils import get_current_user
 
@@ -269,15 +269,21 @@ def recommend_synopsis(request: SynopsisRequest) :
     synopsis = novel_gen.recommend_synopsis()
     return {"synopsis": synopsis}
 
+@router.post("/ai/summary")
+def recommend_summary(request: SummaryRequest) : 
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis )
+    summary = novel_gen.generate_introduction()
+    return {"summary" : summary}
+
 @router.post("/ai/characters-new")
 def add_new_characters(request : CharacterRequest) : 
-    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis)
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.summary, request.characters)
     new_characters = novel_gen.add_new_characters()
     return {"new_characters" : new_characters}
 
 @router.post("/ai/characters")
 def recommend_characters(request: CharacterRequest):
-    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.characters)
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.summary)
     updated_characters = novel_gen.recommend_characters()
     return {"characters": updated_characters}
 
