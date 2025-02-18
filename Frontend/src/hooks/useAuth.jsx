@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
   // Axios 기본 설정
   useEffect(() => {
     axios.defaults.withCredentials = true;
-    axios.defaults.baseURL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`;
+    axios.defaults.baseURL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`;
   }, []);
 
   // 로그인 상태 확인

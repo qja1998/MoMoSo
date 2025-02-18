@@ -55,7 +55,7 @@ const NovelList = () => {
     const fetchNovels = async () => {
       setLoading(true)
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/v1/novels')
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}/api/v1/novels`)
         if (!response.ok) throw new Error('데이터를 불러오는데 실패했습니다.')
         const data = await response.json()
         setNovels(data)

@@ -29,13 +29,13 @@ services:
     networks:
       - app_network
     
-  # Nginx (Reverse Proxy)
+  Nginx (Reverse Proxy)
   nginx:
     image: nginx:latest
     container_name: nginx
     restart: unless-stopped
     volumes:
-      - ./frontend:/app/frontend
+      - ./Frontend:/app/Frontend
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./certbot/www:/var/www/certbot
       - ./certbot/conf:/etc/letsencrypt
