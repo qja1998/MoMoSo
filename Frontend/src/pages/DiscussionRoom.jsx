@@ -222,12 +222,25 @@ export default function DiscussionRoom() {
         // 7. 세션 이벤트 핸들러 설정
         // 7-1. 이벤트 핸들러 정의
         const eventHandlers = {
-          // 세션에 새로운 스트림 객체가 생성될 때 발생 (누군가 스트림 발행을 시작할 때)
+          // 스트림이 생성될 때 (누군가 스트림 발행을 시작할 때)
           streamCreated: (event) => {
             const subscriber = clientSideSession.subscribe(event.stream, undefined)
+            // 이미 존재하는 참가자인지 확인
+            const connectionId = event.stream.connection.connectionId
             const connectionData = JSON.parse(event.stream.connection.data)
-
-            // VAD 이벤트 리스너 등록
+            
+            setParticipants(prev => {
+              // 이미 존재하면 업데이트하지 않음
+              if (prev.some(p => p.connectionId === connectionId)) return prev;
+              
+              return [...prev, {
+                connectionId,
+                streamManager: subscriber,
+                ...connectionData,
+              }]
+            })
+        
+            // VAD 이벤트 핸들러 설정
             subscriber.on('publisherStartSpeaking', () => {
               setSpeakingUsers((prev) => [...prev, connectionData.user_pk])
             })
@@ -267,65 +280,34 @@ export default function DiscussionRoom() {
           },
           // 새로운 사용자가 세션에 연결될 때 발생. 이벤트에서 새로운 Connection 객체의 세부 정보를 얻을 수 있음.
           connectionCreated: (event) => {
-            clientSideSession.fetch()
-          },
-          // 사용자가 세션을 나갈 때 발생. 제거된 Connection 객체의 정보를 제공함.
-          connectionDestroyed: (event) => {
-            setParticipants((prev) =>
-              prev.filter((participant) => participant.connectionId !== event.connection.connectionId)
-            )
-          },
-          // 세션 연결이 끊겼을 때 발생
-          sessionDisconnected: (event) => {
-            if (event.reason === 'networkDisconnect') {
-              console.warn('네트워크 연결이 끊겼습니다.')
-              // 재연결 시도 로직
-              let retryCount = 0
-              const maxRetries = 3
-              const retryInterval = 3000
-
-              const retryConnection = async () => {
-                if (retryCount < maxRetries) {
-                  try {
-                    console.log(`재연결 시도 ${retryCount + 1}/${maxRetries}`)
-                    await clientSideSession.connect(connection.token)
-                    console.log('재연결 성공')
-
-                    // 재연결 후 스트림 재발행
-                    if (publisher) {
-                      await clientSideSession.publish(publisher)
-                    }
-                  } catch (error) {
-                    console.error('재연결 실패:', error)
-                    retryCount++
-                    setTimeout(retryConnection, retryInterval)
-                  }
-                } else {
-                  console.error('최대 재시도 횟수 초과')
-                  // TODO: 사용자에게 재연결 실패 알림
-                }
-              }
-
-              retryConnection()
-            }
-          },
-          // 세션에 처음 연결됐을 때 발생
-          sessionConnected: () => {
-            clientSideSession.streamManagers.forEach((streamManager) => {
-              if (streamManager !== publisher) {
-                const subscriber = clientSideSession.subscribe(streamManager.stream, undefined)
-                const connectionData = JSON.parse(streamManager.stream.connection.data)
-                setParticipants((prev) => [
-                  ...prev,
-                  {
-                    connectionId: streamManager.stream.connection.connectionId,
-                    streamManager: subscriber,
-                    ...connectionData,
-                  },
-                ])
-              }
+            if (event.connection.connectionId === connection.connectionId) return
+            
+            const connectionId = event.connection.connectionId
+            const connectionData = JSON.parse(event.connection.data)
+            
+            setParticipants(prev => {
+              // 이미 존재하면 업데이트하지 않음
+              if (prev.some(p => p.connectionId === connectionId)) return prev;
+              
+              return [...prev, {
+                connectionId,
+                ...connectionData,
+              }]
             })
           },
+        
+          // 사용자가 세션을 나갈 때
+          connectionDestroyed: (event) => {
+            const connectionId = event.connection.connectionId
+            setParticipants(prev => {
+              const participant = prev.find(p => p.connectionId === connectionId)
+              if (participant?.streamManager) {
+                participant.streamManager.stream?.removeAllVideos()
+                participant.streamManager.stream?.dispose()
+              }
+              return prev.filter(p => p.connectionId !== connectionId)
+            })
+          }
         }
         // 7-2.이벤트 핸들러 등록
         Object.entries(eventHandlers).forEach(([event, handler]) => {
@@ -398,68 +380,40 @@ export default function DiscussionRoom() {
 
       const cleanup = async () => {
         try {
-          // 1. 참가자들의 스트림 정리
-          participants.forEach((participant) => {
-            if (participant.streamManager) {
-              // 이벤트 리스너 제거
-              participant.streamManager.off('publisherStartSpeaking')
-              participant.streamManager.off('publisherStopSpeaking')
-
-              // 스트림 정리
-              participant.streamManager.stream?.removeAllVideos()
-              participant.streamManager.stream?.dispose()
-            }
-          })
-
-          // 2. 로컬 스트림 정리
           if (publisher) {
-            publisher.stream?.removeAllVideos()
-            publisher.stream?.dispose()
-            publisher.off('*')
-          }
-
-          // 3. 세션 정리
-          if (clientSession) {
-            // 이벤트 리스너 제거
-            clientSession.off('*')
-            // 연결 해제
-            try {
-              await clientSession.disconnect()
-            } catch (error) {
-              console.error('세션 연결 해제 중 오류:', error)
+            // 오디오 트랙 정리
+            if (publisher.stream?.getMediaStream()) {
+              const tracks = publisher.stream.getMediaStream().getTracks();
+              tracks.forEach(track => track.stop());
+            }
+            
+            // Publisher 이벤트 리스너 제거
+            publisher.off('*');
+            console.log(clientSideSession)
+            // 세션에서 Publisher 제거
+            if (clientSideSession) {
+              await clientSideSession.unpublish(publisher);
             }
           }
-
-          // 3-1. 서버 사이드 세션 정리
-          if (serverSideSession) {
-            try {
-              await serverSideSession.close()
-            } catch (error) {
-              console.error('서버 사이드 세션 정리 중 오류:', error)
-            }
+      
+          console.log(clientSideSession)
+          // 세션 연결 해제
+          if (clientSideSession) {
+            clientSideSession.off('*');
+            await clientSideSession.disconnect();
           }
-
-          // 4. OpenVidu 객체 정리
-          if (openViduNode) {
-            openViduNode = null
-          }
-          if (openViduBrowser) {
-            openViduBrowser = null
-          }
-
-          // 5. 상태 초기화
-          setClientSession(null)
-          setConnection(null)
-          setPublisher(null)
-          setParticipants([])
-          setDiscussionInfo(null)
-          setSpeakingUsers([])
-
-          console.log('토론방 리소스 정리 완료')
+      
+          // 상태 초기화
+          setClientSession(null);
+          setConnection(null);
+          setPublisher(null);
+          setParticipants([]);
+          setSpeakingUsers([]);
+      
         } catch (error) {
-          console.error('리소스 정리 중 예상치 못한 오류 발생:', error)
+          console.error('나가기 처리 중 오류 발생:', error);
         }
-      }
+      };
 
       cleanup()
     }
@@ -467,7 +421,7 @@ export default function DiscussionRoom() {
 
   const handleBack = () => {
     navigate(-1, {
-      replace: true,
+      // replace: true,
     })
   }
 
