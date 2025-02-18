@@ -6,7 +6,6 @@ variables:
   IMAGE_BACKEND: kwon0528/backend
   IMAGE_FRONTEND: kwon0528/frontend
   TAG: $CI_COMMIT_REF_NAME
-
 before_script:
   - docker --version
   - docker-compose --version
