@@ -1,5 +1,6 @@
 from fastapi import Depends, HTTPException, APIRouter, status
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import and_
 from typing import List
 
 
@@ -233,21 +234,14 @@ def create_discussion_summary(
     
     return new_note
 
-
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
-from typing import Optional
-
-router = APIRouter()
-
-@router.get("/note/{note_id}", description="토론 요약본 상세 조회")
-async def get_note_summary(note_id: int, db: Session = Depends(get_db)):
+@router.get("/note/{note_pk}", description="토론 요약본 상세 조회")
+async def get_note_summary(note_pk: int, db: Session = Depends(get_db)):
     # Join을 통해 Note, Discussion 및 Novel 정보를 한 번에 조회
     note = db.query(Note)\
         .options(
             joinedload(Note.discussion),  # discussion 정보 로드
         )\
-        .filter(Note.note_pk == note_id)\
+        .filter(Note.note_pk == note_pk)\
         .first()
     
     if not note:
@@ -270,6 +264,45 @@ async def get_note_summary(note_id: int, db: Session = Depends(get_db)):
         "start_time": note.discussion.start_time,
         "summary_text": note.summary
     }
+
+
+@router.get("/user/notes", description="로그인한 사용자의 소설에 대한 토론 요약본 목록 조회")
+async def get_user_discussion_summaries(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Novel과 User 관계를 기준으로 먼저 쿼리
+        notes = db.query(Note)\
+            .join(Discussion, Note.discussion_pk == Discussion.discussion_pk)\
+            .join(Novel, Novel.novel_pk == Discussion.novel_pk)\
+            .filter(Novel.user_pk == current_user.user_pk)\
+            .all()
+
+        result = []
+        for note in notes:
+            # 각 note에 대해 novel 정보를 별도로 조회
+            novel = db.query(Novel)\
+                .filter(Novel.novel_pk == note.discussion.novel_pk)\
+                .first()
+            
+            if novel:
+                result.append({
+                    "noteId": note.note_pk,
+                    "novel": {
+                        "novel_pk": novel.novel_pk,
+                        "title": novel.title
+                    },
+                    "topic": note.discussion.topic,
+                    "category": "WHOLE_NOVEL" if not note.discussion.category else "SPECIFIC_EPISODE",
+                    "start_time": note.discussion.start_time
+                })
+
+        return result
+
+    except Exception as e:
+        print(f"Error: {str(e)}")  # 서버 로그에 에러 출력
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post('/subject', description="토론 주제 추천")

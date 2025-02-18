@@ -45,6 +45,7 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 }))
 
 const NovelEditorNovelDetail = () => {
+  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`;
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
   const { novelId } = useParams()
@@ -84,7 +85,7 @@ const NovelEditorNovelDetail = () => {
 
       setLoading(true)
       try {
-        const response = await axios.get(`/api/v1/novel/${novelId}/detail`, {
+        const response = await axios.get(`${BACKEND_URL}/api/v1/novel/${novelId}/detail`, {
           withCredentials: true,
         })
         setNovelData(response.data)

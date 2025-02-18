@@ -5,6 +5,7 @@ import { ThemeProvider } from '@mui/material/styles'
 
 import DiscussionRoom from './pages/DiscussionRoom'
 import DiscussionSummary from './pages/DiscussionSummary'
+import DiscussionSummaryList from './pages/DiscussionSummaryList'
 import NavbarLayout from '/src/components/layout/NavbarLayout'
 import SidebarLayout from '/src/components/layout/SidebarLayout'
 import { AuthProvider } from '/src/hooks/useAuth'
@@ -80,6 +81,7 @@ function App() {
                 <Route path="background/:novelId" element={<NovelBackgroundEditor />} />
                 <Route path="episode/:novelId" element={<NovelEditorEpisode />} />
                 <Route path="episode/:novelId/:episodeId" element={<NovelEditorEpisode />} />
+                <Route path="idea/notes" element={<DiscussionSummaryList />} />
                 <Route path="idea/:noteId" element={<DiscussionSummary />} />
               </Route>
 

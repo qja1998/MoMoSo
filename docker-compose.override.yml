@@ -29,7 +29,7 @@ services:
     networks:
       - app_network
     
-  Nginx (Reverse Proxy)
+  # Nginx (Reverse Proxy)
   nginx:
     image: nginx:latest
     container_name: nginx
