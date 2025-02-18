@@ -87,7 +87,7 @@ const NovelBackgroundEditor = () => {
 
     const handleWorldviewGenerate = async () => {
         try {
-            const response = await fetch("http://127.0.0.1:8000/api/v1/ai/worldview", {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/ai/worldview`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -164,7 +164,7 @@ const NovelBackgroundEditor = () => {
 
     const handleSynopsisGenerate = async () => {
         try {
-            const response = await fetch("http://127.0.0.1:8000/api/v1/ai/synopsis", {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/ai/synopsis`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -190,7 +190,7 @@ const NovelBackgroundEditor = () => {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const response = await fetch("http://127.0.0.1:8000/api/v1/novel", {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/novel`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
