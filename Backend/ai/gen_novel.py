@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
-from models import Episode, Novel
+# from sqlalchemy.orm import Session
+# from models import Episode, Novel
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
@@ -14,6 +14,7 @@ class NovelGenerator:
             title: str,
             worldview: str = "",
             synopsis: str = "",
+            summary : str = "",
             characters: List[Dict] = [],
             previous_chapters: str = "",
     ):
@@ -27,6 +28,7 @@ class NovelGenerator:
         self.title = title
         self.worldview = worldview
         self.synopsis = synopsis
+        self.summary = summary
         self.characters = characters
         self.previous_chapters = previous_chapters
 
@@ -154,12 +156,12 @@ class NovelGenerator:
 
         각 등장인물은 다음 속성을 포함하는 JSON 형태(dict)로 표현되어야 합니다.
 
-        * 이름: (예: 홍길동, 춘향이 등) - 등장인물의 이름 (필수)
-        * 성별: (예: 남, 여, 기타) - 등장인물의 성별 (필수)
-        * 나이: (예: 20세, 30대 초반 등) - 등장인물의 나이 (필수)
-        * 역할: (예: 주인공, 조력자, 악당 등) - 이야기 속 역할 (필수)
-        * 직업: (예: 의사, 학생, 무사 등) - 등장인물의 직업 (필수)
-        * 프로필: 등장인물의 외모, 성격, 능력, 과거, 관계 등 여러 특징을 하나의 자연스러운 문장으로 작성해 주세요.
+        * name: (예: 홍길동, 춘향이 등) - 등장인물의 이름 (필수)
+        * sex: (예: 남, 여, 기타) - 등장인물의 성별 (필수)
+        * age: (예: 20세, 30대 초반 등) - 등장인물의 나이 (필수)
+        * role: (예: 주인공, 조력자, 악당 등) - 이야기 속 역할 (필수)
+        * job: (예: 의사, 학생, 무사 등) - 등장인물의 직업 (필수)
+        * profile: 등장인물의 외모, 성격, 능력, 과거, 관계 등 여러 특징을 하나의 자연스러운 문장으로 작성해 주세요.
           (예: "키 180cm에 날카로운 눈매와 과묵한 성격을 가지고 있으며, 특정 능력과 습관, 버릇, 가치관 등이 돋보이고, 가문 및 출신과 과거가 있으며, 주인공과 친구 혹은 연인 관계를 형성한다.")
             - (예: 키 180cm, 날카로운 눈매, 과묵한 성격 등) - 외모, 성격, 능력 등 세부 묘사 (선택)
             - (예: 특정 능력, 습관, 버릇, 가치관 등) - 등장인물의 개성을 드러내는 특징 (선택)
@@ -170,20 +172,20 @@ class NovelGenerator:
 
         characters =
             {
-                "이름": "홍길동",
-                "성별": "남",
-                "나이": "20",
-                "역할": "주인공",
-                "직업": "무사",
-                "프로필": "활달한 성격"
+                "name": "홍길동",
+                "sex": "남",
+                "age": "20",
+                "role": "주인공",
+                "job": "무사",
+                "profile": "활달한 성격"
             },
             {
-                "이름": "춘향이",
-                "성별": "여",
-                "나이": "18",
-                "역할": "조력자",
-                "직업": "농부",
-                "프로필": "밝고 활발한 성격"
+                "name": "춘향이",
+                "sex": "여",
+                "age": "18",
+                "role": "조력자",
+                "job": "농부",
+                "profile": "밝고 활발한 성격"
             }
         """
         model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)
@@ -228,23 +230,23 @@ class NovelGenerator:
 
         등장인물은 다음 속성을 포함하는 JSON 형태(dict)로 표현되어야 합니다.
 
-        * 이름: (예: 홍길동, 춘향이 등) - 등장인물의 이름 (필수)
-        * 성별: (예: 남, 여, 기타) - 등장인물의 성별 (필수)
-        * 나이: (예: 20세, 30대 초반 등) - 등장인물의 나이 (필수)
-        * 역할: (예: 주인공, 조력자, 악당 등) - 이야기 속 역할 (필수)
-        * 직업: (예: 의사, 학생, 무사 등) - 등장인물의 직업 (필수)
-        * 프로필: 등장인물의 외모, 성격, 능력, 과거, 관계 등 여러 특징을 하나의 자연스러운 문장으로 작성해 주세요.
+        * name: (예: 홍길동, 춘향이 등) - 등장인물의 이름 (필수)
+        * sex: (예: 남, 여, 기타) - 등장인물의 성별 (필수)
+        * age: (예: 20세, 30대 초반 등) - 등장인물의 나이 (필수)
+        * role: (예: 주인공, 조력자, 악당 등) - 이야기 속 역할 (필수)
+        * job: (예: 의사, 학생, 무사 등) - 등장인물의 직업 (필수)
+        * profile: 등장인물의 외모, 성격, 능력, 과거, 관계 등 여러 특징을 하나의 자연스러운 문장으로 작성해 주세요.
           (예: "키 180cm에 날카로운 눈매와 과묵한 성격을 가지고 있으며, 특정 능력과 습관, 버릇, 가치관 등이 돋보이고, 가문 및 출신과 과거가 있으며, 주인공과 친구 혹은 연인 관계를 형성한다.")
         등장인물은 아래와 같은 형태로 표현되어야 하며, 한 명의 캐릭터를 생성합니다.
 
         characters =
             {
-                "이름": "홍길동",
-                "성별": "남",
-                "나이": "20",
-                "역할": "주인공",
-                "직업": "무사",
-                "프로필": "활달한 성격"
+                "name": "홍길동",
+                "sex": "남",
+                "age": "20",
+                "role": "주인공",
+                "job": "무사",
+                "profile": "활달한 성격"
             }
         """
         model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=instruction)

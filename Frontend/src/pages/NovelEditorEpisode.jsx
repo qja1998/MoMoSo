@@ -7,7 +7,7 @@ import { PrimaryButton } from '../components/common/buttons';
 import OfflineBoltIcon from '@mui/icons-material/OfflineBolt';
 
 function NovelEditorEpisode() {
-  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`;
+  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`;
   const { novelId, episodeId } = useParams();
   const [isFocused, setIsFocused] = useState(false);
   const [novelTitle, setNovelTitle] = useState('');

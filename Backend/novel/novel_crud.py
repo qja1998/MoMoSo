@@ -95,7 +95,8 @@ def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Ses
         title=novel_info.title,
         user_pk=user_pk,
         worldview=novel_info.worldview,
-        synopsis=novel_info.synopsis
+        synopsis=novel_info.synopsis, 
+        summary = novel_info.summary
     )
     
     db.add(novel)
@@ -124,6 +125,7 @@ def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Ses
         title=novel.title,
         worldview=novel.worldview,
         synopsis=novel.synopsis,
+        summary=novel.summary,
         num_episode=novel.num_episode,
         likes=novel.likes,
         views=novel.views,

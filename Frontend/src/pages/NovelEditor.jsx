@@ -19,7 +19,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 const NovelEditor = () => {
   const navigate = useNavigate();
   const [novels, setNovels] = useState([]);
-  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
+  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
 
   useEffect(() => {
     const fetchNovels = async () => {
