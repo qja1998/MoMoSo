@@ -9,21 +9,21 @@ import DiscussionSummaryList from './pages/DiscussionSummaryList'
 import NavbarLayout from '/src/components/layout/NavbarLayout'
 import SidebarLayout from '/src/components/layout/SidebarLayout'
 import { AuthProvider } from '/src/hooks/useAuth'
+// import MyPage from '/src/pages/MyPage'
+import NotFound from '/src/pages/NotFound'
+import NovelBackgroundEditor from '/src/pages/NovelBackgroundEditor'
+import NovelEditor from '/src/pages/NovelEditor'
+import NovelEditorEpisode from '/src/pages/NovelEditorEpisode'
+import NovelEditorNovelDetail from '/src/pages/NovelEditorNovelDetail'
+import NovelEpisodeList from '/src/pages/NovelEpisodeList'
+import NovelEpisodeViewer from '/src/pages/NovelEpisodeViewer'
+import NovelList from '/src/pages/NovelList'
 import UserChangeInfo from '/src/pages/UserChangeInfo'
 import UserFindId from '/src/pages/UserFindId'
 import UserFindPassword from '/src/pages/UserFindPassword'
 import UserLogin from '/src/pages/UserLogin'
 import UserLoginSuccess from '/src/pages/UserLoginSuccess'
 import UserResetPassword from '/src/pages/UserResetPassword'
-// import MyPage from '/src/pages/MyPage'
-import NotFound from '/src/pages/NotFound'
-import NovelBackgroundEditor from '/src/pages/NovelBackgroundEditor'
-import NovelEditor from '/src/pages/NovelEditor'
-import NovelEditorNovelDetail from '/src/pages/NovelEditorNovelDetail'
-import NovelEditorEpisode from '/src/pages/NovelEditorEpisode'
-import NovelEpisodeList from '/src/pages/NovelEpisodeList'
-import NovelEpisodeViewer from '/src/pages/NovelEpisodeViewer'
-import NovelList from '/src/pages/NovelList'
 import UserSignUp from '/src/pages/UserSignUp'
 import theme from '/src/styles/theme'
 
@@ -69,8 +69,8 @@ function App() {
             </Route>
             {/* Sidebar Layout */}
             <Route element={<SidebarLayout />}>
-            <Route path="/novel/edit" element={<NovelEditor />} />
-            <Route path="/novel/edit/episodelist/:novelId" element={<NovelEditorNovelDetail />} />
+              <Route path="/novel/edit" element={<NovelEditor />} />
+              <Route path="/novel/edit/episodelist/:novelId" element={<NovelEditorNovelDetail />} />
               <Route path="/discussion">
                 <Route path=":discussionId" element={<DiscussionRoom />} />
                 <Route path=":discussionId/summary" element={<DiscussionSummary />} />

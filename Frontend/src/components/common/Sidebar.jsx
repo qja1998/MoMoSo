@@ -1,12 +1,19 @@
+import { useAuth } from '@/hooks/useAuth'
+
 import { useState } from 'react'
 
-import { useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import Edit from '@mui/icons-material/Edit'
 import Home from '@mui/icons-material/Home'
+import HowToRegIcon from '@mui/icons-material/HowToReg'
 import KeyboardDoubleArrowLeft from '@mui/icons-material/KeyboardDoubleArrowLeft'
 import KeyboardDoubleArrowRight from '@mui/icons-material/KeyboardDoubleArrowRight'
+import LoginIcon from '@mui/icons-material/Login'
+import LogoutIcon from '@mui/icons-material/Logout'
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import MenuBook from '@mui/icons-material/MenuBook'
+import PersonIcon from '@mui/icons-material/Person'
 import VideoCall from '@mui/icons-material/VideoCall'
 import Avatar from '@mui/material/Avatar'
 import Divider from '@mui/material/Divider'
@@ -17,16 +24,9 @@ import ListItem from '@mui/material/ListItem'
 import ListItemButton from '@mui/material/ListItemButton'
 import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
-import Stack from '@mui/material/Stack'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
-import PersonIcon from '@mui/icons-material/Person'
-import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
-import LogoutIcon from '@mui/icons-material/Logout'
-import LoginIcon from '@mui/icons-material/Login'
-import HowToRegIcon from '@mui/icons-material/HowToReg'
-
-import { useAuth } from '@/hooks/useAuth'
+import Stack from '@mui/material/Stack'
 
 const drawerWidth = 240
 
@@ -104,7 +104,7 @@ const Sidebar = () => {
         {open ? (
           <>
             <Stack sx={{ alignItems: 'center', '& img': { pl: 2, height: '24px', width: 'auto' } }}>
-              <img src="/src/assets/logo/text-logo.svg" alt="MOMOSO" />
+              <img src="/logo/text-logo.svg" alt="MOMOSO" />
             </Stack>
             <IconButton
               onClick={handleDrawerToggle}
@@ -141,7 +141,7 @@ const Sidebar = () => {
                 '& img': { height: '32px', width: 'auto', maxWidth: '100%' },
               }}
             >
-              <img src="/src/assets/logo/graphic-logo.svg" alt="MOMOSO" />
+              <img src="/logo/graphic-logo.svg" alt="MOMOSO" />
             </Stack>
           </>
         )}

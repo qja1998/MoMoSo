@@ -1,12 +1,13 @@
-import axios from 'axios'
-
 import { useEffect, useState } from 'react'
 
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import Email from '@mui/icons-material/Email'
 import Lock from '@mui/icons-material/Lock'
+import Visibility from '@mui/icons-material/Visibility'
+import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import Button from '@mui/material/Button'
+import IconButton from '@mui/material/IconButton'
 import InputAdornment from '@mui/material/InputAdornment'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
@@ -15,73 +16,26 @@ import Typography from '@mui/material/Typography'
 import GoogleIcon from '../assets/icons/GoogleIcon'
 import { PrimaryButton } from '../components/common/buttons'
 import { useAuth } from '../hooks/useAuth'
-import graphicLogo from '/src/assets/logo/graphic-logo.svg'
+
+const graphicLogo = '/logo/graphic-logo.svg'
 
 const UserLogin = () => {
-  // 백엔드 서버 URL 설정
-  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
-
-  // TODO: googleLoginUrl이 현재 사용되지 않음.
-  // 구글 로그인 기능 구현 시 팝업 창에서 사용할 URL
-  const [googleLoginUrl, setGoogleLoginUrl] = useState('')
-
   // 이메일, 비밀번호 입력값 상태 관리
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-
-  // TODO: setLoginError가 현재 사용되지 않음
-  // 로그인 실패 시 에러 메시지를 표시하기 위한 상태
   const [loginError, setLoginError] = useState('')
+
+  // UI 상태 관리
+  const [emailFocused, setEmailFocused] = useState(false)
+  const [passwordFocused, setPasswordFocused] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   // 라우터 네비게이션 훅
   const navigate = useNavigate()
   const location = useLocation()
 
-  // TODO: authLoginError가 현재 사용되지 않음
   // useAuth 훅에서 제공하는 인증 관련 상태와 함수들
-  const { isLoggedIn, login, loginError: authLoginError, handleSocialLogin } = useAuth()
-
-  useEffect(() => {
-    axios.defaults.withCredentials = true
-
-    axios
-      .get(BACKEND_URL + '/api/v1/oauth/google/login')
-      .then((response) => {
-        setGoogleLoginUrl(response.data.login_url)
-      })
-      .catch((error) => {
-        console.error('구글 로그인 URL 가져오기 실패:', error)
-      })
-
-    const handleMessage = (event) => {
-      console.log('Received message:', event.data)
-      if (!event.origin.includes('localhost')) {
-        console.log('Origin mismatch:', event.origin)
-        return
-      }
-
-      if (event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
-        console.log('소셜 로그인 성공:', event.data.data)
-        const from = location.state?.from?.pathname || '/'
-        navigate(from)
-      } else if (event.data.type === 'GOOGLE_LOGIN_ERROR') {
-        console.error('소셜 로그인 실패')
-      }
-    }
-
-    const closePopupHandler = (event) => {
-      if (event.origin !== BACKEND_URL + '') return
-      if (event.data.type === 'CLOSE_POPUP') {
-        window.removeEventListener('message', closePopupHandler)
-        window.close()
-      }
-    }
-    window.addEventListener('message', handleMessage)
-
-    return () => {
-      window.removeEventListener('message', handleMessage)
-    }
-  }, [navigate, location])
+  const { isLoggedIn, login, handleSocialLogin } = useAuth()
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -90,11 +44,13 @@ const UserLogin = () => {
     }
   }, [isLoggedIn, navigate, location])
 
-  const handleLogin = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault()
     try {
       await login(email, password)
     } catch (error) {
       console.error('Login failed:', error)
+      setLoginError(error.response?.data?.detail || '로그인에 실패했습니다.')
     }
   }
 
@@ -218,7 +174,7 @@ const UserLogin = () => {
             fullWidth
             variant="outlined"
             onClick={handleSocialLogin}
-            startIcon={<GoogleIcon />}
+            startIcon={<GoogleIcon width="24" height="24" />}
             sx={{
               height: '40px',
               backgroundColor: '#ffffff',
