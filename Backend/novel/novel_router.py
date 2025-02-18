@@ -118,13 +118,16 @@ def delete_character(character_pk : int, db: Session = Depends(get_db)) :
 # 수정한 소설 저장하기
 @router.put("/novel/{novel_pk}")
 def update_novel(novel_pk: int, update_data: novel_schema.NovelUpdateBase,db: Session = Depends(get_db)):
-    novel_crud.update_novel(novel_pk, update_data, db)
-    return HTTPException(status_code=status.HTTP_200_OK)
+    novel = novel_crud.update_novel(novel_pk, update_data, db)
+    return novel
 
 # 소설 생성
-@router.post("/novel", response_model=novel_schema.NovelCreateBase)
+@router.post("/novel", response_model=novel_schema.NovelShowBase)
 def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Session = Depends(get_db)):
-    return novel_crud.create_novel(novel_info, user_pk, db)
+    novel = novel_crud.create_novel(novel_info, user_pk, db)
+    print("returnging novel", novel)
+    return novel
+
 
 @router.delete("/novel/{novel_pk}")
 def delete_novel(novel_pk: int, db: Session = Depends(get_db)):
