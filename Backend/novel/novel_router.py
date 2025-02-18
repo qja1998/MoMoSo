@@ -15,10 +15,20 @@ from PIL import Image
 from fastapi.responses import Response
 import requests
 from io import BytesIO
-from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
+from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest, SummaryRequest
 from .novel_crud import get_previous_chapters
 from utils.auth_utils import get_current_user
 
+from fastapi import File, UploadFile
+
+from PIL import Image
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List
+from fastapi.responses import Response
+import requests
+import os
+from io import BytesIO
 
 router = APIRouter(
     prefix='/api/v1',
@@ -63,24 +73,6 @@ def main_page(
 
     return response_data
 
-# 영상 재생은 별개의 router 로 보여줌
-# 아래가 예시임. 
-"""
-import React from 'react';
-
-function VideoPlayer() {
-  const videoUrl = '/static/my_video.mp4'; // FastAPI static 폴더에 있는 영상 URL
-
-  return (
-    <div>
-      <video src={videoUrl} controls />
-    </div>
-  );
-}
-
-export default VideoPlayer;
-
-"""
 
 # 소설(Novel) CRUD
 print("router has started")
@@ -256,17 +248,6 @@ def like_cocomment(cocomment_pk: int, user_pk: int, db: Session = Depends(get_db
 def get_cocoment(comment_pk : int, db: Session = Depends(get_db) ) : 
     return novel_crud.get_cocoment(comment_pk,db)
 
-# 표지 이미지
-"""
-import os
-@app.post("/image")
-
-#아래 리턴되는 값은 드라이브 내부의 img id임. 수정이 필요한경우 해당 걸로 하면 됨.
-def save_img(novel_pk : int, file_name : str, drive_folder_id : str, db: Session = Depends(get_db)) : 
-    novel = novel_crud.save_cover(novel_pk, file_name, drive_folder_id, db)
-    return novel
-"""
-
 
 @router.post("/save")
 async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), db: Session = Depends(get_db)) : 
@@ -315,15 +296,21 @@ def recommend_synopsis(request: SynopsisRequest) :
     synopsis = novel_gen.recommend_synopsis()
     return {"synopsis": synopsis}
 
+@router.post("/ai/summary")
+def recommend_summary(request: SummaryRequest) : 
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis )
+    summary = novel_gen.generate_introduction()
+    return {"summary" : summary}
+
 @router.post("/ai/characters-new")
 def add_new_characters(request : CharacterRequest) : 
-    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis)
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.summary, request.characters)
     new_characters = novel_gen.add_new_characters()
     return {"new_characters" : new_characters}
 
 @router.post("/ai/characters")
 def recommend_characters(request: CharacterRequest):
-    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.characters)
+    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.summary)
     updated_characters = novel_gen.recommend_characters()
     return {"characters": updated_characters}
 
@@ -367,90 +354,7 @@ def create_episode(request: CreateChapterRequest, current_user: User = Depends(g
 
     return {"title": request.title, "genre": request.genre, "new_chapter": new_chapter}
 
-from fastapi import File, UploadFile
 
-
-"""
-
-from ai.gen_novel import NovelGenerator
-from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, CreateChapterRequest
-from .novel_crud import get_previous_chapters
-from utils.auth_utils import get_current_user
-
-@app.post("/ai/worldview")
-def recommend_worldview(request: WorldviewRequest) : 
-    novel_gen = NovelGenerator(request.genre, request.title)
-    worldview = novel_gen.recommend_worldview()
-    return {"worldview": worldview}
-
-@app.post("/ai/synopsis")
-def recommend_synopsis(request: SynopsisRequest) : 
-    novel_gen = NovelGenerator(request.genre, request.title, request.worldview)
-    synopsis = novel_gen.recommend_synopsis()
-    return {"synopsis": synopsis}
-
-@app.post("/ai/characters/new")
-def add_new_characters(request : CharacterRequest) : 
-    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis)
-    new_characters = novel_gen.add_new_characters()
-    return {"new_characters" : new_characters}
-
-@app.post("/ai/character")
-def recommend_characters(request: CharacterRequest):
-    novel_gen = NovelGenerator(request.genre, request.title, request.worldview, request.synopsis, request.characters)
-    updated_characters = novel_gen.recommend_characters()
-    return {"characters": updated_characters}
-
-
-@app.post("/ai/episode")
-def create_episode(request: CreateChapterRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    novel = None
-    if request.novel_pk:
-        novel = db.query(Novel).filter(Novel.novel_pk == request.novel_pk).first()
-        if not novel:
-            raise HTTPException(status_code=404, detail="해당 novel_pk에 대한 소설을 찾을 수 없습니다.")
-        
-        # 소설 작성자가 현재 로그인된 사용자인지 검증
-        if novel.user_pk != current_user.user_pk:
-            raise HTTPException(status_code=403, detail="이 소설을 수정할 권한이 없습니다.")
-
-    # novel_pk가 없으면 새로운 소설 생성
-    else:
-        novel = Novel(
-            user_pk=current_user.user_pk,
-            title=request.title,
-            worldview=request.worldview,
-            synopsis=request.synopsis,
-            num_episode=0
-        )
-        db.add(novel)
-        db.commit()
-        db.refresh(novel)
-    
-    previous_chapters = get_previous_chapters(db, novel.novel_pk)
-
-    generator = NovelGenerator(
-        genre=request.genre,
-        title=request.title,
-        worldview=request.worldview,
-        synopsis=request.synopsis,
-        characters=request.characters,
-        previous_chapters=previous_chapters
-    )
-
-    new_chapter = generator.create_chapter()
-
-    return {"title": request.title, "genre": request.genre, "new_chapter": new_chapter}
-"""
-
-from PIL import Image
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List
-from fastapi.responses import Response
-import requests
-import os
-from io import BytesIO
 
 JUPYTER_URL = os.environ["JUPYTER_URL"]
 

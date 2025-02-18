@@ -101,6 +101,7 @@ class Novel(Base):
     title = Column(String(200), nullable=False)
     worldview = Column(Text, nullable=False)
     synopsis = Column(Text, nullable=False)  # = description
+    summary = Column(Text, nullable=True)
     novel_img = Column(Text, default="static_url")
     created_date = Column(DateTime, default=func.now())
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now())
@@ -209,6 +210,7 @@ class Discussion(Base):
     max_participants = Column(Integer, nullable=False)
 
     participants = relationship("User", secondary=user_discussion_table, back_populates="discussions") # M:N 관계 (토론 참여자)
+    note = relationship("Note", uselist=False, back_populates="discussion") # 1:1 관계
 
 # Note Model
 class Note(Base):
@@ -217,4 +219,7 @@ class Note(Base):
     note_pk = Column(Integer, primary_key=True, autoincrement=True)
     novel_pk = Column(Integer, ForeignKey("novel.novel_pk", ondelete="CASCADE"), nullable=False)
     user_pk = Column(Integer, ForeignKey("users.user_pk", ondelete="CASCADE"), nullable=False) # 토론이 이뤄진 소설의 작가
+    discussion_pk = Column(Integer, ForeignKey("discussion.discussion_pk", ondelete="CASCADE"), nullable=False)
     summary = Column(Text, nullable=False)
+
+    discussion = relationship("Discussion", back_populates="note") # 1:1 관계

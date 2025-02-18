@@ -6,6 +6,7 @@ from langchain_community.document_loaders import TextLoader
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_core.messages import HumanMessage
+import json
 
 load_dotenv()
 
@@ -77,15 +78,23 @@ class GeminiDiscussionAssistant:
         
         return chroma_db
     
-    def recommend_discussion_topic(self, query: str):
+    def recommend_discussion_topic(self, json_str: str):
         """추천 토론 주제를 반환합니다.
 
         Args:
-            query (str): 유저의 발화
-
+            json_str (str): 토론 내용.
+                파일 내 "messages" 리스트의 각 항목은 {"user": <발언자>, "text": <대화내용>} 형식
         Returns:
             str: 추천 토론 주제
         """
+        # JSON 문자열을 파싱
+        data = json.loads(json_str)
+        
+        # 토론 내용을 문자열로 변환
+        discussion_content = "\n".join([
+            f'{msg["user"]}: {msg["text"]}' for msg in data.get("messages", [])
+        ]).strip()
+        
         prompt = f"""
         프롬프트: 모든 책에 대한 토론 주제 생성
         역할: 당신은 분석적이고 창의적인 토론 주제 전문가입니다.
@@ -127,7 +136,7 @@ class GeminiDiscussionAssistant:
         시간 속에서 우리가 남기는 흔적(기억, 작품, 기록)은 얼마나 중요한 의미를 가지는가?
         현대 사회에서 우리는 시간을 효율적으로 사용하고 있는가, 아니면 소비하고 있는가?
 
-        발화: {query}"""
+        토론 내용: {discussion_content}"""
         retriever = self.chroma_db.as_retriever()
         chain = RetrievalQA.from_chain_type(llm=self.llm, chain_type="stuff", retriever=retriever)
         return chain(prompt)['result']
@@ -198,23 +207,23 @@ class GeminiDiscussionAssistant:
         chain = RetrievalQA.from_chain_type(llm=self.llm, chain_type="stuff", retriever=retriever)
         return chain(prompt)['result']
     
-    def generate_meeting_notes(self, json_file_path: str):
+    def generate_meeting_notes(self, json_str: str):
         """JSON 파일로부터 회의록 데이터를 읽어 회의록 요약본을 생성합니다.
 
         Args:
-            json_file_path (str): 회의록이 담긴 JSON 파일 경로.
-                                  파일 내 "messages" 리스트의 각 항목은 {"user": <발언자>, "text": <대화내용>} 형식
+            json_json_str (str): 회의록.
+                                파일 내 "messages" 리스트의 각 항목은 {"user": <발언자>, "text": <대화내용>} 형식
 
         Returns:
             str: 생성된 회의록 요약본
         """
 
-        import json
+        
         from langchain_core.messages import SystemMessage, HumanMessage
 
         # JSON 파일 읽기 및 discussion_minutes 생성
-        with open(json_file_path, "r", encoding="utf-8") as json_file:
-            data = json.load(json_file)
+        # JSON 문자열을 파싱
+        data = json.loads(json_str)
 
         discussion_minutes = "\n".join([
             f'{msg["user"]}: {msg["text"]}' for msg in data.get("messages", [])
@@ -228,17 +237,19 @@ class GeminiDiscussionAssistant:
         아래의 세 가지 항목으로 요약본을 작성해 주세요:
 
         1. 주요 논의사항
-        - 회의에서 다뤄진 주요 주제나 토론 내용을 간략하게 나열합니다.
-        - 발언자와 시간 순서(또는 발언 순서)가 드러나도록 핵심 발언들을 중심으로 정리합니다.
+            - 회의에서 다뤄진 주요 주제나 토론 내용을 간략하게 나열합니다.
+            - 발언자와 시간 순서(또는 발언 순서)가 드러나도록 핵심 발언들을 중심으로 정리합니다.
 
         2. 회의에서 유저에 의해 발생한 핵심 아이디어
-        - 회의 참여자가 제시한 핵심 아이디어나 독창적인 의견을 정리합니다.
+            - 회의 참여자가 제시한 핵심 아이디어나 독창적인 의견을 정리합니다.
 
         3. 회의록을 바탕으로 AI가 분석한 아이디어 제안
-        - 회의 내용을 기반으로 추가적인 개선점이나 대안, 또는 토론되지 않은 관점에 대한 AI의 심층 분석을 제안합니다.
-        - 논의의 미비점이나 보완할 점을 구체적으로 작성합니다.
-        - 회의 내용을 기반으로 AI가 추가로 제안하는 아이디어나 개선점을 구체적으로 작성합니다.
+            - 회의 내용을 기반으로 추가적인 개선점이나 대안, 또는 토론되지 않은 관점에 대한 AI의 심층 분석을 제안합니다.
+            - 논의의 미비점이나 보완할 점을 구체적으로 작성합니다.
+            - 회의 내용을 기반으로 AI가 추가로 제안하는 아이디어나 개선점을 구체적으로 작성합니다.
 
+        아래 회의록을 참고하여 위와 같은 형식의 요약본을 작성해 주세요.
+        양식은 예시와 똑같이 따라주시기 바랍니다.
         아래는 예시입니다:
 
         ### 주요 논의 사항
@@ -251,17 +262,20 @@ class GeminiDiscussionAssistant:
         * 시간여행 장치의 의미와 문학적 상징성에 대한 토론  
 
         ### 회의록을 바탕으로 AI가 분석한 아이디어 제안
-            
-        ### 시간여행의 규칙 체계화 및 문학적 해석 보완
+        ```
+        1. 시간여행의 규칙 체계화 및 문학적 해석 보완
         - 소설 내 시간여행의 역할과 규칙, 그리고 등장인물의 내면적 갈등을 보다 명확히 해석할 수 있는 방안 제안  
             * 시간여행은 특정 조건에서만 가능하도록 설정하여 극의 긴장감 증가  
             * 과거 변경 시 발생하는 부작용 및 상징적 의미 부여  
             * 시간여행 횟수/기간 제한을 통해 내러티브의 일관성 확보
-
-        - 시간여행 장치와 역사적 인물 상호작용을 통한 심리적 내러티브 확장
+        ```
+        ```
+        2. 역사적 인물과의 상호작용을 통한 심리적 내러티브 확장
+        - 주인공의 역사적 인물과의 만남을 통해 내면적 갈등과 성장을 더욱 강화
             * 시간여행의 조건과 한계 설정
             * 역사적 인물과의 상호작용
             * 내면적 갈등 및 문학적 상징 강화
+        ```
         """
 
         prompt = f"""

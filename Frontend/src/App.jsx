@@ -80,12 +80,12 @@ function App() {
                 <Route path="background/:novelId" element={<NovelBackgroundEditor />} />
                 <Route path="episode/:novelId" element={<NovelEditorEpisode />} />
                 <Route path="episode/:novelId/:episodeId" element={<NovelEditorEpisode />} />
+                <Route path="idea/:noteId" element={<DiscussionSummary />} />
               </Route>
 
               {/* 디버그용 라우트 */}
               <Route path="/debug">
                 <Route path="discussion" element={<DiscussionRoom />} />
-                <Route path="summary" element={<DiscussionSummary />} />
               </Route>
             </Route>
 
