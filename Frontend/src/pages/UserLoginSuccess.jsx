@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '/src/hooks/useAuth';
 
-const LoginSuccess = () => {
+const UserLoginSuccess = () => {
   const navigate = useNavigate();
   const { setIsLoggedIn } = useAuth();
 
@@ -12,7 +12,7 @@ const LoginSuccess = () => {
 
     const checkLoginStatus = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/v1/auth/me');
+        const response = await axios.get(`${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}/v1/auth/me`);
         if (response.status === 200) {
           console.log('소셜 로그인 성공 (쿠키 확인):', response.data);
           setIsLoggedIn(true);
@@ -40,4 +40,4 @@ const LoginSuccess = () => {
   );
 };
 
-export default LoginSuccess;
+export default UserLoginSuccess;

@@ -211,7 +211,8 @@ def create_discussion_summary(
     assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
     
     # 유저 발화 기반 요약 실행
-    summary_response = assistant.generate_meeting_notes(request.content)
+    meeting_json = json.dumps(request.content, ensure_ascii=False)
+    summary_response = assistant.generate_meeting_notes(meeting_json)
     summary = summary_response.content if hasattr(summary_response, "content") else str(summary_response)
     
     new_note = Note(novel_pk=novel.novel_pk, user_pk=novel.user_pk, summary=summary)

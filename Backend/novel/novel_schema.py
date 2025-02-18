@@ -253,3 +253,20 @@ class ImageRequest(BaseModel):
     title: str
     worldview: str
     keywords: List[str]
+
+
+class EpisodeDetailResponse(BaseModel):
+    # Novel info
+    novel_title: str
+    # Episode info
+    ep_title: str
+    ep_content: str
+    created_date: datetime
+    updated_date: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NovelTitleResponse(BaseModel):
+    novel_title: str
