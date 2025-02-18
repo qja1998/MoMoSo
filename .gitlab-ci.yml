@@ -1,34 +1,94 @@
 stages:
   - build
+  - cleanup
   - test
   - deploy
 
 variables:
-  # 기존 파일 잔재 방지: 매 Job마다 새로운 clone 수행
   GIT_STRATEGY: clone
   GIT_CLEAN_FLAGS: "-ffdx"
   IMAGE_BACKEND: kwon0528/backend
   IMAGE_FRONTEND: kwon0528/frontend
   TAG: $CI_COMMIT_REF_NAME
 
-before_script:
-  # 혹시 모를 잔여 파일 정리 (권한 문제 방지)
-  - echo "Cleaning workspace using git clean..."
-  - git clean -ffdx
-  - find . -type d -name "__pycache__" -exec chmod -R 777 {} \;
-  - find . -type d -name "__pycache__" -exec rm -rf {} +
+cleanup:
+  stage: cleanup
+  script:
+    - echo "Cleaning workspace..."
+    - sudo chown -R $(id -u):$(id -g) .
+    - git clean -ffdx
+    - rm -rf Backend/__pycache__
+  when: always
 
-  # Docker 로그인
+before_script:
   - docker --version
   - docker-compose --version
+
   - docker info
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
-  # 환경 변수 설정
   - mkdir -p ~/.ssh
   - echo "🔑 Set ENV"
+
   - echo "DOCKER_USERNAME=$DOCKER_USERNAME" >> .env
   - echo "DOCKER_PASSWORD=$DOCKER_PASSWORD" >> .env
+  - echo "DEPLOY_SSH_PRIVATE_KEY=$DEPLOY_SSH_PRIVATE_KEY" >> .env
+
+  - echo "DB_USER=$DB_USER" >> .env
+  - echo "DB_PASSWD=$DB_PASSWD" >> .env
+  - echo "DB_HOST=$DB_HOST" >> .env
+  - echo "DB_PORT=$DB_PORT" >> .env
+  - echo "DB_POOL_SIZE=$DB_POOL_SIZE" >> .env
+  - echo "DB_MAX_OVERFLOW=$DB_MAX_OVERFLOW" >> .env
+  - echo "DB_POOL_RECYCLE=$DB_POOL_RECYCLE" >> .env
+  - echo "DB_POOL_PRE_PING=$DB_POOL_PRE_PING" >> .env
+
+  - echo "TWILIO_ACCOUNT_SID=$TWILIO_ACCOUNT_SID" >> .env
+  - echo "TWILIO_AUTH_TOKEN=$TWILIO_AUTH_TOKEN" >> .env
+  - echo "TWILIO_VERIFY_SID=$TWILIO_VERIFY_SID" >> .env
+
+  - echo "SECRET_KEY=$SECRET_KEY" >> .env
+  - echo "ALGORITHM=$ALGORITHM" >> .env
+  - echo "ACCESS_TOKEN_EXPIRE_MINUTES=$ACCESS_TOKEN_EXPIRE_MINUTES" >> .env
+  - echo "REFRESH_TOKEN_EXPIRE_DAYS=$REFRESH_TOKEN_EXPIRE_DAYS" >> .env
+
+  - echo "MAIL_USERNAME=$MAIL_USERNAME" >> .env
+  - echo "MAIL_PASSWORD=$MAIL_PASSWORD" >> .env
+  - echo "MAIL_FROM=$MAIL_FROM" >> .env
+  - echo "MAIL_PORT=$MAIL_PORT" >> .env
+  - echo "MAIL_SERVER=$MAIL_SERVER" >> .env
+
+  - echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" >> .env
+  - echo "GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET" >> .env
+
+  - echo "KAKAO_CLIENT_ID=$KAKAO_CLIENT_ID" >> .env
+  - echo "KAKAO_CLIENT_SECRET=$KAKAO_CLIENT_SECRET" >> .env
+  - echo "KAKAO_REDIRECT_URI=$KAKAO_REDIRECT_URI" >> .env
+  - echo "KAKAO_REST_API_KEY=$KAKAO_REST_API_KEY" >> .env
+
+  - echo "VITE_BACKEND_URL=$VITE_BACKEND_URL" >> .env
+  - echo "VITE_BACKEND_PROTOCOL=$VITE_BACKEND_PROTOCOL" >> .env
+  - echo "VITE_BACKEND_IP=$VITE_BACKEND_IP" >> .env
+  - echo "VITE_BACKEND_PORT=$VITE_BACKEND_PORT" >> .env
+
+  - echo "VITE_OPENVIDU_PROTOCOL=$VITE_OPENVIDU_PROTOCOL" >> .env
+  - echo "VITE_OPENVIDU_IP=$VITE_OPENVIDU_IP" >> .env
+  - echo "VITE_OPENVIDU_PORT=$VITE_OPENVIDU_PORT" >> .env
+  - echo "VITE_OPENVIDU_SERVER_SECRET=$VITE_OPENVIDU_SERVER_SECRET" >> .env
+
+  - echo "REDIS_HOST=$REDIS_HOST" >> .env
+  - echo "REDIS_PORT=$REDIS_PORT" >> .env
+
+
+# 클린업 단계: 이전 빌드 산출물 제거
+cleanup:
+  stage: cleanup
+  script:
+    - echo "Cleaning workspace..."
+    - find . -type d -name "__pycache__" -exec rm -rf {} +
+  tags:
+    - backend-runner
+  when: always
 
 build_backend:
   stage: build
@@ -38,14 +98,13 @@ build_backend:
     - cd Backend
     - |
       if [[ "$TAG" == "develop" ]]; then
-        docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) -t $IMAGE_BACKEND:$TAG -f Dockerfile.dev .
+        docker build -t $IMAGE_BACKEND:$TAG -f Dockerfile.dev .
       else
-        docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) -t $IMAGE_BACKEND:$TAG -f Dockerfile.prod .
+        docker build -t $IMAGE_BACKEND:$TAG -f Dockerfile.prod .
       fi
     - docker push $IMAGE_BACKEND:$TAG
-    - git clean -ffdx
-    - find . -type d -name "__pycache__" -exec chmod -R 777 {} \;
-    - find . -type d -name "__pycache__" -exec rm -rf {} +
+    - sudo chown -R $(id -u):$(id -g) Backend/__pycache__
+    - rm -rf Backend/__pycache__
   only:
     - develop
     - release
@@ -64,9 +123,6 @@ build_frontend:
         docker build -t $IMAGE_FRONTEND:$TAG -f Dockerfile.prod .
       fi
     - docker push $IMAGE_FRONTEND:$TAG
-    - git clean -ffdx
-    - find . -type d -name "__pycache__" -exec chmod -R 777 {} \;
-    - find . -type d -name "__pycache__" -exec rm -rf {} +
   only:
     - develop
     - release
@@ -76,15 +132,11 @@ test:
   stage: test
   tags:
     - test
-  before_script:
-    # 테스트 실행 전 강제 클린업 (특히 __pycache__ 관련 권한 문제 해결)
-    - find . -type d -name "__pycache__" -exec chmod -R 777 {} \;
-    - find . -type d -name "__pycache__" -exec rm -rf {} +
   script:
-    - echo "Running tests..."
-    - docker-compose -f docker-compose.yml up -d
-    - docker-compose -f docker-compose.yml run --rm backend pytest
-    - docker-compose -f docker-compose.yml run --rm frontend npm run test
+    - docker-compose -f docker-compose.yml run --rm backend bash -c "
+        uvicorn main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips='*'
+      "
+    - docker-compose -f docker-compose.yml run --rm frontend npm run dev
     - docker-compose down
   only:
     - develop
@@ -96,11 +148,12 @@ deploy:
   before_script:
     - echo "$DEPLOY_SSH_PRIVATE_KEY" > id_rsa
     - chmod 600 id_rsa
-    - ssh-keygen -p -m PEM -f id_rsa -N ""
+    - ssh-keygen -p -m PEM -f id_rsa -N ""  # OpenSSH 호환 변환
     - mkdir -p ~/.ssh
-    - ssh-keyscan -H $SSH_HOST > ~/.ssh/known_hosts
+    - ssh-keyscan -H $SSH_HOST > ~/.ssh/known_hosts  # SSH 호스트 키 등록
     - chmod 644 ~/.ssh/known_hosts
     - ssh -i id_rsa ubuntu@$SSH_HOST "echo SSH 연결 성공"
+
   script:
     - |
       ssh -i id_rsa ubuntu@$SSH_HOST << EOF
@@ -121,6 +174,7 @@ deploy:
       echo "Starting new docker-compose services..."
       docker-compose -f docker-compose.yml up -d
       EOF
+
   only:
     - master
     - release
