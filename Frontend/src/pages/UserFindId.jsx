@@ -23,7 +23,8 @@ const FindIdBox = styled(Box)({
   gap: '1rem',
 })
 
-const FindId = () => {
+const UserFindId = () => {
+  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -47,7 +48,7 @@ const FindId = () => {
   const handleVerificationCodeSend = async () => {
     try {
       const response = await axios.post(
-        'http://127.0.0.1:8000/api/v1/auth/send-sms',
+        BACKEND_URL+'/api/v1/auth/send-sms',
         null,
         {
           params: { phone: phone },
@@ -63,7 +64,7 @@ const FindId = () => {
   const handleVerificationCodeCheck = async () => {
     try {
       const response = await axios.post(
-        'http://127.0.0.1:8000/api/v1/auth/verify-sms-code',
+        BACKEND_URL+'/api/v1/auth/verify-sms-code',
         null,
         {
           params: {
@@ -83,7 +84,7 @@ const FindId = () => {
   const handleFindId = async () => {
     try {
       const response = await axios.post(
-        'http://127.0.0.1:8000/api/v1/auth/find-id',
+        BACKEND_URL+'/api/v1/auth/find-id',
         {
           name: name,
           phone: phone,
@@ -201,4 +202,4 @@ const FindId = () => {
   )
 }
 
-export default FindId
+export default UserFindId

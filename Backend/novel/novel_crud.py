@@ -25,6 +25,15 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 
+def get_novel(novel_pk: int, db: Session):
+    novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+    if not novel:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="소설을 찾을 수 없습니다."
+        )
+    return novel
+
 # main page
 def get_recent_novels(db: Session, user_pk: int) -> list[RecentNovel]:
     """
@@ -599,3 +608,42 @@ def get_previous_chapters(db: Session, novel_pk: int) -> str:
     return "\n\n---\n\n".join([ep.ep_content for ep in episodes]) if episodes else ""
 
 
+def get_episode_detail(novel_pk: int, ep_pk: int, db: Session):
+    """
+    Get detailed information about a specific episode of a novel
+    
+    Args:
+        novel_pk (int): Primary key of the novel
+        ep_pk (int): Primary key of the episode
+        db (Session): Database session
+        
+    Returns:
+        tuple: Novel and Episode objects
+        
+    Raises:
+        HTTPException: If novel or episode is not found
+    """
+    # Query both novel and episode
+    novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+    if not novel:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Novel not found"
+        )
+    
+    episode = db.query(Episode).filter(
+        Episode.novel_pk == novel_pk,
+        Episode.ep_pk == ep_pk
+    ).first()
+    if not episode:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Episode not found"
+        )
+    
+    # Increment view count
+    episode.views += 1
+    db.commit()
+    db.refresh(episode)
+    
+    return novel, episode

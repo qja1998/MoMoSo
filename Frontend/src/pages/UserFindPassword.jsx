@@ -24,7 +24,8 @@ const FindPasswordBox = styled(Box)({
     gap: '1rem',
 })
 
-const FindPassword = () => {
+const UserFindPassword = () => {
+    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [emailVerificationCode, setEmailVerificationCode] = useState('');
@@ -35,7 +36,7 @@ const FindPassword = () => {
     const handleSendEmailVerificationCode = async () => {
         try {
             const response = await axios.post(
-                'http://127.0.0.1:8000/api/v1/auth/send-verification-email',
+                BACKEND_URL+'/api/v1/auth/send-verification-email',
                 {
                     email: email,
                     name: name,
@@ -51,7 +52,7 @@ const FindPassword = () => {
     const handleVerifyEmailCode = async () => {
         try {
             const response = await axios.post(
-                'http://127.0.0.1:8000/api/v1/auth/verify-email-code',
+                BACKEND_URL+'/api/v1/auth/verify-email-code',
                 {
                     email: email,
                     code: emailVerificationCode,
@@ -164,4 +165,4 @@ const FindPassword = () => {
     );
 }
 
-export default FindPassword
+export default UserFindPassword
