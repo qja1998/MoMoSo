@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import uvicorn
 from pathlib import Path
 import datetime
@@ -10,9 +11,26 @@ import uuid
 import speech_recognition as sr
 from pydantic import BaseModel
 from typing import List
-import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
-app = FastAPI()
+# ThreadPoolExecutor를 전역 변수로 선언
+thread_pool = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # startup
+    global thread_pool
+    thread_pool = ThreadPoolExecutor(max_workers=4)
+    print("ThreadPoolExecutor initialized")
+    
+    yield
+    
+    # shutdown
+    if thread_pool:
+        thread_pool.shutdown(wait=True)
+        print("ThreadPoolExecutor shutdown complete")
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,14 +51,16 @@ class MeetingMinutesData(BaseModel):
     participants: List[str]
     messages: List[dict]
 
-async def process_audio_to_text(file_path):
+def process_audio_sync(file_path):
+    """
+    동기식 음성 처리 함수
+    ThreadPoolExecutor에서 실행될 함수
+    """
     recognizer = sr.Recognizer()
     try:
-        # `AudioFile` 객체를 with 문 안에서 사용해야 함
         with sr.AudioFile(str(file_path)) as source:
-            # `recognizer.record`를 비동기로 처리
             audio_data = recognizer.record(source)
-            text = await asyncio.to_thread(recognizer.recognize_google, audio_data, language='ko-KR')
+            text = recognizer.recognize_google(audio_data, language='ko-KR')
         return text
     except sr.UnknownValueError:
         print(f"음성을 인식할 수 없습니다: {file_path}")
@@ -51,6 +71,21 @@ async def process_audio_to_text(file_path):
     except Exception as e:
         print(f"음성 처리 중 오류 발생: {e}")
         return "음성 처리 오류"
+
+async def process_audio_to_text(file_path):
+    """
+    ThreadPoolExecutor를 사용하여 비동기적으로 음성 처리를 수행
+    """
+    global thread_pool
+    import asyncio
+    
+    if thread_pool is None:
+        raise RuntimeError("ThreadPoolExecutor is not initialized")
+        
+    # ThreadPoolExecutor에서 동기 함수 실행
+    loop = asyncio.get_event_loop()
+    text = await loop.run_in_executor(thread_pool, process_audio_sync, file_path)
+    return text
 
 @app.post("/api/audio")
 async def receive_audio(
@@ -81,7 +116,7 @@ async def receive_audio(
             content = await audio.read()
             await out_file.write(content)
 
-        # STT 변환
+        # ThreadPoolExecutor를 사용하여 STT 변환
         text = await process_audio_to_text(audio_path)
 
         # 변환된 텍스트 저장
@@ -148,61 +183,6 @@ async def create_meeting_minutes(
             "meeting_id": meeting_data['id'],
             "filename": filename
         }
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/meeting-minutes")
-async def list_meeting_minutes():
-    try:
-        meeting_minutes_dir = Path("meeting_minutes")
-        
-        if not meeting_minutes_dir.exists():
-            return []
-        
-        # 파일 목록 가져오기 (최신순 정렬)
-        files = sorted(
-            [f for f in os.listdir(meeting_minutes_dir) if f.endswith('.json')], 
-            key=lambda x: os.path.getctime(meeting_minutes_dir / x), 
-            reverse=True
-        )
-        
-        # 각 파일의 기본 정보 추출
-        meeting_list = []
-        for file_name in files:
-            with open(meeting_minutes_dir / file_name, 'r', encoding='utf-8') as f:
-                meeting_data = json.load(f)
-                meeting_list.append({
-                    "id": meeting_data.get("id"),
-                    "room_name": meeting_data.get("room_name"),
-                    "host_name": meeting_data.get("host_name"),
-                    "start_time": meeting_data.get("start_time"),
-                    "duration": meeting_data.get("duration")
-                })
-        
-        return meeting_list
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/meeting-minutes/{meeting_id}")
-async def get_meeting_minutes(meeting_id: str):
-    try:
-        meeting_minutes_dir = Path("meeting_minutes")
-        
-        # 해당 ID를 포함하는 파일 찾기
-        matching_files = [f for f in os.listdir(meeting_minutes_dir) if meeting_id in f]
-        
-        if not matching_files:
-            raise HTTPException(status_code=404, detail="회의록을 찾을 수 없습니다.")
-        
-        # 가장 최근 파일 선택
-        file_name = max(matching_files, key=lambda x: os.path.getctime(meeting_minutes_dir / x))
-        
-        with open(meeting_minutes_dir / file_name, 'r', encoding='utf-8') as f:
-            meeting_data = json.load(f)
-        
-        return meeting_data
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

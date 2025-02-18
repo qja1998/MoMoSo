@@ -25,6 +25,15 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 
+def get_novel(novel_pk: int, db: Session):
+    novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+    if not novel:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="소설을 찾을 수 없습니다."
+        )
+    return novel
+
 # main page
 def get_recent_novels(db: Session, user_pk: int) -> list[RecentNovel]:
     """
@@ -86,7 +95,8 @@ def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Ses
         title=novel_info.title,
         user_pk=user_pk,
         worldview=novel_info.worldview,
-        synopsis=novel_info.synopsis
+        synopsis=novel_info.synopsis, 
+        summary = novel_info.summary
     )
     
     db.add(novel)
@@ -115,6 +125,7 @@ def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Ses
         title=novel.title,
         worldview=novel.worldview,
         synopsis=novel.synopsis,
+        summary=novel.summary,
         num_episode=novel.num_episode,
         likes=novel.likes,
         views=novel.views,
@@ -240,8 +251,11 @@ def momoso_recommend(db : Session) :
 #에피소드
 
 # 특정 소설의 에피소드 조회
+
+# 이건 detail 의 에피소드 정보 보내자.
 def novel_episode(novel_pk: int, db: Session):
     return db.query(Episode).filter(Episode.novel_pk == novel_pk).all()
+
 
 # 에피소드 저장
 def save_episode(novel_pk: int, episode_data: novel_schema.EpisodeCreateBase, db: Session):
@@ -596,3 +610,42 @@ def get_previous_chapters(db: Session, novel_pk: int) -> str:
     return "\n\n---\n\n".join([ep.ep_content for ep in episodes]) if episodes else ""
 
 
+def get_episode_detail(novel_pk: int, ep_pk: int, db: Session):
+    """
+    Get detailed information about a specific episode of a novel
+    
+    Args:
+        novel_pk (int): Primary key of the novel
+        ep_pk (int): Primary key of the episode
+        db (Session): Database session
+        
+    Returns:
+        tuple: Novel and Episode objects
+        
+    Raises:
+        HTTPException: If novel or episode is not found
+    """
+    # Query both novel and episode
+    novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+    if not novel:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Novel not found"
+        )
+    
+    episode = db.query(Episode).filter(
+        Episode.novel_pk == novel_pk,
+        Episode.ep_pk == ep_pk
+    ).first()
+    if not episode:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Episode not found"
+        )
+    
+    # Increment view count
+    episode.views += 1
+    db.commit()
+    db.refresh(episode)
+    
+    return novel, episode

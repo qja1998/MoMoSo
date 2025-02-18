@@ -15,8 +15,6 @@ import MenuBookIcon from '@mui/icons-material/MenuBook'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import SendIcon from '@mui/icons-material/Send'
-import SettingsIcon from '@mui/icons-material/Settings'
-import SmartToyIcon from '@mui/icons-material/SmartToy'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -48,6 +46,8 @@ import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 
 import coverPlaceholder from '/src/assets/placeholder/cover-image-placeholder.png'
+
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
 
 const NovelEpisodeList = () => {
   const navigate = useNavigate()
@@ -131,7 +131,7 @@ const NovelEpisodeList = () => {
   useEffect(() => {
     const fetchDiscussions = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/v1/discussion/`)
+        const response = await axios.get(`${BACKEND_URL}/api/v1/discussion/`)
         setDiscussions(response.data)
         console.log(response.data)
       } catch (error) {
@@ -180,7 +180,7 @@ const NovelEpisodeList = () => {
 
     // 서버에 토론 생성 요청
     await axios
-      .post(`http://localhost:8000/api/v1/discussion/`, requestData)
+      .post(`${BACKEND_URL}/api/v1/discussion/`, requestData)
       .then((response) => {
         console.log(response)
         // 성공적으로 생성된 경우 로컬 상태 업데이트
@@ -329,9 +329,9 @@ const NovelEpisodeList = () => {
               김희진 작가
             </Typography>
             <Typography variant="body1">
-              서울의 한적한 골목길, 한 젊은 소녀가 운석은 오래된 골동품점에서 운석을 발견한다.
-              1920년대 여인의 손때 묻은 기록과 그를 시간의 흐름 속으로 이끌고, 그는 그 곳에서 보편적
-              동료 시점에서 만난 주인공 그때에 단순 이야기를 들려준다.
+              서울의 한적한 골목길, 한 젊은 소녀가 운석은 오래된 골동품점에서 운석을 발견한다. 1920년대 여인의 손때 묻은
+              기록과 그를 시간의 흐름 속으로 이끌고, 그는 그 곳에서 보편적 동료 시점에서 만난 주인공 그때에 단순
+              이야기를 들려준다.
             </Typography>
             <Stack direction="row" spacing={2} alignItems="center">
               <Stack direction="row" spacing={1} alignItems="center">
@@ -539,9 +539,7 @@ const NovelEpisodeList = () => {
                       </MenuItem>
                     ))}
                   </Select>
-                  {formErrors.episode && (
-                    <FormHelperText error>토론할 회차를 선택해주세요</FormHelperText>
-                  )}
+                  {formErrors.episode && <FormHelperText error>토론할 회차를 선택해주세요</FormHelperText>}
                 </FormControl>
               )}
 
