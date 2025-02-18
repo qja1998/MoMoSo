@@ -19,22 +19,22 @@ services:
     networks:
       - app_network
 
-  nginx:
-    image: nginx:latest
-    container_name: nginx
-    restart: unless-stopped
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./certbot/www:/var/www/certbot
-      - ./certbot/conf:/etc/letsencrypt
-    ports:
-      - "81:80"  # 변경된 포트
-      - "443:443"
-    depends_on:
-      - backend
-      - frontend
-    networks:
-      - app_network
+  # nginx:
+  #   image: nginx:latest
+  #   container_name: nginx
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./nginx/conf.d:/etc/nginx/conf.d
+  #     - ./certbot/www:/var/www/certbot
+  #     - ./certbot/conf:/etc/letsencrypt
+  #   ports:
+  #     - "81:80"  # 변경된 포트
+  #     - "443:443"
+  #   depends_on:
+  #     - backend
+  #     - frontend
+  #   networks:
+  #     - app_network
 
   # certbot:
   #   image: certbot/certbot
