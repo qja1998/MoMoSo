@@ -25,7 +25,7 @@ const FindPasswordBox = styled(Box)({
 })
 
 const UserFindPassword = () => {
-    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
+    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [emailVerificationCode, setEmailVerificationCode] = useState('');

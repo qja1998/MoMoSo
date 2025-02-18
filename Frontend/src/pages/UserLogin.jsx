@@ -14,7 +14,7 @@ import axios from 'axios';
 import { useAuth } from '../hooks/useAuth';
 
 const UserLogin = () => {
-  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
+  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
   const [googleLoginUrl, setGoogleLoginUrl] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
