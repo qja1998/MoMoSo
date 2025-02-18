@@ -43,6 +43,9 @@ build_backend:
         docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) -t $IMAGE_BACKEND:$TAG -f Dockerfile.prod .
       fi
     - docker push $IMAGE_BACKEND:$TAG
+    - git clean -ffdx
+    - find . -type d -name "__pycache__" -exec chmod -R 777 {} \;
+    - find . -type d -name "__pycache__" -exec rm -rf {} +
   only:
     - develop
     - release
