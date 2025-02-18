@@ -248,12 +248,13 @@ export default function DiscussionRoom() {
     formData.append('userName', loginInfo.current?.nickname)
 
     try {
-      const response = await axios.post(`${BACKEND_URL}/api/audio`, formData, {
+      const response = await axios.post(`${BACKEND_URL}/api/v1/discussion/audio`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         withCredentials: true
       })
 
       if (response.data.text) {
+        console.log(response.data.text)
         await clientSession.signal({
           data: JSON.stringify({
             text: response.data.text,
