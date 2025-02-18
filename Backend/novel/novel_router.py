@@ -143,6 +143,33 @@ def like_novel(novel_pk: int, user_pk: int, db: Session = Depends(get_db)):
 def novel_episode(novel_pk: int, db: Session = Depends(get_db)):
     return novel_crud.novel_episode(novel_pk, db)
 
+@router.get("/novel/{novel_pk}/title", response_model=novel_schema.NovelTitleResponse)
+def get_novel_title(
+    novel_pk: int,
+    db: Session = Depends(get_db)
+):
+    novel = novel_crud.get_novel(novel_pk, db)
+    return novel_schema.NovelTitleResponse(
+        novel_title=novel.title
+    )
+
+@router.get("/novel/{novel_pk}/episodes/{ep_pk}", response_model=novel_schema.EpisodeDetailResponse)
+def get_episode_detail(
+    novel_pk: int,
+    ep_pk: int,
+    db: Session = Depends(get_db)
+):
+    novel, episode = novel_crud.get_episode_detail(novel_pk, ep_pk, db)
+    
+    return novel_schema.EpisodeDetailResponse(
+        novel_title=novel.title,
+        ep_pk=episode.ep_pk,
+        ep_title=episode.ep_title,
+        ep_content=episode.ep_content,
+        created_date=episode.created_date,
+        updated_date=episode.updated_date,
+    )
+
 # 특정 소설에 에피소드 추가
 @router.post("/novel/{novel_pk}/episode", response_model=novel_schema.EpisodeCreateBase)
 def save_episode(novel_pk: int, episode_data: novel_schema.EpisodeCreateBase, db: Session = Depends(get_db)):

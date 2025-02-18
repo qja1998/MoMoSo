@@ -42,7 +42,8 @@ const PasswordGuideItem = styled(Box)(({ theme, isvalid, focused }) => ({
   },
 }))
 
-const SignUp = () => {
+const UserSignUp = () => {
+  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
   const navigate = useNavigate()
   const { setIsLoggedIn } = useAuth()
   const [errors, setErrors] = useState({})
@@ -101,7 +102,7 @@ const SignUp = () => {
   const handleVerificationCodeSend = async () => {
     try {
       console.log("인증번호 전송 요청:", formData.phone);
-      const response = await axios.post("http://localhost:8000/api/v1/auth/send-sms", null, {
+      const response = await axios.post(BACKEND_URL+"/api/v1/auth/send-sms", null, {
         params: { phone: formData.phone },
       });
   
@@ -115,7 +116,7 @@ const SignUp = () => {
   const handleVerificationCodeCheck = async () => {
     try {
       console.log("인증번호 확인 요청:", formData.phone, formData.verificationCode);
-      const response = await axios.post("http://localhost:8000/api/v1/auth/verify-sms-code", null, {
+      const response = await axios.post(BACKEND_URL+"/api/v1/auth/verify-sms-code", null, {
         params: {
           phone: formData.phone,
           code: formData.verificationCode,
@@ -145,7 +146,7 @@ const SignUp = () => {
       };
 
       const signUpResponse = await axios.post(
-        "http://localhost:8000/api/v1/auth/signup",
+        BACKEND_URL+"/api/v1/auth/signup",
         requestData,
         {
           headers: {
@@ -163,7 +164,7 @@ const SignUp = () => {
       loginFormData.append("password", formData.password);
 
       const loginResponse = await axios.post(
-        "http://localhost:8000/api/v1/auth/login",
+        BACKEND_URL+"/api/v1/auth/login",
         loginFormData,
         {
           headers: { "Content-Type": "application/x-www-form-urlencoded",
@@ -517,4 +518,4 @@ const SignUp = () => {
   )
 }
 
-export default SignUp
+export default UserSignUp
