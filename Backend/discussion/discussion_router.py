@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, APIRouter, status
+from fastapi import Depends, HTTPException, APIRouter, status, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 from typing import List
@@ -382,25 +382,6 @@ import speech_recognition as sr
 from pydantic import BaseModel
 from typing import List
 from concurrent.futures import ThreadPoolExecutor
-# from contextlib import asynccontextmanager
-
-# # ThreadPoolExecutor를 전역 변수로 선언
-# thread_pool = None
-
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     # startup
-#     global thread_pool
-#     thread_pool = ThreadPoolExecutor(max_workers=4)
-#     print("ThreadPoolExecutor initialized")
-    
-#     yield
-    
-#     # shutdown
-#     if thread_pool:
-#         thread_pool.shutdown(wait=True)
-#         print("ThreadPoolExecutor shutdown complete")
-
 
 UPLOAD_DIR = Path("audio_uploads")
 
@@ -434,16 +415,18 @@ def process_audio_sync(file_path):
         print(f"음성 처리 중 오류 발생: {e}")
         return "음성 처리 오류"
 
-async def process_audio_to_text(file_path):
-    """
-    ThreadPoolExecutor를 사용하여 비동기적으로 음성 처리를 수행
-    """
-    global thread_pool
+def get_thread_pool(request: Request) -> ThreadPoolExecutor:
+    thread_pool = request.app.state.thread_pool
+    if not thread_pool:
+        raise RuntimeError("ThreadPoolExecutor is not initialized")
+    return thread_pool
+
+async def process_audio_to_text(
+    file_path: str, 
+    thread_pool: ThreadPoolExecutor = Depends(get_thread_pool)
+):
     import asyncio
     
-    if thread_pool is None:
-        raise RuntimeError("ThreadPoolExecutor is not initialized")
-        
     # ThreadPoolExecutor에서 동기 함수 실행
     loop = asyncio.get_event_loop()
     text = await loop.run_in_executor(thread_pool, process_audio_sync, file_path)
@@ -451,6 +434,7 @@ async def process_audio_to_text(file_path):
 
 @router.post("/audio")
 async def receive_audio(
+    request: Request,
     audio: UploadFile = File(...),
     roomName: str = Form(...),
     userName: str = Form(...),
@@ -479,7 +463,8 @@ async def receive_audio(
             await out_file.write(content)
 
         # ThreadPoolExecutor를 사용하여 STT 변환
-        text = await process_audio_to_text(audio_path)
+        thread_pool = request.app.state.thread_pool
+        text = await process_audio_to_text(str(audio_path), thread_pool)
 
         # 변환된 텍스트 저장
         if text:
@@ -500,6 +485,7 @@ async def receive_audio(
     except Exception as e:
         print(f"Error processing audio: {e}")
         return {"error": str(e)}
+
 
 @router.post("/meeting-minutes")
 async def create_meeting_minutes(
