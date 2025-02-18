@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { OpenVidu as OpenViduBrowser } from 'openvidu-browser'
-import { OpenVidu as OpenViduNode } from 'openvidu-node-client'
+// import { OpenVidu as OpenViduBrowser } from 'openvidu-browser'
+// import { OpenVidu as OpenViduNode } from 'openvidu-node-client'
 
 import { useEffect, useRef, useState } from 'react'
 
