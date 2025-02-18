@@ -6,6 +6,7 @@ from langchain_community.document_loaders import TextLoader
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_core.messages import HumanMessage
+import json
 
 load_dotenv()
 
@@ -77,15 +78,23 @@ class GeminiDiscussionAssistant:
         
         return chroma_db
     
-    def recommend_discussion_topic(self, query: str):
+    def recommend_discussion_topic(self, json_str: str):
         """추천 토론 주제를 반환합니다.
 
         Args:
-            query (str): 유저의 발화
-
+            json_str (str): 토론 내용.
+                파일 내 "messages" 리스트의 각 항목은 {"user": <발언자>, "text": <대화내용>} 형식
         Returns:
             str: 추천 토론 주제
         """
+        # JSON 문자열을 파싱
+        data = json.loads(json_str)
+        
+        # 토론 내용을 문자열로 변환
+        discussion_content = "\n".join([
+            f'{msg["user"]}: {msg["text"]}' for msg in data.get("messages", [])
+        ]).strip()
+        
         prompt = f"""
         프롬프트: 모든 책에 대한 토론 주제 생성
         역할: 당신은 분석적이고 창의적인 토론 주제 전문가입니다.
@@ -127,7 +136,7 @@ class GeminiDiscussionAssistant:
         시간 속에서 우리가 남기는 흔적(기억, 작품, 기록)은 얼마나 중요한 의미를 가지는가?
         현대 사회에서 우리는 시간을 효율적으로 사용하고 있는가, 아니면 소비하고 있는가?
 
-        발화: {query}"""
+        토론 내용: {discussion_content}"""
         retriever = self.chroma_db.as_retriever()
         chain = RetrievalQA.from_chain_type(llm=self.llm, chain_type="stuff", retriever=retriever)
         return chain(prompt)['result']
@@ -209,7 +218,7 @@ class GeminiDiscussionAssistant:
             str: 생성된 회의록 요약본
         """
 
-        import json
+        
         from langchain_core.messages import SystemMessage, HumanMessage
 
         # JSON 파일 읽기 및 discussion_minutes 생성

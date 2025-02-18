@@ -1,5 +1,5 @@
 from fastapi import Depends, HTTPException, APIRouter, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 
 
@@ -194,12 +194,12 @@ def create_discussion_summary(
 
     # 소설 및 토론 정보 조회
     discussion = db.query(Discussion).filter(Discussion.discussion_pk == request.discussion_pk).first()
-    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
-
-    if not novel:
-        raise HTTPException(status_code=404, detail="Novel not found")
     if not discussion:
         raise HTTPException(status_code=404, detail="Discussion not found")
+
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
     
     # 사용자 요청에 따른 file_path 생성
     txt_filename = f"{novel.title}_{discussion.session_id}.txt"
@@ -215,7 +215,13 @@ def create_discussion_summary(
     summary_response = assistant.generate_meeting_notes(meeting_json)
     summary = summary_response.content if hasattr(summary_response, "content") else str(summary_response)
     
-    new_note = Note(novel_pk=novel.novel_pk, user_pk=novel.user_pk, summary=summary)
+    # discussion_pk 추가
+    new_note = Note(
+        novel_pk=novel.novel_pk,
+        user_pk=novel.user_pk,
+        discussion_pk=discussion.discussion_pk,  # 추가된 부분
+        summary=summary
+    )
 
     try:
         db.add(new_note)
@@ -228,33 +234,73 @@ def create_discussion_summary(
     return new_note
 
 
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+from typing import Optional
+
+router = APIRouter()
+
+@router.get("/note/{note_id}", description="토론 요약본 상세 조회")
+async def get_note_summary(note_id: int, db: Session = Depends(get_db)):
+    # Join을 통해 Note, Discussion 및 Novel 정보를 한 번에 조회
+    note = db.query(Note)\
+        .options(
+            joinedload(Note.discussion),  # discussion 정보 로드
+        )\
+        .filter(Note.note_pk == note_id)\
+        .first()
+    
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    # Novel 정보 별도 조회
+    novel = db.query(Novel)\
+        .filter(Novel.novel_pk == note.discussion.novel_pk)\
+        .first()
+    
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+        
+    return {
+        "novel": {
+            "novel_pk": novel.novel_pk,
+            "title": novel.title
+        },
+        "topic": note.discussion.topic,
+        "start_time": note.discussion.start_time,
+        "summary_text": note.summary
+    }
+
+
 @router.post('/subject', description="토론 주제 추천")
 def create_discussion_subject(
     request: SubjectRequest,
     db: Session = Depends(get_db)
 ):
-    """사용자가 요청할 때마다 바뀌는 file_path를 반영하여 토론 주제를 추천"""
+    """file_path를 반영하여 토론 주제를 추천"""
 
     # 소설 및 토론 정보 조회
     discussion = db.query(Discussion).filter(Discussion.discussion_pk == request.discussion_pk).first()
-    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
-
-    if not novel:
-        raise HTTPException(status_code=404, detail="Novel not found")
     if not discussion:
         raise HTTPException(status_code=404, detail="Discussion not found")
 
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+    
     # 사용자 요청에 따른 file_path 생성
     txt_filename = f"{novel.title}_{discussion.session_id}.txt"
     file_path = os.path.join(DOCUMENT_PATH, txt_filename)
-
+    
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="TXT file not found. Please start the discussion first.")
-
+    
     assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
-
-    # 유저 발화 기반 주제 추천 실행
-    subject = assistant.recommend_discussion_topic(request.content)
+    
+    # JSON 형태의 대화 내용을 문자열로 변환
+    discussion_json = json.dumps(request.content, ensure_ascii=False)
+    subject_response = assistant.recommend_discussion_topic(discussion_json)
+    subject = subject_response if isinstance(subject_response, str) else str(subject_response)
 
     return {"subject": subject}
 

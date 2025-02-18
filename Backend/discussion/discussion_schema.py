@@ -110,4 +110,13 @@ class FactCheckRequest(BaseModel):
 
 class SubjectRequest(BaseModel):
     discussion_pk: int
-    content: str
+    content: dict = {
+        "id": str,
+        "room_name": str,
+        "host_name": str,
+        "start_time": str,
+        "end_time": str,
+        "duration": int,
+        "participants": list,
+        "messages": list
+    }
