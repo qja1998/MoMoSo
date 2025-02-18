@@ -27,8 +27,8 @@ async def lifespan(app: FastAPI):
         app.state.redis = await create_redis_client()
         print("✅ Redis 연결 완료!")
         
-        # ThreadPoolExecutor 초기화
-        thread_pool = ThreadPoolExecutor(max_workers=4)
+        # ThreadPoolExecutor를 app.state에 저장
+        app.state.thread_pool = ThreadPoolExecutor(max_workers=4)
         print("✅ ThreadPoolExecutor 초기화 완료!")
         
         # 라우터 등록
@@ -49,8 +49,8 @@ async def lifespan(app: FastAPI):
             await app.state.redis.close()
         
         # ThreadPoolExecutor 종료
-        if thread_pool:
-            thread_pool.shutdown(wait=True)
+        if hasattr(app.state, "thread_pool"):
+            app.state.thread_pool.shutdown(wait=True)
             print("✅ ThreadPoolExecutor 정상 종료!")
             
         print("🛑 FastAPI 서버 종료!")
