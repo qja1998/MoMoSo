@@ -1,5 +1,5 @@
 import styled from '@emotion/styled'
-import { useState } from 'react'
+import { useState, useEffect } from 'react' // Import useEffect
 import AddIcon from '@mui/icons-material/Add'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
@@ -22,6 +22,7 @@ import {
 import CharacterInput from '../components/character/CharacterInput'
 import DropZone from '../components/common/DropZone'
 import { PrimaryButton } from '../components/common/buttons'
+import axios from 'axios'; // Import Axios
 
 // 결과 이미지 슬롯 스타일링
 const ResultSlot = styled(Paper)(({ theme }) => ({
@@ -67,6 +68,11 @@ const NovelBackgroundEditor = () => {
   const [isGenerating, setIsGenerating] = useState(false)
   const [uploadLoading, setUploadLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false); // Save State
+  const [userPk, setUserPk] = useState(null); // User PK state
+  const [userInfo, setUserInfo] = useState(null);
+  const [loading, setLoading] = useState(true); // Add loading state
+  const [summary, setSummary] = useState('');  // New state for summary
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false); // New state for summary generating
 
   const genres = [
     '판타지',
@@ -79,6 +85,28 @@ const NovelBackgroundEditor = () => {
     '기타'
   ]
 
+  // useEffect Hook for fetching user info on component mount
+    useEffect(() => {
+        const fetchUserInfo = async () => {
+            setLoading(true); // Start loading
+            try {
+                const response = await axios.get('http://localhost:8000/api/v1/users/logged-in', { withCredentials: true });
+                
+                setUserPk(response.data.user_pk); // Extract user_pk from the response
+                setUserInfo(response.data); // Store user info
+                console.log("User Info:", response.data); // Log the user info for debugging
+
+            } catch (error) {
+                console.error("Error fetching user info:", error);
+                // Handle error appropriately (e.g., redirect to login page)
+            } finally {
+                setLoading(false); // End loading
+            }
+        };
+
+        fetchUserInfo();
+    }, []); // Empty dependency array ensures this runs only once on mount
+
   const handleGenerate = () => {
     setIsGenerating(true)
     // TODO: AI 생성 로직 구현
@@ -87,23 +115,17 @@ const NovelBackgroundEditor = () => {
 
     const handleWorldviewGenerate = async () => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/ai/worldview`, {
-                method: "POST",
+            const response = await axios.post("http://127.0.0.1:8000/api/v1/ai/worldview", {
+                genre: selectedGenre,
+                title: title,
+            }, {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({
-                    genre: selectedGenre,
-                    title: title,
-                }),
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
 
-            const data = await response.json();
-            setWorldView(data.worldview);
+            setWorldView(response.data.worldview);
         } catch (error) {
             console.error("Error generating worldview:", error);
             // Handle error appropriately (e.g., display an error message to the user)
@@ -162,67 +184,203 @@ const NovelBackgroundEditor = () => {
     setKeywords(keywords.filter((k) => k !== keywordToDelete))
   }
 
-    const handleSynopsisGenerate = async () => {
-        try {
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/ai/synopsis`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    genre: selectedGenre,
-                    title: title,
-                    worldview: worldView, // Corrected variable name
-                }),
-            });
+  const handleSynopsisGenerate = async () => {
+      try {
+          const response = await axios.post("http://127.0.0.1:8000/api/v1/ai/synopsis", {
+              genre: selectedGenre,
+              title: title,
+              worldview: worldView, // Corrected variable name
+          }, {
+              headers: {
+                  "Content-Type": "application/json",
+              },
+          });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            setBackground(data.synopsis);
-        } catch (error) {
-            console.error("Error generating synopsis:", error);
-        }
+          setBackground(response.data.synopsis);
+      } catch (error) {
+          console.error("Error generating synopsis:", error);
+      }
     };
     // Save Function
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/novel`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    title: title,
-                    worldview: worldView,
-                    synopsis: background,
-                    genres: [selectedGenre], // 장르를 리스트 형태로 전달
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            const dataToSend = {
+                title: title,
+                worldview: worldView,
+                synopsis: background,
+                genres: [selectedGenre],
+                summary: summary,
+            };
+    
+            // user_pk를 쿼리 파라미터로 추가
+            const response = await axios.post(
+                `http://127.0.0.1:8000/api/v1/novel?user_pk=${userPk}`, // user_pk를 쿼리 파라미터로 추가
+                dataToSend,
+                {
+                    withCredentials: true,
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+    
+            if (response.status === 200) {
+                console.log("Novel saved successfully");
+            } else {
+                console.error(
+                    "Error saving novel:",
+                    response.status,
+                    response.data
+                );
             }
-
-            const data = await response.json();
-            console.log("Novel saved successfully:", data); // 저장 성공 로그
-            // TODO: 저장 성공 알림 또는 UI 업데이트
         } catch (error) {
             console.error("Error saving novel:", error);
-            // TODO: 저장 실패 알림
+            // 에러 메시지를 더 자세히 표시
+            if (error.response) {
+                console.error("Error details:", error.response.data);
+            }
         } finally {
             setIsSaving(false);
         }
     };
+
+    const handleAICharacterGenerate = async () => {
+      setIsGenerating(true);
+      let endpoint = "http://127.0.0.1:8000/api/v1/ai/";
+  
+      try {
+          const hasCharacterData = characters.some(char =>
+              char.name || char.gender || char.age || char.job || char.profile
+          );
+  
+          const requestData = {
+              genre: selectedGenre,
+              title: title,
+              worldview: worldView,
+              synopsis: background,
+              characters: hasCharacterData ? characters : []
+          };
+  
+          endpoint += hasCharacterData ? "characters-new" : "characters";
+  
+          console.log("Request data:", requestData);
+  
+          const response = await axios.post(endpoint, requestData, {
+              headers: {
+                  "Content-Type": "application/json",
+              },
+          });
+  
+          console.log("API Response:", response.data);
+  
+          if (response.data) {
+              let newCharactersJSON = null;
+              if (hasCharacterData) {
+                  newCharactersJSON = response.data.new_characters;
+              } else {
+                  newCharactersJSON = response.data.characters;
+              }
+  
+              let newCharacters = []; // 기본값으로 빈 배열 설정
+  
+              try {
+                  if (newCharactersJSON) {
+                      // JSON 파싱 시도
+                      const parsedData = JSON.parse(newCharactersJSON);
+  
+                      // 파싱된 데이터가 배열인지 확인
+                      if (Array.isArray(parsedData)) {
+                          newCharacters = parsedData;
+                      } else {
+                          // 배열이 아닌 경우, 로그를 남기고 빈 배열 사용
+                          console.warn("Parsed character data is not an array, using empty array instead");
+                      }
+                  } else {
+                      console.warn("Character data is null or undefined, using empty array instead");
+                  }
+              } catch (error) {
+                  // JSON 파싱 실패 시 로그를 남기고 빈 배열 사용
+                  console.error("Failed to parse character data:", error);
+                  console.error("Raw data:", newCharactersJSON);
+                  console.warn("Using empty array instead");
+              }
+  
+  
+              const formattedCharacters = newCharacters.map((char, index) => {
+                  const formattedChar = {
+                      id: characters[index]?.id || index + 1,
+                      type: char.role || 'protagonist',
+                      name: char.name || '',
+                      gender: char.sex || '',
+                      age: char.age || '',
+                      job: char.job || '',
+                      profile: char.profile || ''
+                  };
+                  console.log(`Formatted character ${index}:`, formattedChar);
+                  return formattedChar;
+              });
+  
+              console.log("About to update characters with:", formattedCharacters);
+  
+              setCharacters(formattedCharacters);
+  
+              setTimeout(() => {
+                  console.log("Characters state after update:", characters);
+                  if (characters !== formattedCharacters) {
+                      console.log("State update might not have been reflected immediately due to React's batching");
+                  }
+              }, 0);
+  
+          } else {
+              throw new Error("Invalid response format");
+          }
+  
+      } catch (error) {
+          console.error("Error in character generation:", error);
+          if (error.response) {
+              console.error("Server error response:", error.response.data);
+          }
+          alert("캐릭터 생성 중 오류가 발생했습니다. 다시 시도해 주세요.");
+      } finally {
+          setIsGenerating(false);
+      }
+  };
+
+  const handleAISummaryGenerate = async () => {
+      setIsGeneratingSummary(true);
+      try {
+          const requestData = {
+              genre: selectedGenre,
+              title: title,
+              worldview: worldView,
+              synopsis: background
+          };
+          const response = await axios.post("http://127.0.0.1:8000/api/v1/ai/summary", requestData, {
+              headers: {
+                  "Content-Type": "application/json",
+              },
+          });
+          setSummary(response.data.summary);
+      } catch (error) {
+          console.error("Error generating summary:", error);
+          // Handle error (e.g., display an error message)
+      } finally {
+          setIsGeneratingSummary(false);
+      }
+  };
+
 
   return (
     <Box
       component="main"
       sx={{ flexGrow: 1, overflowX: 'hidden', overflowY: 'auto', height: '100vh' }}
     >
+         {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <CircularProgress />
+            </Box>
+        ) : (
       <Stack direction="column" spacing={2} sx={{ width: '100%', p: 3 }}>
         <Stack
           direction="row"
@@ -387,6 +545,41 @@ const NovelBackgroundEditor = () => {
               },
             }}
           />
+          {/* Summary Input Field */}
+          <Stack direction="column" spacing={1} sx={{ mb: 2 }}>
+              <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                  <Typography variant="h3" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                      한줄 요약
+                  </Typography>
+                  <PrimaryButton
+                      startIcon={<OfflineBoltIcon />}
+                      onClick={handleAISummaryGenerate}
+                      disabled={isGeneratingSummary}
+                      sx={{ py: 0.5 }}
+                  >
+                      {isGeneratingSummary ? "생성 중..." : "AI 생성"}
+                  </PrimaryButton>
+              </Stack>
+              <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  value={summary}
+                  onChange={(e) => setSummary(e.target.value)}
+                  placeholder="작품의 한줄 요약을 입력해주세요. AI 생성 후 수정도 가능합니다."
+                  variant="outlined"
+                  sx={{
+                      '& .MuiOutlinedInput-root': {
+                          borderRadius: '8px',
+                          backgroundColor: 'white',
+                      },
+                  }}
+              />
+          </Stack>
           <Stack direction="row" spacing={1}>
             <PrimaryButton
               startIcon={<SaveIcon />}
@@ -394,7 +587,7 @@ const NovelBackgroundEditor = () => {
               hoverBackgroundColor="#404040"
               sx={{ py: 0.5 }}
               onClick={handleSave} // Save Function
-              disabled={isSaving}
+              disabled={isSaving || !userPk} // Disable if userPk is null
             >
               {isSaving ? "저장 중..." : "저장"}
             </PrimaryButton>
@@ -423,10 +616,11 @@ const NovelBackgroundEditor = () => {
             <Stack direction="row" spacing={1}>
               <PrimaryButton
                 startIcon={<OfflineBoltIcon />}
-                onClick={handleGenerate}
+                onClick={handleAICharacterGenerate}
                 sx={{ py: 0.5 }}
+                disabled={isGenerating}
               >
-                AI 생성
+                {isGenerating ? "생성 중..." : "AI 생성"}
               </PrimaryButton>
               <PrimaryButton
                 startIcon={<AddIcon />}
@@ -674,6 +868,7 @@ const NovelBackgroundEditor = () => {
           )}
         </Stack>
       </Stack>
+        )}
     </Box>
   )
 }
