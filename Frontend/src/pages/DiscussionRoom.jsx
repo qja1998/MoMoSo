@@ -55,14 +55,14 @@ const VoiceActivityDetector = class {
       threshold: 0.13,
       maxSilentTime: 2400,
       minRecordingTime: 1000,
-      processingDebounce: 1000
+      processingDebounce: 1000,
     }
 
     this.setupAnalyser()
   }
 
   setupAnalyser() {
-    console.warn = function() {}
+    console.warn = function () {}
     this.analyser.minDecibels = -45
     this.analyser.maxDecibels = -10
     this.analyser.fftSize = 2048
@@ -73,10 +73,8 @@ const VoiceActivityDetector = class {
 
   isVoiceActive() {
     this.analyser.getFloatTimeDomainData(this.dataArray)
-    
-    const rms = Math.sqrt(
-      this.dataArray.reduce((sum, value) => sum + value * value, 0) / this.dataArray.length
-    )
+
+    const rms = Math.sqrt(this.dataArray.reduce((sum, value) => sum + value * value, 0) / this.dataArray.length)
 
     const normalizedVolume = Math.abs(rms)
     return normalizedVolume > this.options.threshold
@@ -92,7 +90,7 @@ const VoiceActivityDetector = class {
 
   async handleRecordingStopped(onDataAvailable) {
     if (this.isProcessing || !this.canProcess()) return
-    
+
     this.isProcessing = true
     this.lastProcessedTime = Date.now()
 
@@ -106,7 +104,7 @@ const VoiceActivityDetector = class {
         this.recorder.stopRecording(async () => {
           try {
             const blob = this.recorder.getBlob()
-            
+
             if (blob && blob.size > 0) {
               try {
                 await onDataAvailable(blob)
@@ -145,13 +143,13 @@ const VoiceActivityDetector = class {
     }
 
     const audioStream = this.microphone.mediaStream
-    
+
     this.recorder = new RecordRTC(audioStream, {
       type: 'audio',
       mimeType: 'audio/wav',
       recorderType: RecordRTC.StereoAudioRecorder,
       desiredSampRate: 16000,
-      numberOfAudioChannels: 1
+      numberOfAudioChannels: 1,
     })
 
     this.recorder.startRecording()
@@ -163,7 +161,7 @@ const VoiceActivityDetector = class {
 
     const checkVoiceActivity = setInterval(async () => {
       if (this.isProcessing) return
-      
+
       const isActive = this.isVoiceActive()
 
       if (isActive) {
@@ -180,8 +178,7 @@ const VoiceActivityDetector = class {
           silentTime += CHECK_INTERVAL
           recordingTime += CHECK_INTERVAL
 
-          if (recordingTime >= this.options.minRecordingTime && 
-              silentTime >= this.options.maxSilentTime) {
+          if (recordingTime >= this.options.minRecordingTime && silentTime >= this.options.maxSilentTime) {
             await this.handleRecordingStopped(onDataAvailable)
             isRecording = false
             silentTime = 0
@@ -250,7 +247,7 @@ export default function DiscussionRoom() {
     try {
       const response = await axios.post(`${BACKEND_URL}/api/v1/discussion/audio`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        withCredentials: true
+        withCredentials: true,
       })
 
       if (response.data.text) {
@@ -258,9 +255,9 @@ export default function DiscussionRoom() {
         await clientSession.signal({
           data: JSON.stringify({
             text: response.data.text,
-            user: loginInfo.current?.nickname
+            user: loginInfo.current?.nickname,
           }),
-          type: 'stt'
+          type: 'stt',
         })
       }
     } catch (error) {
@@ -272,14 +269,14 @@ export default function DiscussionRoom() {
   const handleMicToggle = () => {
     const newMicState = !isMicOn
     setIsMicOn(newMicState)
-    
+
     if (publisher) {
       publisher.publishAudio(newMicState)
 
       if (newMicState) {
         const audioStream = publisher.stream.getMediaStream()
         const vad = new VoiceActivityDetector(audioStream)
-        
+
         const stopRecording = vad.startRecording(async (blob) => {
           await sendAudioData(blob)
         })
@@ -302,10 +299,10 @@ export default function DiscussionRoom() {
     if (publisher && publisher.stream && isMicOn) {
       const audioStream = publisher.stream.getMediaStream()
       const vad = new VoiceActivityDetector(audioStream)
-      
+
       const checkVoiceActivity = setInterval(() => {
         const isActive = vad.isVoiceActive()
-        setSpeakingUsers(prev => {
+        setSpeakingUsers((prev) => {
           const newSpeakers = new Set(prev)
           if (isActive) {
             newSpeakers.add(loginInfo.current?.user_pk)
@@ -323,15 +320,15 @@ export default function DiscussionRoom() {
   // 음성 활동 감지 (구독자)
   useEffect(() => {
     const voiceActivityChecks = subscribers
-      .filter(sub => sub.stream.audioActive)
+      .filter((sub) => sub.stream.audioActive)
       .map((sub) => {
         const connectionData = JSON.parse(sub.stream.connection.data)
         const audioStream = sub.stream.getMediaStream()
         const vad = new VoiceActivityDetector(audioStream)
-        
+
         const checkVoiceActivity = setInterval(() => {
           const isActive = vad.isVoiceActive()
-          setSpeakingUsers(prev => {
+          setSpeakingUsers((prev) => {
             const newSpeakers = new Set(prev)
             if (isActive) {
               newSpeakers.add(connectionData.user_pk)
@@ -345,7 +342,7 @@ export default function DiscussionRoom() {
         return () => clearInterval(checkVoiceActivity)
       })
 
-    return () => voiceActivityChecks.forEach(cleanup => cleanup())
+    return () => voiceActivityChecks.forEach((cleanup) => cleanup())
   }, [subscribers])
 
   // 토론방 초기화 로직
@@ -502,18 +499,18 @@ export default function DiscussionRoom() {
             // 이미 존재하는 참가자인지 확인
             // const connectionId = event.stream.connection.connectionId
             const connectionData = JSON.parse(event.stream.connection.data)
-            
+
             // setParticipants(prev => {
             //   // 이미 존재하면 업데이트하지 않음
             //   if (prev.some(p => p.connectionId === connectionId)) return prev;
-              
+
             //   return [...prev, {
             //     connectionId,
             //     streamManager: subscriber,
             //     ...connectionData,
             //   }]
             // })
-        
+
             // VAD 이벤트 핸들러 설정
             subscriber.on('publisherStartSpeaking', () => {
               setSpeakingUsers((prev) => [...prev, connectionData.user_pk])
@@ -555,33 +552,36 @@ export default function DiscussionRoom() {
           // 새로운 사용자가 세션에 연결될 때 발생. 이벤트에서 새로운 Connection 객체의 세부 정보를 얻을 수 있음.
           connectionCreated: (event) => {
             // if (event.connection.connectionId === connection.connectionId) return
-            
+
             const connectionId = event.connection.connectionId
             const connectionData = JSON.parse(event.connection.data)
-            
-            setParticipants(prev => {
+
+            setParticipants((prev) => {
               // 이미 존재하면 업데이트하지 않음
-              if (prev.some(p => p.connectionId === connectionId)) return prev;
-              
-              return [...prev, {
-                connectionId,
-                ...connectionData,
-              }]
+              if (prev.some((p) => p.connectionId === connectionId)) return prev
+
+              return [
+                ...prev,
+                {
+                  connectionId,
+                  ...connectionData,
+                },
+              ]
             })
           },
-        
+
           // 사용자가 세션을 나갈 때
           connectionDestroyed: (event) => {
             const connectionId = event.connection.connectionId
-            setParticipants(prev => {
-              const participant = prev.find(p => p.connectionId === connectionId)
+            setParticipants((prev) => {
+              const participant = prev.find((p) => p.connectionId === connectionId)
               if (participant?.streamManager) {
                 participant.streamManager.stream?.removeAllVideos()
                 participant.streamManager.stream?.dispose()
               }
-              return prev.filter(p => p.connectionId !== connectionId)
+              return prev.filter((p) => p.connectionId !== connectionId)
             })
-          }
+          },
         }
         // 7-2.이벤트 핸들러 등록
         Object.entries(eventHandlers).forEach(([event, handler]) => {
@@ -657,42 +657,42 @@ export default function DiscussionRoom() {
           if (publisher) {
             // 오디오 트랙 정리
             if (publisher.stream?.getMediaStream()) {
-              const tracks = publisher.stream.getMediaStream().getTracks();
-              tracks.forEach(track => track.stop());
+              const tracks = publisher.stream.getMediaStream().getTracks()
+              tracks.forEach((track) => track.stop())
             }
-            
+
             // Publisher 이벤트 리스너 제거
-            publisher.off('*');
+            publisher.off('*')
             console.log(clientSideSession)
             // 세션에서 Publisher 제거
             if (clientSideSession) {
-              await clientSideSession.unpublish(publisher);
+              await clientSideSession.unpublish(publisher)
             }
           }
-      
+
           console.log(clientSideSession)
           // 세션 연결 해제
           if (clientSideSession) {
-            clientSideSession.off('*');
-            await clientSideSession.disconnect();
+            clientSideSession.off('*')
+            await clientSideSession.disconnect()
           }
-      
+
           // 상태 초기화
-          setClientSession(null);
-          setConnection(null);
-          setPublisher(null);
-          setParticipants([]);
-          setSpeakingUsers([]);
-      
+          setClientSession(null)
+          setConnection(null)
+          setPublisher(null)
+          setParticipants([])
+          setSpeakingUsers([])
+
           // VAD 정리
           if (vadRef.current) {
             vadRef.current()
             vadRef.current = null
           }
         } catch (error) {
-          console.error('나가기 처리 중 오류 발생:', error);
+          console.error('나가기 처리 중 오류 발생:', error)
         }
-      };
+      }
 
       cleanup()
     }

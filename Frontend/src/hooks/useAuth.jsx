@@ -1,7 +1,7 @@
 import axios from 'axios'
 import PropTypes from 'prop-types'
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 
 import { useNavigate } from 'react-router-dom'
 
@@ -93,19 +93,14 @@ export const AuthProvider = ({ children }) => {
       formData.append('username', email)
       formData.append('password', password)
 
-      await axios.post(
-        '/api/v1/auth/login',
-        formData,
-        {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          withCredentials: true,
-        }
-      )
+      await axios.post('/api/v1/auth/login', formData, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        withCredentials: true,
+      })
 
       setIsLoggedIn(true)
       await checkLoginStatus()
       navigate(-1)
-
     } catch (error) {
       console.error('로그인 실패:', error)
       if (error.response?.status === 400) {
@@ -119,7 +114,8 @@ export const AuthProvider = ({ children }) => {
 
   // 구글 로그인 URL 가져오기
   useEffect(() => {
-    axios.get('/api/v1/oauth/google/login')
+    axios
+      .get('/api/v1/oauth/google/login')
       .then((response) => {
         setGoogleLoginUrl(response.data.login_url)
       })
@@ -129,16 +125,19 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   // 구글 로그인 메시지 핸들러
-  const handleGoogleLoginMessage = useCallback((event) => {
-    if (!event.origin.includes('localhost')) return
-    
-    if (event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
-      setIsLoggedIn(true)
-      checkLoginStatus()
-      navigate('/')
-      window.removeEventListener('message', handleGoogleLoginMessage)
-    }
-  }, [navigate])
+  const handleGoogleLoginMessage = useCallback(
+    (event) => {
+      if (!event.origin.includes('localhost')) return
+
+      if (event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
+        setIsLoggedIn(true)
+        checkLoginStatus()
+        navigate('/')
+        window.removeEventListener('message', handleGoogleLoginMessage)
+      }
+    },
+    [navigate]
+  )
 
   // 구글 로그인 팝업 처리
   const handleSocialLogin = useCallback(() => {
@@ -208,9 +207,7 @@ export const AuthProvider = ({ children }) => {
       >
         <DialogTitle id="logout-dialog-title">로그아웃</DialogTitle>
         <DialogContent>
-          <DialogContentText id="logout-dialog-description">
-            성공적으로 로그아웃되었습니다.
-          </DialogContentText>
+          <DialogContentText id="logout-dialog-description">성공적으로 로그아웃되었습니다.</DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleLogoutModalClose} autoFocus>

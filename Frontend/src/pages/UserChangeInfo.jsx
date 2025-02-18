@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react'
+import axios from 'axios'
+
+import { useState } from 'react'
+
 import { useNavigate } from 'react-router-dom'
-import CheckIcon from '@mui/icons-material/Check'
+
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import Box from '@mui/material/Box'
@@ -14,8 +17,8 @@ import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { styled } from '@mui/material/styles'
+
 import { PrimaryButton } from '../components/common/buttons'
-import axios from 'axios'
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': { width: '100%', maxWidth: 500, padding: theme.spacing(2) },
@@ -47,16 +50,10 @@ const UpdateUserContainer = ({ children }) => (
 )
 
 const UpdateUserBox = ({ children }) => (
-  <Box sx={{ width: "100%", maxWidth: "500px", margin: "0 auto", padding: 4 }}>
-    {children}
-  </Box>
+  <Box sx={{ width: '100%', maxWidth: '500px', margin: '0 auto', padding: 4 }}>{children}</Box>
 )
 
-const InfoItem = ({ children }) => (
-  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-    {children}
-  </Box>
-)
+const InfoItem = ({ children }) => <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>{children}</Box>
 
 const UserChangeInfo = () => {
   const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
@@ -69,21 +66,21 @@ const UserChangeInfo = () => {
   const [updateError, setUpdateError] = useState('')
 
   const [profileData, setProfileData] = useState({
-    email: "",
-    name: "",
-    nickname: "",
-    phone: "",
-    user_img: "",
+    email: '',
+    name: '',
+    nickname: '',
+    phone: '',
+    user_img: '',
   })
 
-  const [verificationCode, setVerificationCode] = useState("")
+  const [verificationCode, setVerificationCode] = useState('')
   const [isPhoneVerified, setIsPhoneVerified] = useState(false)
 
   // 사용자 정보 조회
   const fetchUserInfo = async () => {
     try {
-      const response = await axios.get(BACKEND_URL+'/api/v1/users/logged-in', {
-        withCredentials: true
+      const response = await axios.get(BACKEND_URL + '/api/v1/users/logged-in', {
+        withCredentials: true,
       })
       setProfileData(response.data)
     } catch (error) {
@@ -96,7 +93,7 @@ const UserChangeInfo = () => {
   const handlePasswordSubmit = async () => {
     try {
       await axios.post(
-        BACKEND_URL+'/api/v1/auth/verify-password',
+        BACKEND_URL + '/api/v1/auth/verify-password',
         { password },
         {
           headers: { 'Content-Type': 'application/json' },
@@ -108,22 +105,22 @@ const UserChangeInfo = () => {
       setPasswordError('')
       await fetchUserInfo() // 비밀번호 인증 성공 후 사용자 정보 조회
     } catch (error) {
-      setPasswordError(error.response?.status === 400 
-        ? '비밀번호를 다시 확인해주세요' 
-        : '오류가 발생했습니다. 다시 시도해주세요.')
+      setPasswordError(
+        error.response?.status === 400 ? '비밀번호를 다시 확인해주세요' : '오류가 발생했습니다. 다시 시도해주세요.'
+      )
     }
   }
 
   const handlePhoneChange = (e) => {
     const value = e.target.value.replace(/[^0-9]/g, '').replace(/^(\d{3})(\d{4})(\d{4})$/, '$1-$2-$3')
-    setProfileData(prev => ({ ...prev, phone: value }))
+    setProfileData((prev) => ({ ...prev, phone: value }))
   }
 
   // 정보 수정
   const handleUpdateInfo = async () => {
     try {
       await axios.put(
-        BACKEND_URL+'/api/v1/users/',
+        BACKEND_URL + '/api/v1/users/',
         {
           nickname: profileData.nickname,
           phone: profileData.phone,
@@ -147,9 +144,7 @@ const UserChangeInfo = () => {
   return (
     <>
       <StyledDialog open={showPasswordModal} onClose={() => {}}>
-        <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.5rem' }}>
-          비밀번호 확인
-        </DialogTitle>
+        <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.5rem' }}>비밀번호 확인</DialogTitle>
         <DialogContent>
           <Typography sx={{ mb: 3, textAlign: 'center', color: 'text.secondary' }}>
             안전한 개인정보보호를 위해 비밀번호를 입력해 주세요.
@@ -173,12 +168,7 @@ const UserChangeInfo = () => {
             }}
             sx={{ mb: 2 }}
           />
-          <StyledButton 
-            fullWidth 
-            variant="contained" 
-            onClick={handlePasswordSubmit}
-            disabled={!password}
-          >
+          <StyledButton fullWidth variant="contained" onClick={handlePasswordSubmit} disabled={!password}>
             확인
           </StyledButton>
         </DialogContent>
@@ -187,7 +177,7 @@ const UserChangeInfo = () => {
       {isAuthenticated && (
         <UpdateUserContainer>
           <UpdateUserBox>
-            <Typography variant="h4" align="center" gutterBottom fontWeight={950} marginBottom={"3rem"}>
+            <Typography variant="h4" align="center" gutterBottom fontWeight={950} marginBottom={'3rem'}>
               회원 정보 수정
             </Typography>
 
@@ -199,37 +189,29 @@ const UserChangeInfo = () => {
 
             <Stack spacing={3}>
               <InfoItem>
-                <Typography sx={{ width: "60px", flexShrink: 0, fontWeight: 'bold' }}>
-                  아이디
-                </Typography>
+                <Typography sx={{ width: '60px', flexShrink: 0, fontWeight: 'bold' }}>아이디</Typography>
                 <Typography>{profileData.email}</Typography>
               </InfoItem>
 
               <InfoItem>
-                <Typography sx={{ width: "60px", flexShrink: 0, fontWeight: 'bold' }}>
-                  이름
-                </Typography>
+                <Typography sx={{ width: '60px', flexShrink: 0, fontWeight: 'bold' }}>이름</Typography>
                 <Typography>{profileData.name}</Typography>
               </InfoItem>
 
               <InfoItem>
-                <Typography sx={{ width: "60px", flexShrink: 0, fontWeight: 'bold' }}>
-                  필명
-                </Typography>
+                <Typography sx={{ width: '60px', flexShrink: 0, fontWeight: 'bold' }}>필명</Typography>
                 <TextField
                   fullWidth
                   placeholder="필명을 입력해주세요"
                   value={profileData.nickname}
-                  onChange={(e) => setProfileData(prev => ({ ...prev, nickname: e.target.value }))}
+                  onChange={(e) => setProfileData((prev) => ({ ...prev, nickname: e.target.value }))}
                 />
               </InfoItem>
 
               <InfoItem>
-                <Typography sx={{ width: "60px", flexShrink: 0, fontWeight: 'bold' }}>
-                  연락처
-                </Typography>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 2, flexGrow: 1 }}>
-                  <Box sx={{ display: "flex", gap: 2 }}>
+                <Typography sx={{ width: '60px', flexShrink: 0, fontWeight: 'bold' }}>연락처</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
                     <TextField
                       id="phone"
                       name="phone"
@@ -240,22 +222,22 @@ const UserChangeInfo = () => {
                       onChange={handlePhoneChange}
                       inputProps={{
                         maxLength: 13,
-                        inputMode: "numeric",
-                        pattern: "[0-9]*",
+                        inputMode: 'numeric',
+                        pattern: '[0-9]*',
                       }}
                     />
                     <PrimaryButton
                       disabled={isPhoneVerified}
                       sx={{
                         px: 2,
-                        whiteSpace: "nowrap",
+                        whiteSpace: 'nowrap',
                         flexShrink: 0,
                       }}
                     >
                       인증번호 전송
                     </PrimaryButton>
                   </Box>
-                  <Box sx={{ display: "flex", gap: 2 }}>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
                     <TextField
                       id="verificationCode"
                       name="verificationCode"
@@ -270,7 +252,7 @@ const UserChangeInfo = () => {
                       disabled={isPhoneVerified}
                       sx={{
                         px: 2,
-                        whiteSpace: "nowrap",
+                        whiteSpace: 'nowrap',
                         flexShrink: 0,
                       }}
                     >
@@ -286,8 +268,8 @@ const UserChangeInfo = () => {
                   fullWidth
                   onClick={handleUpdateInfo}
                   sx={{
-                    backgroundColor: "#FFB347",
-                    "&:hover": { backgroundColor: "#FFA022" },
+                    backgroundColor: '#FFB347',
+                    '&:hover': { backgroundColor: '#FFA022' },
                   }}
                 >
                   정보 수정하기
@@ -298,13 +280,13 @@ const UserChangeInfo = () => {
                   fullWidth
                   onClick={handleNavigateToResetPassword}
                   sx={{
-                    backgroundColor: "transparent",
-                    color: "#FFB347",
-                    borderColor: "#FFB347",
-                    "&:hover": {
-                      backgroundColor: "transparent",
-                      color: "#FFA022",
-                      borderColor: "#FFA022",
+                    backgroundColor: 'transparent',
+                    color: '#FFB347',
+                    borderColor: '#FFB347',
+                    '&:hover': {
+                      backgroundColor: 'transparent',
+                      color: '#FFA022',
+                      borderColor: '#FFA022',
                     },
                   }}
                 >

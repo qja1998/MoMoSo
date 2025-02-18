@@ -23,9 +23,9 @@ const theme = createTheme({
       styleOverrides: {
         '@font-face': {
           fontFamily: 'Pretendard Variable',
+          fontWeight: '50 1000',
+          src: `url('/fonts/PretendardVariable.woff2') format('woff2-variations')`,
           fontStyle: 'normal',
-          fontWeight: '45 920',
-          src: `local('Pretendard Variable'), url('@/styles/fonts/PretendardVariable.ttf') format('truetype')`,
           fontDisplay: 'swap',
         },
       },

@@ -8,15 +8,7 @@ import { useNavigate } from 'react-router-dom'
 // 아이콘
 import AddIcon from '@mui/icons-material/Add'
 import FavoriteIcon from '@mui/icons-material/Favorite'
-import ImageIcon from '@mui/icons-material/Image'
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
-import InsertEmoticonIcon from '@mui/icons-material/InsertEmoticon'
 import MenuBookIcon from '@mui/icons-material/MenuBook'
-import MoreVertIcon from '@mui/icons-material/MoreVert'
-import RefreshIcon from '@mui/icons-material/Refresh'
-import SendIcon from '@mui/icons-material/Send'
-import ThumbDownIcon from '@mui/icons-material/ThumbDown'
-import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 // 디자인 컴포넌트
 import Box from '@mui/material/Box'
@@ -27,7 +19,6 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import FormControl from '@mui/material/FormControl'
 import FormHelperText from '@mui/material/FormHelperText'
-import IconButton from '@mui/material/IconButton'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
 import Paper from '@mui/material/Paper'
@@ -45,7 +36,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 
-import coverPlaceholder from '/src/assets/placeholder/cover-image-placeholder.png'
+import coverPlaceholder from '/placeholder/cover-image-placeholder.png'
 
 const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
 
@@ -230,30 +221,30 @@ const NovelEpisodeList = () => {
     [navigate]
   )
 
-  const [comments, setComments] = useState([
-    // TODO: 댓글 데이터 추가
-    {
-      id: 1,
-      author: '밍(dkgk****)',
-      date: '2024-10-06 13:55',
-      content: '너무 재미있습니다! 볼까말까 고민 중이시라면 보세요!',
-      likes: 19,
-      dislikes: 2,
-      isBest: true,
-    },
-    {
-      id: 2,
-      author: 'nv_(nv_w****)',
-      date: '18시간 전',
-      content: 'ㅎㅎ',
-      likes: 0,
-      dislikes: 0,
-      isBest: false,
-    },
-  ])
+  // const [comments, setComments] = useState([
+  //   // TODO: 댓글 데이터 추가
+  //   {
+  //     id: 1,
+  //     author: '밍(dkgk****)',
+  //     date: '2024-10-06 13:55',
+  //     content: '너무 재미있습니다! 볼까말까 고민 중이시라면 보세요!',
+  //     likes: 19,
+  //     dislikes: 2,
+  //     isBest: true,
+  //   },
+  //   {
+  //     id: 2,
+  //     author: 'nv_(nv_w****)',
+  //     date: '18시간 전',
+  //     content: 'ㅎㅎ',
+  //     likes: 0,
+  //     dislikes: 0,
+  //     isBest: false,
+  //   },
+  // ])
 
   // 댓글 좋아요/싫어요 핸들러
-  const handleLike = useCallback((commentId) => {
+  /*const handleLike = useCallback((commentId) => {
     // TODO: 좋아요 기능 구현
     console.log('Like comment:', commentId)
   }, [])
@@ -288,20 +279,22 @@ const NovelEpisodeList = () => {
   const handleDeleteComment = useCallback((commentId) => {
     // TODO: 댓글 삭제 기능 구현
     console.log('Delete comment:', commentId)
-  }, [])
+  }, [])*/
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
       <Paper
         sx={{
-          p: '24px',
+          p: { xs: '12px', sm: '16px', md: '24px' },
           display: 'flex',
-          gap: '24px',
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: { xs: '16px', md: '24px' },
           elevation: 0,
           mb: '24px',
           borderRadius: 2,
           border: '1px solid #e0e0e0',
           bgcolor: '#ffffff',
+          width: '100%',
         }}
       >
         {/* 표지 섹션 */}
@@ -310,18 +303,19 @@ const NovelEpisodeList = () => {
           src={coverPlaceholder}
           alt="소설 표지"
           sx={{
-            width: 200,
-            height: 267,
+            width: { xs: '100%', sm: 200 },
+            height: { xs: 'auto', sm: 267 },
+            aspectRatio: '3/4',
             objectFit: 'cover',
             borderRadius: 2,
             border: '1px solid #e0e0e0',
-            flex: 2,
+            flex: { xs: 'none', md: 2 },
           }}
         />
 
         {/* 소설 정보 섹션 */}
-        <Stack direction="column" sx={{ flex: 4, justifyContent: 'space-between' }}>
-          <Typography variant="h1" sx={{ fontSize: '2rem', fontWeight: 950 }}>
+        <Stack direction="column" sx={{ flex: { xs: 1, md: 4 }, justifyContent: 'space-between' }}>
+          <Typography variant="h1" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' }, fontWeight: 950 }}>
             시간을 달리는 소녀
           </Typography>
           <Stack direction="column" spacing={1}>
@@ -351,7 +345,7 @@ const NovelEpisodeList = () => {
         </Stack>
 
         {/* 토론방 섹션 */}
-        <Stack sx={{ flex: 4, p: 2, gap: 2 }}>
+        <Stack spacing={2} sx={{ flex: { xs: 1, md: 4 }, height: { xs: 'auto', md: '100%' } }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="h6" fontWeight={700}>
               토론방
@@ -675,7 +669,7 @@ const NovelEpisodeList = () => {
       </TableContainer>
 
       {/* 댓글 섹션 */}
-      <Paper sx={{ mt: 3, p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+      {/*<Paper sx={{ mt: 3, p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="h6" fontWeight={700}>
@@ -702,10 +696,10 @@ const NovelEpisodeList = () => {
               <InfoOutlinedIcon />
             </IconButton>
           </Stack>
-        </Box>
+        </Box>*/}
 
-        {/* 댓글 입력 영역 */}
-        <Paper
+      {/* 댓글 입력 영역 */}
+      {/*<Paper
           variant="outlined"
           sx={{
             p: 2,
@@ -745,10 +739,10 @@ const NovelEpisodeList = () => {
               등록하기
             </Button>
           </Box>
-        </Paper>
+        </Paper>*/}
 
-        {/* 댓글 목록 */}
-        <Stack spacing={2}>
+      {/* 댓글 목록 */}
+      {/*<Stack spacing={2}>
           {comments.map((comment) => (
             <Paper
               key={comment.id}
@@ -815,7 +809,7 @@ const NovelEpisodeList = () => {
             </Paper>
           ))}
         </Stack>
-      </Paper>
+      </Paper>*/}
     </Box>
   )
 }

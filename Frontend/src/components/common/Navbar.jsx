@@ -1,4 +1,3 @@
-import textLogo from '@/assets/logo/text-logo.svg'
 import { useAuth } from '@/hooks/useAuth'
 
 import { useState } from 'react'
@@ -22,6 +21,8 @@ import Toolbar from '@mui/material/Toolbar'
 import { useTheme } from '@mui/material/styles'
 import useMediaQuery from '@mui/material/useMediaQuery'
 
+import textLogo from '/logo/text-logo.svg'
+
 // 경로 수정
 
 const Navbar = () => {
@@ -33,7 +34,7 @@ const Navbar = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   // 로그인이 필요한 페이지 목록
-  const protectedRoutes = ['/novel/edit', '/community']
+  const protectedRoutes = ['/novel/edit', '/discussion']
 
   const handleProtectedNavigation = (path) => {
     if (!isLoggedIn && protectedRoutes.includes(path)) {
@@ -43,25 +44,9 @@ const Navbar = () => {
     navigate(path)
   }
 
-  const handleMenu = (event) => {
-    setAnchorEl(event.currentTarget)
-  }
-
-  const handleClose = () => {
-    setAnchorEl(null)
-  }
-
-  const handleUserMenuOpen = (event) => {
-    setUserMenuAnchorEl(event.currentTarget)
-  }
-
-  const handleUserMenuClose = () => {
-    setUserMenuAnchorEl(null)
-  }
-
   const handleLogoutClick = () => {
-    handleUserMenuClose()
-    logout() // 로그아웃 함수 호출
+    setUserMenuAnchorEl(null)
+    logout()
   }
 
   const handleProfileClick = () => {
@@ -77,7 +62,6 @@ const Navbar = () => {
   }
 
   const renderMenuItems = () => {
-    console.log({ isLoggedIn })
     if (loading) {
       return <MenuItem>로딩중...</MenuItem>
     }
@@ -132,13 +116,24 @@ const Navbar = () => {
           <img src={textLogo} alt="MOMOSO" style={{ height: '30px', width: 'auto' }} />
         </Link>
         {isMobile ? (
-          <IconButton size="large" edge="end" color="inherit" aria-label="menu" onClick={handleMenu}>
+          <IconButton
+            size="large"
+            edge="end"
+            color="inherit"
+            aria-label="menu"
+            onClick={(event) => setAnchorEl(event.currentTarget)}
+          >
             <MenuIcon sx={{ color: '#000000' }} />
-            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose} onClick={handleClose}>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={() => setAnchorEl(null)}
+              onClick={() => setAnchorEl(null)}
+            >
               <div>
                 <MenuItem onClick={() => handleProtectedNavigation('/novel/edit')}>AI소설 에디터</MenuItem>
-                <MenuItem onClick={() => handleProtectedNavigation('/community')}>그룹 토론</MenuItem>
-                <MenuItem onClick={() => navigate('/novel/viewer/list')}>소설 게시판</MenuItem>
+                <MenuItem onClick={() => handleProtectedNavigation('/discussion')}>그룹 토론</MenuItem>
+                <MenuItem onClick={() => navigate('/novel')}>소설 게시판</MenuItem>
               </div>
             </Menu>
           </IconButton>
@@ -162,7 +157,7 @@ const Navbar = () => {
             <Link
               onClick={(e) => {
                 e.preventDefault()
-                handleProtectedNavigation('/community')
+                handleProtectedNavigation('/discussion')
               }}
               style={{
                 textDecoration: 'none',
@@ -175,7 +170,7 @@ const Navbar = () => {
               그룹 토론
             </Link>
             <Link
-              to="/novel/viewer/list"
+              to="/novel"
               style={{
                 textDecoration: 'none',
                 color: '#000000',
@@ -185,7 +180,7 @@ const Navbar = () => {
             >
               소설 게시판
             </Link>
-            <IconButton onClick={handleUserMenuOpen}>
+            <IconButton onClick={(event) => setUserMenuAnchorEl(event.currentTarget)}>
               <Avatar sx={{ width: 32, height: 32, bgcolor: '#FFA726' }}>
                 <AccountCircleIcon />
               </Avatar>
@@ -193,8 +188,8 @@ const Navbar = () => {
             <Menu
               anchorEl={userMenuAnchorEl}
               open={Boolean(userMenuAnchorEl)}
-              onClose={handleUserMenuClose}
-              onClick={handleUserMenuClose}
+              onClose={() => setUserMenuAnchorEl(null)}
+              onClick={() => setUserMenuAnchorEl(null)}
               anchorOrigin={{
                 vertical: 'bottom',
                 horizontal: 'right',
