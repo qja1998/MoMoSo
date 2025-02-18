@@ -43,7 +43,7 @@ const PasswordGuideItem = styled(Box)(({ theme, isvalid, focused }) => ({
 }))
 
 const UserSignUp = () => {
-  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
+  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
   const navigate = useNavigate()
   const { setIsLoggedIn } = useAuth()
   const [errors, setErrors] = useState({})

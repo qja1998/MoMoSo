@@ -23,7 +23,7 @@ import Stack from '@mui/material/Stack'
 
 const drawerWidth = 240
 
-const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
 
 const Sidebar = () => {
   const [open, setOpen] = useState(true)

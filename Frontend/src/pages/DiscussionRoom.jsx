@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { OpenVidu as OpenViduBrowser } from 'openvidu-browser'
 import { OpenVidu as OpenViduNode } from 'openvidu-node-client'
+import RecordRTC from 'recordrtc'
 
 import { useEffect, useRef, useState } from 'react'
 
@@ -27,7 +28,7 @@ import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 
 // 경로 상수
-const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
 const OPENVIDU_SERVER_URL = `${import.meta.env.VITE_OPENVIDU_PROTOCOL}://${import.meta.env.VITE_OPENVIDU_IP}:${import.meta.env.VITE_OPENVIDU_PORT}`
 const OPENVIDU_SERVER_SECRET = import.meta.env.VITE_OPENVIDU_SERVER_SECRET
 
@@ -37,6 +38,169 @@ const debounce = (func, wait) => {
   return (...args) => {
     clearTimeout(timeout)
     timeout = setTimeout(() => func(...args), wait)
+  }
+}
+
+// VAD 클래스 추가
+const VoiceActivityDetector = class {
+  constructor(stream, options = {}) {
+    this.audioContext = new AudioContext()
+    this.microphone = this.audioContext.createMediaStreamSource(stream)
+    this.analyser = this.audioContext.createAnalyser()
+
+    this.recorder = null
+    this.isProcessing = false
+    this.lastProcessedTime = 0
+    this.options = {
+      threshold: 0.13,
+      maxSilentTime: 2400,
+      minRecordingTime: 1000,
+      processingDebounce: 1000
+    }
+
+    this.setupAnalyser()
+  }
+
+  setupAnalyser() {
+    console.warn = function() {}
+    this.analyser.minDecibels = -45
+    this.analyser.maxDecibels = -10
+    this.analyser.fftSize = 2048
+
+    this.microphone.connect(this.analyser)
+    this.dataArray = new Float32Array(this.analyser.frequencyBinCount)
+  }
+
+  isVoiceActive() {
+    this.analyser.getFloatTimeDomainData(this.dataArray)
+    
+    const rms = Math.sqrt(
+      this.dataArray.reduce((sum, value) => sum + value * value, 0) / this.dataArray.length
+    )
+
+    const normalizedVolume = Math.abs(rms)
+    return normalizedVolume > this.options.threshold
+  }
+
+  canProcess() {
+    const now = Date.now()
+    if (now - this.lastProcessedTime < this.options.processingDebounce) {
+      return false
+    }
+    return true
+  }
+
+  async handleRecordingStopped(onDataAvailable) {
+    if (this.isProcessing || !this.canProcess()) return
+    
+    this.isProcessing = true
+    this.lastProcessedTime = Date.now()
+
+    try {
+      await new Promise((resolve) => {
+        if (!this.recorder) {
+          resolve()
+          return
+        }
+
+        this.recorder.stopRecording(async () => {
+          try {
+            const blob = this.recorder.getBlob()
+            
+            if (blob && blob.size > 0) {
+              try {
+                await onDataAvailable(blob)
+              } catch (error) {
+                console.error('오디오 데이터 전송 실패:', error)
+              }
+            }
+
+            if (this.recorder) {
+              this.recorder.reset()
+              this.recorder.startRecording()
+            }
+            resolve()
+          } catch (error) {
+            console.error('Blob 처리 중 오류:', error)
+            resolve()
+          }
+        })
+      })
+    } finally {
+      this.isProcessing = false
+    }
+  }
+
+  startRecording(onDataAvailable) {
+    if (this.recorder) {
+      try {
+        this.recorder.stopRecording(() => {
+          if (this.recorder) {
+            this.recorder.reset()
+          }
+        })
+      } catch (error) {
+        console.error('기존 레코더 정리 중 오류:', error)
+      }
+    }
+
+    const audioStream = this.microphone.mediaStream
+    
+    this.recorder = new RecordRTC(audioStream, {
+      type: 'audio',
+      mimeType: 'audio/wav',
+      recorderType: RecordRTC.StereoAudioRecorder,
+      desiredSampRate: 16000,
+      numberOfAudioChannels: 1
+    })
+
+    this.recorder.startRecording()
+
+    let isRecording = false
+    let silentTime = 0
+    let recordingTime = 0
+    const CHECK_INTERVAL = 200
+
+    const checkVoiceActivity = setInterval(async () => {
+      if (this.isProcessing) return
+      
+      const isActive = this.isVoiceActive()
+
+      if (isActive) {
+        if (!isRecording) {
+          isRecording = true
+          silentTime = 0
+          recordingTime = 0
+        } else {
+          silentTime = 0
+          recordingTime += CHECK_INTERVAL
+        }
+      } else {
+        if (isRecording) {
+          silentTime += CHECK_INTERVAL
+          recordingTime += CHECK_INTERVAL
+
+          if (recordingTime >= this.options.minRecordingTime && 
+              silentTime >= this.options.maxSilentTime) {
+            await this.handleRecordingStopped(onDataAvailable)
+            isRecording = false
+            silentTime = 0
+            recordingTime = 0
+          }
+        }
+      }
+    }, CHECK_INTERVAL)
+
+    return async () => {
+      clearInterval(checkVoiceActivity)
+      if (this.recorder) {
+        await this.handleRecordingStopped(onDataAvailable)
+        if (this.recorder) {
+          this.recorder.destroy()
+          this.recorder = null
+        }
+      }
+    }
   }
 }
 
@@ -73,6 +237,115 @@ export default function DiscussionRoom() {
   // AI 어시스턴트 관련 상태 추가
   const [factChecks, setFactChecks] = useState([])
   const [isGeneratingTopic, setIsGeneratingTopic] = useState(false)
+
+  const vadRef = useRef(null)
+
+  // 오디오 데이터 전송
+  const sendAudioData = async (blob) => {
+    const formData = new FormData()
+    formData.append('audio', blob, `audio_${Date.now()}.wav`)
+    formData.append('roomName', discussionInfo?.session_id)
+    formData.append('userName', loginInfo.current?.nickname)
+
+    try {
+      const response = await axios.post(`${BACKEND_URL}/api/audio`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        withCredentials: true
+      })
+
+      if (response.data.text) {
+        await clientSession.signal({
+          data: JSON.stringify({
+            text: response.data.text,
+            user: loginInfo.current?.nickname
+          }),
+          type: 'stt'
+        })
+      }
+    } catch (error) {
+      console.error('오디오 전송 에러:', error)
+    }
+  }
+
+  // 마이크 토글 핸들러 수정
+  const handleMicToggle = () => {
+    const newMicState = !isMicOn
+    setIsMicOn(newMicState)
+    
+    if (publisher) {
+      publisher.publishAudio(newMicState)
+
+      if (newMicState) {
+        const audioStream = publisher.stream.getMediaStream()
+        const vad = new VoiceActivityDetector(audioStream)
+        
+        const stopRecording = vad.startRecording(async (blob) => {
+          await sendAudioData(blob)
+        })
+
+        if (vadRef.current) {
+          vadRef.current()
+        }
+        vadRef.current = stopRecording
+      } else {
+        if (vadRef.current) {
+          vadRef.current()
+          vadRef.current = null
+        }
+      }
+    }
+  }
+
+  // 음성 활동 감지 (게시자)
+  useEffect(() => {
+    if (publisher && publisher.stream && isMicOn) {
+      const audioStream = publisher.stream.getMediaStream()
+      const vad = new VoiceActivityDetector(audioStream)
+      
+      const checkVoiceActivity = setInterval(() => {
+        const isActive = vad.isVoiceActive()
+        setSpeakingUsers(prev => {
+          const newSpeakers = new Set(prev)
+          if (isActive) {
+            newSpeakers.add(loginInfo.current?.user_pk)
+          } else {
+            newSpeakers.delete(loginInfo.current?.user_pk)
+          }
+          return Array.from(newSpeakers)
+        })
+      }, 200)
+
+      return () => clearInterval(checkVoiceActivity)
+    }
+  }, [publisher, isMicOn])
+
+  // 음성 활동 감지 (구독자)
+  useEffect(() => {
+    const voiceActivityChecks = subscribers
+      .filter(sub => sub.stream.audioActive)
+      .map((sub) => {
+        const connectionData = JSON.parse(sub.stream.connection.data)
+        const audioStream = sub.stream.getMediaStream()
+        const vad = new VoiceActivityDetector(audioStream)
+        
+        const checkVoiceActivity = setInterval(() => {
+          const isActive = vad.isVoiceActive()
+          setSpeakingUsers(prev => {
+            const newSpeakers = new Set(prev)
+            if (isActive) {
+              newSpeakers.add(connectionData.user_pk)
+            } else {
+              newSpeakers.delete(connectionData.user_pk)
+            }
+            return Array.from(newSpeakers)
+          })
+        }, 200)
+
+        return () => clearInterval(checkVoiceActivity)
+      })
+
+    return () => voiceActivityChecks.forEach(cleanup => cleanup())
+  }, [subscribers])
 
   // 토론방 초기화 로직
   useEffect(() => {
@@ -226,19 +499,19 @@ export default function DiscussionRoom() {
           streamCreated: (event) => {
             const subscriber = clientSideSession.subscribe(event.stream, undefined)
             // 이미 존재하는 참가자인지 확인
-            const connectionId = event.stream.connection.connectionId
+            // const connectionId = event.stream.connection.connectionId
             const connectionData = JSON.parse(event.stream.connection.data)
             
-            setParticipants(prev => {
-              // 이미 존재하면 업데이트하지 않음
-              if (prev.some(p => p.connectionId === connectionId)) return prev;
+            // setParticipants(prev => {
+            //   // 이미 존재하면 업데이트하지 않음
+            //   if (prev.some(p => p.connectionId === connectionId)) return prev;
               
-              return [...prev, {
-                connectionId,
-                streamManager: subscriber,
-                ...connectionData,
-              }]
-            })
+            //   return [...prev, {
+            //     connectionId,
+            //     streamManager: subscriber,
+            //     ...connectionData,
+            //   }]
+            // })
         
             // VAD 이벤트 핸들러 설정
             subscriber.on('publisherStartSpeaking', () => {
@@ -280,7 +553,7 @@ export default function DiscussionRoom() {
           },
           // 새로운 사용자가 세션에 연결될 때 발생. 이벤트에서 새로운 Connection 객체의 세부 정보를 얻을 수 있음.
           connectionCreated: (event) => {
-            if (event.connection.connectionId === connection.connectionId) return
+            // if (event.connection.connectionId === connection.connectionId) return
             
             const connectionId = event.connection.connectionId
             const connectionData = JSON.parse(event.connection.data)
@@ -410,6 +683,11 @@ export default function DiscussionRoom() {
           setParticipants([]);
           setSpeakingUsers([]);
       
+          // VAD 정리
+          if (vadRef.current) {
+            vadRef.current()
+            vadRef.current = null
+          }
         } catch (error) {
           console.error('나가기 처리 중 오류 발생:', error);
         }
@@ -423,13 +701,6 @@ export default function DiscussionRoom() {
     navigate(-1, {
       // replace: true,
     })
-  }
-
-  const handleMicToggle = () => {
-    setIsMicOn(!isMicOn)
-    if (publisher) {
-      publisher.publishAudio(!isMicOn)
-    }
   }
 
   // 볼륨 조절에 debounce 적용
@@ -616,15 +887,15 @@ export default function DiscussionRoom() {
               {/* 참여자 목록 헤더 */}
               <Stack sx={{ p: 2, borderBottom: '1px solid #EEEEEE' }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-                  참여자 ({discussionInfo.participants.length})
+                  토론 참여자 ({discussionInfo.participants.length})
                 </Typography>
               </Stack>
 
               {/* 참여자 목록 */}
               <Stack sx={{ flex: 1, overflow: 'auto', height: 'calc(100% - 100px)' }}>
-                {discussionInfo.participants.map((participant) => (
+                {participants.map((participant) => (
                   <Stack
-                    key={participant.user_pk}
+                    key={participant.connectionId}
                     direction="row"
                     alignItems="center"
                     spacing={1}

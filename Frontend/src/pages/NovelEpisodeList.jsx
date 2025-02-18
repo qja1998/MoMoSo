@@ -47,7 +47,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 
 import coverPlaceholder from '/src/assets/placeholder/cover-image-placeholder.png'
 
-const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
 
 const NovelEpisodeList = () => {
   const navigate = useNavigate()
@@ -131,7 +131,7 @@ const NovelEpisodeList = () => {
   useEffect(() => {
     const fetchDiscussions = async () => {
       try {
-        const response = await axios.get(`${BACKEND_URL}/api/v1/discussion/`)
+        const response = await axios.get(`${BACKEND_URL}/api/v1/discussion/`, { withCredentials: true })
         setDiscussions(response.data)
         console.log(response.data)
       } catch (error) {

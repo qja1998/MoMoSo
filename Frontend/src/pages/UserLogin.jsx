@@ -12,13 +12,20 @@ import graphicLogo from '/src/assets/logo/graphic-logo.svg';
 import { useEffect, useState } from "react";
 import axios from 'axios';
 import { useAuth } from '../hooks/useAuth';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import IconButton from '@mui/material/IconButton';
+
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
 
 const UserLogin = () => {
-  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}:${import.meta.env.VITE_BACKEND_PORT}`
   const [googleLoginUrl, setGoogleLoginUrl] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const navigate = useNavigate();
   const { isLoggedIn, setIsLoggedIn } = useAuth();
 
@@ -26,7 +33,7 @@ const UserLogin = () => {
     axios.defaults.withCredentials = true;
 
     axios
-      .get(BACKEND_URL+'/api/v1/oauth/google/login')
+      .get(`${BACKEND_URL}/api/v1/oauth/google/login`)
       .then((response) => {
         setGoogleLoginUrl(response.data.login_url);
       })
@@ -116,7 +123,7 @@ const UserLogin = () => {
       formData.append('password', password);
 
       await axios.post(
-        BACKEND_URL+'/api/v1/auth/login',
+        `${BACKEND_URL}/api/v1/auth/login`,
         formData,
         {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -138,6 +145,11 @@ const UserLogin = () => {
     }
   };
 
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    handleLogin();
+  };
+
   return (
     <Stack
       sx={{
@@ -150,6 +162,8 @@ const UserLogin = () => {
       }}
     >
       <Stack
+        component="form"
+        onSubmit={handleSubmit}
         spacing={2}
         sx={{
           width: '100%',
@@ -169,11 +183,13 @@ const UserLogin = () => {
           fullWidth
           placeholder="이메일을 입력해주세요"
           variant="outlined"
+          onFocus={() => setEmailFocused(true)}
+          onBlur={() => setEmailFocused(false)}
           slotProps={{
             input: {
               startAdornment: (
                 <InputAdornment position="start">
-                  <Email sx={{ color: '#c9c9c9' }} />
+                  <Email sx={{ color: emailFocused ? 'primary.main' : '#c9c9c9' }} />
                 </InputAdornment>
               ),
             },
@@ -183,14 +199,27 @@ const UserLogin = () => {
         />
         <TextField
           fullWidth
-          type="password"
+          type={showPassword ? 'text' : 'password'}
           placeholder="비밀번호를 입력해주세요"
           variant="outlined"
+          onFocus={() => setPasswordFocused(true)}
+          onBlur={() => setPasswordFocused(false)}
           slotProps={{
             input: {
               startAdornment: (
                 <InputAdornment position="start">
-                  <Lock sx={{ color: '#c9c9c9' }} />
+                  <Lock sx={{ color: passwordFocused ? 'primary.main' : '#c9c9c9' }} />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="비밀번호 보기 토글"
+                    onClick={() => setShowPassword(!showPassword)}
+                    edge="end"
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
                 </InputAdornment>
               ),
             },
@@ -223,7 +252,11 @@ const UserLogin = () => {
         </Stack>
 
         <Stack direction="column" justifyContent="center" alignItems="center" spacing={2}>
-          <PrimaryButton fullWidth onClick={handleLogin} sx={{ borderRadius: '4px' }}>
+          <PrimaryButton 
+            fullWidth 
+            type="submit"
+            sx={{ borderRadius: '4px' }}
+          >
             <img
               src={graphicLogo}
               alt="모모소 로그인"
