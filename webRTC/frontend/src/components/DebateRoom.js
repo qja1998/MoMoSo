@@ -13,10 +13,13 @@ const VoiceActivityDetector = class {
     this.analyser = this.audioContext.createAnalyser();
 
     this.recorder = null;
+    this.isProcessing = false;
+    this.lastProcessedTime = 0;
     this.options = {
-      threshold: 0.13,     // 음성 감지 임계값
-      maxSilentTime: 2400, // 최대 침묵 시간 (ms)
-      minRecordingTime: 1000 // 최소 녹음 시간 (ms)
+      threshold: 0.13,     
+      maxSilentTime: 2400,
+      minRecordingTime: 1000,
+      processingDebounce: 1000  // 중복 처리 방지를 위한 디바운스 시간
     };
 
     this.setupAnalyser();
@@ -40,20 +43,69 @@ const VoiceActivityDetector = class {
     );
 
     const normalizedVolume = Math.abs(rms);
-    
-    // console.log('음성 레벨:', normalizedVolume);
-
     return normalizedVolume > this.options.threshold;
   }
 
+  canProcess() {
+    const now = Date.now();
+    if (now - this.lastProcessedTime < this.options.processingDebounce) {
+      return false;
+    }
+    return true;
+  }
+
+  async handleRecordingStopped(onDataAvailable) {
+    if (this.isProcessing || !this.canProcess()) return;
+    
+    this.isProcessing = true;
+    this.lastProcessedTime = Date.now();
+
+    try {
+      await new Promise((resolve) => {
+        if (!this.recorder) {
+          resolve();
+          return;
+        }
+
+        this.recorder.stopRecording(async () => {
+          try {
+            const blob = this.recorder.getBlob();
+            console.log('녹음 중지 - Blob 크기:', blob?.size);
+            
+            if (blob && blob.size > 0) {
+              console.log('오디오 데이터 전송 시도');
+              try {
+                await onDataAvailable(blob);
+                console.log('오디오 데이터 전송 성공');
+              } catch (error) {
+                console.error('오디오 데이터 전송 실패:', error);
+              }
+            }
+
+            if (this.recorder) {
+              this.recorder.reset();
+              this.recorder.startRecording();
+            }
+            resolve();
+          } catch (error) {
+            console.error('Blob 처리 중 오류:', error);
+            resolve();
+          }
+        });
+      });
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
   startRecording(onDataAvailable) {
-    // 이전 RecordRTC 인스턴스 정리
     if (this.recorder) {
       try {
-        this.recorder.stopRecording(()=>{
-          this.recorder.reset();
+        this.recorder.stopRecording(() => {
+          if (this.recorder) {
+            this.recorder.reset();
+          }
         });
-        // this.recorder.destroy();
       } catch (error) {
         console.error('기존 레코더 정리 중 오류:', error);
       }
@@ -61,30 +113,30 @@ const VoiceActivityDetector = class {
 
     const audioStream = this.microphone.mediaStream;
     
-    // 새로운 RecordRTC 인스턴스 생성
     this.recorder = new RecordRTC(audioStream, {
       type: 'audio',
       mimeType: 'audio/wav',
       recorderType: RecordRTC.StereoAudioRecorder,
-      disableLogs: true,
       desiredSampRate: 16000,
       numberOfAudioChannels: 1
     });
 
     this.recorder.startRecording();
+    console.log('녹음기 시작됨');
 
     let isRecording = false;
     let silentTime = 0;
     let recordingTime = 0;
-    const CHECK_INTERVAL = 200; //반복 주기 ms단위 ex)0.1초 간격으로 음성정보를 확인
+    const CHECK_INTERVAL = 200;
 
-    const checkVoiceActivity = setInterval(() => {
+    const checkVoiceActivity = setInterval(async () => {
+      if (this.isProcessing) return;
+      
       const isActive = this.isVoiceActive();
 
       if (isActive) {
         if (!isRecording) {
           console.log('음성 감지 - 녹음 시작');
-          // this.recorder.startRecording();
           isRecording = true;
           silentTime = 0;
           recordingTime = 0;
@@ -99,50 +151,27 @@ const VoiceActivityDetector = class {
 
           if (recordingTime >= this.options.minRecordingTime && 
               silentTime >= this.options.maxSilentTime) {
-            console.log('침묵 감지 - 녹음 중지');
-            this.recorder.stopRecording(async() => {
-              const blob = this.recorder.getBlob();
-              
-              if (blob && blob.size > 0) {
-
-                await onDataAvailable(blob);
-
-              }
-              this.recorder.reset();
-            });
-            this.recorder.startRecording();
+            console.log('침묵 감지 - 녹음 중지 시도');
+            console.log('녹음 시간:', recordingTime, 'ms');
+            console.log('침묵 시간:', silentTime, 'ms');
+            
+            await this.handleRecordingStopped(onDataAvailable);
             isRecording = false;
             silentTime = 0;
             recordingTime = 0;
           }
-        } else {
-          // isActive가 false == 작은 소리 && 현재 녹음중이 아니였다면
-          this.recorder.stopRecording(() => {
-            this.recorder.reset();
-          });
-          this.recorder.startRecording();
         }
       }
     }, CHECK_INTERVAL);
 
-    // 녹음 중지 함수 반환
-    return () => {
+    return async () => {
       clearInterval(checkVoiceActivity);
       if (this.recorder) {
-        try {
-          this.recorder.stopRecording(()=>{
-            const blob = this.recorder.getBlob();
-              
-              if (blob && blob.size > 0) {
-                
-                onDataAvailable(blob);
-              }
-            this.recorder.reset();
-          });
-          // this.recorder.destroy();
-          // this.recorder = null;
-        } catch (error) {
-          console.error('레코더 중지 중 오류:', error);
+        console.log('최종 녹음 중지 시도');
+        await this.handleRecordingStopped(onDataAvailable);
+        if (this.recorder) {
+          this.recorder.destroy();
+          this.recorder = null;
         }
       }
     };

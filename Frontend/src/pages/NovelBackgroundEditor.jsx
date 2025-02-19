@@ -1,28 +1,22 @@
 import styled from '@emotion/styled'
-import { useState, useEffect } from 'react' // Import useEffect
+import axios from 'axios'
+
+import { useEffect, useState } from 'react'
+
+// Import useEffect
 import AddIcon from '@mui/icons-material/Add'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import DeleteIcon from '@mui/icons-material/Delete'
 import OfflineBoltIcon from '@mui/icons-material/OfflineBolt'
 import SaveIcon from '@mui/icons-material/Save'
-import {
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Divider,
-  Grid,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material'
+import { Box, Button, Chip, CircularProgress, Divider, Grid, Paper, Stack, TextField, Typography } from '@mui/material'
 
 import CharacterInput from '../components/character/CharacterInput'
 import DropZone from '../components/common/DropZone'
 import { PrimaryButton } from '../components/common/buttons'
-import axios from 'axios'; // Import Axios
+
+// Import Axios
 
 // 결과 이미지 슬롯 스타일링
 const ResultSlot = styled(Paper)(({ theme }) => ({
@@ -67,24 +61,15 @@ const NovelBackgroundEditor = () => {
   const [results, setResults] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [uploadLoading, setUploadLoading] = useState(false)
-  const [isSaving, setIsSaving] = useState(false); // Save State
-  const [userPk, setUserPk] = useState(null); // User PK state
-  const [userInfo, setUserInfo] = useState(null);
-  const [loading, setLoading] = useState(true); // Add loading state
-  const [summary, setSummary] = useState('');  // New state for summary
-  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false); // New state for summary generating
-  const [novelPk, setNovelPk] = useState(null);
+  const [isSaving, setIsSaving] = useState(false) // Save State
+  const [userPk, setUserPk] = useState(null) // User PK state
+  const [userInfo, setUserInfo] = useState(null)
+  const [loading, setLoading] = useState(true) // Add loading state
+  const [summary, setSummary] = useState('') // New state for summary
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false) // New state for summary generating
+  const [novelPk, setNovelPk] = useState(null)
 
-  const genres = [
-    '판타지',
-    '무협',
-    '액션',
-    '로맨스',
-    '스릴러',
-    '드라마',
-    'SF',
-    '기타'
-  ]
+  const genres = ['판타지', '무협', '액션', '로맨스', '스릴러', '드라마', 'SF', '기타']
 
   // useEffect Hook for fetching user info on component mount
     useEffect(() => {
@@ -105,8 +90,8 @@ const NovelBackgroundEditor = () => {
             }
         };
 
-        fetchUserInfo();
-    }, []); // Empty dependency array ensures this runs only once on mount
+    fetchUserInfo()
+  }, []) // Empty dependency array ensures this runs only once on mount
 
     const handleGenreClick = (genre) => {
       if (selectedGenre.includes(genre)) {
@@ -140,9 +125,7 @@ const NovelBackgroundEditor = () => {
 
 
   const handleCharacterChange = (characterId) => (newCharacterData) => {
-    setCharacters((prev) =>
-      prev.map((char) => (char.id === characterId ? { ...char, ...newCharacterData } : char))
-    )
+    setCharacters((prev) => prev.map((char) => (char.id === characterId ? { ...char, ...newCharacterData } : char)))
   }
 
   const handleCharacterGenerate = (characterId) => () => {
@@ -645,137 +628,126 @@ const NovelBackgroundEditor = () => {
                   </PrimaryButton>
               </Stack>
               <TextField
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={summary}
-                  onChange={(e) => setSummary(e.target.value)}
-                  placeholder="작품의 한줄 요약을 입력해주세요. AI 생성 후 수정도 가능합니다."
-                  variant="outlined"
-                  sx={{
-                      '& .MuiOutlinedInput-root': {
-                          borderRadius: '8px',
-                          backgroundColor: 'white',
-                      },
-                  }}
+                fullWidth
+                multiline
+                rows={2}
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                placeholder="작품의 한줄 요약을 입력해주세요. AI 생성 후 수정도 가능합니다."
+                variant="outlined"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                  },
+                }}
               />
-          </Stack>
-          <Stack direction="row" spacing={1}>
-            <PrimaryButton
-              startIcon={<SaveIcon />}
-              backgroundColor="#111111"
-              hoverBackgroundColor="#404040"
-              sx={{ py: 0.5 }}
-              onClick={handleSave} // Save Function
-              disabled={isSaving || !userPk} // Disable if userPk is null
-            >
-              {isSaving ? "저장 중..." : "저장"}
-            </PrimaryButton>
-            <PrimaryButton
-              startIcon={<DeleteIcon />}
-              backgroundColor="#D32F2F"
-              hoverBackgroundColor="#A82525"
-              sx={{ py: 0.5 }}
-            >
-              삭제
-            </PrimaryButton>
-          </Stack>
-        </Stack>
-        <Divider sx={{ my: 4 }} /> {/* 구분선 */}
-
-        {/* 캐릭터 입력 섹션 */}
-        <Stack direction="column" spacing={1}>
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <Typography variant="h3" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
-              등장인물 정보를 입력해주세요
-            </Typography>
+            </Stack>
             <Stack direction="row" spacing={1}>
               <PrimaryButton
-                startIcon={<OfflineBoltIcon />}
-                onClick={handleAICharacterGenerate}
+                startIcon={<SaveIcon />}
+                backgroundColor="#111111"
+                hoverBackgroundColor="#404040"
                 sx={{ py: 0.5 }}
-                disabled={isGenerating}
+                onClick={handleSave} // Save Function
+                disabled={isSaving || !userPk} // Disable if userPk is null
               >
-                {isGenerating ? "생성 중..." : "AI 생성"}
+                {isSaving ? '저장 중...' : '저장'}
               </PrimaryButton>
               <PrimaryButton
-                startIcon={<AddIcon />}
-                backgroundColor="#1c1c1c"
-                hoverBackgroundColor="#333333"
-                textColor="#ffffff"
+                startIcon={<DeleteIcon />}
+                backgroundColor="#D32F2F"
+                hoverBackgroundColor="#A82525"
                 sx={{ py: 0.5 }}
-                onClick={onAddCharacter}
               >
-                캐릭터 추가
+                삭제
               </PrimaryButton>
             </Stack>
           </Stack>
+          <Divider sx={{ my: 4 }} /> {/* 구분선 */}
+          {/* 캐릭터 입력 섹션 */}
+          <Stack direction="column" spacing={1}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography variant="h3" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                등장인물 정보를 입력해주세요
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                <PrimaryButton
+                  startIcon={<OfflineBoltIcon />}
+                  onClick={handleAICharacterGenerate}
+                  sx={{ py: 0.5 }}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? '생성 중...' : 'AI 생성'}
+                </PrimaryButton>
+                <PrimaryButton
+                  startIcon={<AddIcon />}
+                  backgroundColor="#1c1c1c"
+                  hoverBackgroundColor="#333333"
+                  textColor="#ffffff"
+                  sx={{ py: 0.5 }}
+                  onClick={onAddCharacter}
+                >
+                  캐릭터 추가
+                </PrimaryButton>
+              </Stack>
+            </Stack>
 
-          <Box
-            sx={{
-              overflowX: 'auto',
-              pb: 2,
-              '&::-webkit-scrollbar': {
-                height: '8px',
-              },
-              '&::-webkit-scrollbar-track': {
-                backgroundColor: '#f1f1f1',
-                borderRadius: '4px',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                backgroundColor: '#FFA000',
-                borderRadius: '4px',
-              },
-            }}
-          >
-            <Stack
-              direction="row"
-              spacing={2}
+            <Box
               sx={{
-                minWidth: 'min-content',
-                px: 1,
+                overflowX: 'auto',
+                pb: 2,
+                '&::-webkit-scrollbar': {
+                  height: '8px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  backgroundColor: '#f1f1f1',
+                  borderRadius: '4px',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  backgroundColor: '#FFA000',
+                  borderRadius: '4px',
+                },
               }}
             >
-              {characters.map((character) => (
-                <CharacterInput
-                  key={character.id}
-                  type={character.type}
-                  character={character}
-                  onChange={handleCharacterChange(character.id)}
-                  onGenerate={handleCharacterGenerate(character.id)}
-                  novelPk={novelPk}
-                />
-              ))}
-            </Stack>
-          </Box>
-        </Stack>
-
-        <Divider sx={{ my: 4 }} />
-
-        {/* 표지 생성 섹션 */}
-        <Stack direction="column" spacing={4}>
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <Typography variant="h1" sx={{ fontSize: '2rem', fontWeight: 950 }}>
-              소설 표지 생성
-            </Typography>
+              <Stack
+                direction="row"
+                spacing={2}
+                sx={{
+                  minWidth: 'min-content',
+                  px: 1,
+                }}
+              >
+                {characters.map((character) => (
+                  <CharacterInput
+                    key={character.id}
+                    type={character.type}
+                    character={character}
+                    onChange={handleCharacterChange(character.id)}
+                    onGenerate={handleCharacterGenerate(character.id)}
+                    novelPk={novelPk}
+                  />
+                ))}
+              </Stack>
+            </Box>
           </Stack>
-          <Divider />
+          <Divider sx={{ my: 4 }} />
+          {/* 표지 생성 섹션 */}
+          <Stack direction="column" spacing={4}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography variant="h1" sx={{ fontSize: '2rem', fontWeight: 950 }}>
+                소설 표지 생성
+              </Typography>
+            </Stack>
+            <Divider />
 
-          {/* 생성 타입 선택 */}
-          <Stack spacing={2}>
-            <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
-              표지 생성 타입
-            </Typography>
-            <Stack direction="row" spacing={2}>
-              {/* <PrimaryButton
+            {/* 생성 타입 선택 */}
+            <Stack spacing={2}>
+              <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                표지 생성 타입
+              </Typography>
+              <Stack direction="row" spacing={2}>
+                {/* <PrimaryButton
                 startIcon={<AutoFixHighIcon />}
                 onClick={() => setGenerationType('default')}
                 variant={generationType === 'default' ? 'contained' : 'outlined'}
@@ -784,26 +756,26 @@ const NovelBackgroundEditor = () => {
               >
                 기본 이미지
               </PrimaryButton> */}
-              <PrimaryButton
-                startIcon={<CloudUploadIcon />}
-                onClick={() => setGenerationType('upload')}
-                variant={generationType === 'upload' ? 'contained' : 'outlined'}
-                backgroundColor={generationType === 'upload' ? '#FFA000' : 'transparent'}
-                textColor={generationType === 'upload' ? 'white' : '#FFA000'}
-              >
-                파일 업로드
-              </PrimaryButton>
-              <PrimaryButton
-                startIcon={<AddIcon />}
-                onClick={() => setGenerationType('ai')}
-                variant={generationType === 'ai' ? 'contained' : 'outlined'}
-                backgroundColor={generationType === 'ai' ? '#FFA000' : 'transparent'}
-                textColor={generationType === 'ai' ? 'white' : '#FFA000'}
-              >
-                AI 표지 생성
-              </PrimaryButton>
+                <PrimaryButton
+                  startIcon={<CloudUploadIcon />}
+                  onClick={() => setGenerationType('upload')}
+                  variant={generationType === 'upload' ? 'contained' : 'outlined'}
+                  backgroundColor={generationType === 'upload' ? '#FFA000' : 'transparent'}
+                  textColor={generationType === 'upload' ? 'white' : '#FFA000'}
+                >
+                  파일 업로드
+                </PrimaryButton>
+                <PrimaryButton
+                  startIcon={<AddIcon />}
+                  onClick={() => setGenerationType('ai')}
+                  variant={generationType === 'ai' ? 'contained' : 'outlined'}
+                  backgroundColor={generationType === 'ai' ? '#FFA000' : 'transparent'}
+                  textColor={generationType === 'ai' ? 'white' : '#FFA000'}
+                >
+                  AI 표지 생성
+                </PrimaryButton>
+              </Stack>
             </Stack>
-          </Stack>
 
           {generationType === 'upload' && (
             <DropZone onFileSelect={handleFileUpload} accept="image/*" loading={uploadLoading} />
@@ -846,110 +818,104 @@ const NovelBackgroundEditor = () => {
                 </Box>
               </Stack>
 
-              {/* 스타일 선택 */}
-              <Stack spacing={2}>
-                <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
-                  이미지 스타일 선택
-                </Typography>
-                <Grid
-                  container
-                  spacing={2}
-                  sx={{
-                    width: '100%',
-                    '& .MuiGrid-item': {
-                      padding: 0,
-                    },
-                  }}
-                >
-                  {stylePresets.map((style) => (
-                    <Grid item xs={12} sm={6} md={4} key={style.id}>
-                      <Paper
+                {/* 스타일 선택 */}
+                <Stack spacing={2}>
+                  <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                    이미지 스타일 선택
+                  </Typography>
+                  <Grid
+                    container
+                    spacing={2}
+                    sx={{
+                      width: '100%',
+                      '& .MuiGrid-item': {
+                        padding: 0,
+                      },
+                    }}
+                  >
+                    {stylePresets.map((style) => (
+                      <Grid item xs={12} sm={6} md={4} key={style.id}>
+                        <Paper
+                          sx={{
+                            p: 2,
+                            cursor: 'pointer',
+                            border: selectedStyle === style.id ? '2px solid #FFA000' : 'none',
+                            '&:hover': {
+                              backgroundColor: 'grey.100',
+                            },
+                          }}
+                          onClick={() => setSelectedStyle(style.id)}
+                        >
+                          <Typography variant="h6">{style.name}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {style.description}
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Stack>
+
+                {/* 생성 결과 */}
+                <Stack spacing={2}>
+                  <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                    AI 생성 결과물
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      overflowX: 'auto',
+                      pb: 2,
+                      gap: 2,
+                      '&::-webkit-scrollbar': {
+                        height: '8px',
+                      },
+                      '&::-webkit-scrollbar-track': {
+                        backgroundColor: '#f1f1f1',
+                        borderRadius: '4px',
+                      },
+                      '&::-webkit-scrollbar-thumb': {
+                        backgroundColor: '#FFA000',
+                        borderRadius: '4px',
+                      },
+                    }}
+                  >
+                    {results.map((result, index) => (
+                      <Box
+                        key={index}
                         sx={{
-                          p: 2,
-                          cursor: 'pointer',
-                          border: selectedStyle === style.id ? '2px solid #FFA000' : 'none',
-                          '&:hover': {
-                            backgroundColor: 'grey.100',
-                          },
+                          flex: '0 0 auto',
+                          width: '250px',
                         }}
-                        onClick={() => setSelectedStyle(style.id)}
                       >
-                        <Typography variant="h6">{style.name}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {style.description}
-                        </Typography>
-                      </Paper>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Stack>
+                        <ResultSlot>
+                          {isGenerating ? (
+                            <Typography color="text.secondary">생성중...</Typography>
+                          ) : (
+                            <Typography color="text.secondary">결과 {index + 1}</Typography>
+                          )}
+                        </ResultSlot>
+                      </Box>
+                    ))}
+                  </Box>
+                </Stack>
 
-              {/* 생성 결과 */}
-              <Stack spacing={2}>
-                <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
-                  AI 생성 결과물
-                </Typography>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    overflowX: 'auto',
-                    pb: 2,
-                    gap: 2,
-                    '&::-webkit-scrollbar': {
-                      height: '8px',
-                    },
-                    '&::-webkit-scrollbar-track': {
-                      backgroundColor: '#f1f1f1',
-                      borderRadius: '4px',
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                      backgroundColor: '#FFA000',
-                      borderRadius: '4px',
-                    },
-                  }}
-                >
-                  {results.map((result, index) => (
-                    <Box
-                      key={index}
-                      sx={{
-                        flex: '0 0 auto',
-                        width: '250px',
-                      }}
-                    >
-                      <ResultSlot>
-                        {isGenerating ? (
-                          <Typography color="text.secondary">생성중...</Typography>
-                        ) : (
-                          <Typography color="text.secondary">결과 {index + 1}</Typography>
-                        )}
-                      </ResultSlot>
-                    </Box>
-                  ))}
+                {/* 생성 버튼 */}
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                  <PrimaryButton
+                    startIcon={isGenerating ? <CircularProgress size={20} color="inherit" /> : <AutoFixHighIcon />}
+                    onClick={handleGenerate}
+                    disabled={isGenerating || keywords.length === 0 || !selectedStyle}
+                    sx={{ minWidth: 200 }}
+                  >
+                    {isGenerating ? '생성중...' : 'AI 표지 생성하기'}
+                  </PrimaryButton>
                 </Box>
-              </Stack>
-
-              {/* 생성 버튼 */}
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                <PrimaryButton
-                  startIcon={
-                    isGenerating ? (
-                      <CircularProgress size={20} color="inherit" />
-                    ) : (
-                      <AutoFixHighIcon />
-                    )
-                  }
-                  onClick={handleGenerate}
-                  disabled={isGenerating || keywords.length === 0 || !selectedStyle}
-                  sx={{ minWidth: 200 }}
-                >
-                  {isGenerating ? '생성중...' : 'AI 표지 생성하기'}
-                </PrimaryButton>
-              </Box>
-            </>
-          )}
+              </>
+            )}
+          </Stack>
         </Stack>
-      </Stack>
-        )}
+      )}
     </Box>
   )
 }

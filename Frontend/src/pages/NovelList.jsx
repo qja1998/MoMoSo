@@ -1,6 +1,10 @@
-import { useEffect, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import styled from '@emotion/styled'
+import axios from 'axios'
+
+import { useCallback, useEffect, useState } from 'react'
+
+import { useNavigate } from 'react-router-dom'
+
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import SearchIcon from '@mui/icons-material/Search'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -10,6 +14,7 @@ import CardActionArea from '@mui/material/CardActionArea'
 import CardContent from '@mui/material/CardContent'
 import CardMedia from '@mui/material/CardMedia'
 import FormControl from '@mui/material/FormControl'
+import Grid from '@mui/material/Grid2'
 import InputAdornment from '@mui/material/InputAdornment'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
@@ -17,9 +22,8 @@ import Select from '@mui/material/Select'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
-import Grid from '@mui/material/Grid2'
 
-import coverPlaceholder from '/src/assets/placeholder/cover-image-placeholder.png'
+import coverPlaceholder from '/placeholder/cover-image-placeholder.png'
 
 const DRIVE_URL = "https://drive.google.com/file/d/1hMmtvEVeTSa6UMxI0-yNUPoEC0xhhGFq/view"
 
@@ -44,6 +48,12 @@ const NovelCard = styled(Card)({
   },
 })
 
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
+
+// axios 기본 설정 추가
+axios.defaults.baseURL = BACKEND_URL
+axios.defaults.withCredentials = true
+
 const NovelList = () => {
   const navigate = useNavigate()
   const [novels, setNovels] = useState([])
@@ -57,15 +67,12 @@ const NovelList = () => {
     const fetchNovels = async () => {
       setLoading(true)
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/v1/novels')
-        if (!response.ok) throw new Error('데이터를 불러오는데 실패했습니다.')
-        const data = await response.json()
-        setNovels(data)
+        const response = await axios.get('/api/v1/novels')
+        setNovels(response.data)
       } catch (err) {
         setError(err.message)
-      } finally {
-        setLoading(false)
       }
+      setLoading(false)
     }
 
     fetchNovels()
@@ -84,11 +91,12 @@ const NovelList = () => {
   }, [])
 
   const handleNovelClick = useCallback(
-    (novelPk) => {  // novelId -> novelPk 로 변경
-      navigate(`/novel/${novelPk}`);  // `/novel/viewer/${novelId}` 에서 변경, novelId -> novelPk 로 변경
+    (novelPk) => {
+      // novelId -> novelPk 로 변경
+      navigate(`/novel/${novelPk}`) // `/novel/viewer/${novelId}` 에서 변경, novelId -> novelPk 로 변경
     },
     [navigate]
-  );
+  )
 
   if (loading) return <Typography sx={{ textAlign: 'center', mt: 4 }}>로딩 중...</Typography>
   if (error) return <Typography sx={{ textAlign: 'center', mt: 4, color: 'red' }}>{error}</Typography>
@@ -136,7 +144,9 @@ const NovelList = () => {
         {novels.map((novel) => (
           <Grid size={{ xs: 12, sm: 6, md: 3 }} key={novel.id}>
             <NovelCard>
-              <CardActionArea onClick={() => handleNovelClick(novel.novel_pk)}>  {/* novel.id -> novel.novel_pk 로 변경 */}
+              <CardActionArea onClick={() => handleNovelClick(novel.novel_pk)}>
+                {' '}
+                {/* novel.id -> novel.novel_pk 로 변경 */}
                 <CardMedia
                   component="img"
                   sx={{ aspectRatio: '3/4', objectFit: 'cover' }}

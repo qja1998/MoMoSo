@@ -30,23 +30,23 @@ services:
       - app_network
     
   # Nginx (Reverse Proxy)
-  # nginx:
-  #   image: nginx:latest
-  #   container_name: nginx
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./frontend:/app/frontend
-  #     - ./nginx/conf.d:/etc/nginx/conf.d
-  #     - ./certbot/www:/var/www/certbot
-  #     - ./certbot/conf:/etc/letsencrypt
-  #   ports:
-  #     - "81:80"
-  #     - "443:443"
-  #   depends_on:
-  #     - backend
-  #     - frontend
-  #   networks:
-  #     - app_network
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    restart: unless-stopped
+    volumes:
+      - ./Frontend:/app/Frontend
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    ports:
+      - "81:80"
+      - "443:443"
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - app_network
 
 volumes:
   db_data:

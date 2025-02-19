@@ -29,6 +29,15 @@ from googleapiclient.http import MediaFileUpload
 def key() :
     return os.environ.get("GOOGLE_API_KEY")
 
+def get_novel(novel_pk: int, db: Session):
+    novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+    if not novel:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="소설을 찾을 수 없습니다."
+        )
+    return novel
+
 # main page
 def get_recent_novels(db: Session, user_pk: int) -> list[RecentNovel]:
     """

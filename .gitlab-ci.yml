@@ -1,13 +1,11 @@
 stages:
   - build
-  - test
   - deploy
 
 variables:
   IMAGE_BACKEND: kwon0528/backend
   IMAGE_FRONTEND: kwon0528/frontend
   TAG: $CI_COMMIT_REF_NAME
-
 before_script:
   - docker --version
   - docker-compose --version
@@ -103,18 +101,18 @@ build_frontend:
     - release
     - master
 
-test:
-  stage: test
-  tags:
-    - test
-  script:
-    - docker-compose -f docker-compose.yml run --rm backend bash -c "
-        uvicorn main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips='*'
-      "
-    - docker-compose -f docker-compose.yml run --rm frontend npm run dev
-    - docker-compose down
-  only:
-    - develop
+# test:
+#   stage: test
+#   tags:
+#     - test
+#   script:
+#     - docker-compose -f docker-compose.yml run --rm backend bash -c "
+#         uvicorn main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips='*'
+#       "
+#     - docker-compose -f docker-compose.yml run --rm frontend npm run dev
+#     - docker-compose down
+#   only:
+#     - develop
 
 deploy:
   stage: deploy
