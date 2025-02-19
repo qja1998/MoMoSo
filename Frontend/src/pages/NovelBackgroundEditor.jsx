@@ -1,8 +1,7 @@
 import styled from '@emotion/styled'
 import axios from 'axios'
 import { useEffect, useState } from 'react'
-import { useParams, useLocation } from 'react-router-dom'; 
-
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 // Import useEffect
 import AddIcon from '@mui/icons-material/Add'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
@@ -38,7 +37,7 @@ const stylePresets = [
   { id: 2, name: '유화', description: '클래식하고 고급스러운 유화 스타일' },
   { id: 3, name: '일러스트', description: '현대적이고 감각적인 일러스트 스타일' },
   { id: 4, name: '포토리얼', description: '사실적이고 생동감 있는 사진 스타일' },
-  { id: 5, name: '미니멀', description: '심플하고 모던한 미니멀 스타일' },
+  { id: 5, name: '미니멈', description: '심플하고 모던한 미니멈 스타일' },
 ]
 const BACKEND_URL = "http://127.0.0.1:8000/api/v1/"
 const NovelBackgroundEditor = () => {
@@ -47,12 +46,13 @@ const NovelBackgroundEditor = () => {
   const [worldView, setWorldView] = useState('')
   const [background, setBackground] = useState('')
   const [characters, setCharacters] = useState([
-    { id: 1, type: 'protagonist', name: '', gender: '', age: '', job: '', profile: '' },
-    { id: 2, type: 'protagonist', name: '', gender: '', age: '', job: '', profile: '' },
-    { id: 3, type: 'protagonist', name: '', gender: '', age: '', job: '', profile: '' },
-    { id: 4, type: 'protagonist', name: '', gender: '', age: '', job: '', profile: '' },
-    { id: 5, type: 'supporter', name: '', gender: '', age: '', job: '', profile: '' },
-    { id: 6, type: 'antagonist', name: '', gender: '', age: '', job: '', profile: '' },
+    { id: 1, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' },
+    { id: 2, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' },
+    { id: 3, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' },
+    { id: 4, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' },
+    { id: 5, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' },
+    { id: 6, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' },
+    { id: 7, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' }
   ])
   const [generationType, setGenerationType] = useState('default')
   const [keywordInput, setKeywordInput] = useState('')
@@ -68,39 +68,47 @@ const NovelBackgroundEditor = () => {
   const [novelPk, setNovelPk] = useState(null)
   const { novelId } = useParams();
   const location = useLocation(); // useLocation 훅 사용
-  const [novelData, setNovelData] = useState(null);
   
   const genres = ['판타지', '무협', '액션', '로맨스', '스릴러', '드라마', 'SF', '기타']
   const navigate = useNavigate();
-  const { novelId } = useParams(); // novelId 파라미터 가져오기
   const [novelData, setNovelData] = useState(null); // 소설 데이터 상태 추가
   
   axios.defaults.withCredentials = true; 
   // novelId가 변경될 때마다 실행되는 useEffect
   useEffect(() => {
-      // 1. location.state로부터 데이터를 가져오기
-      if (location.state && location.state.novelData) {
-          const data = location.state.novelData;
+      if (location.state && location.state.novelInfo) {
+          const data = location.state.novelInfo;
           setNovelData(data);
           setTitle(data.title || '');
           setWorldView(data.worldview || '');
           setBackground(data.synopsis || '');
-          setSelectedGenre(data.genres || []);
+          setSelectedGenre(data.genres || []); 
           setSummary(data.summary || '');
-          setLoading(false); // 데이터가 이미 있으므로 loading을 false로 설정
+          
+          // novel_pk로 캐릭터 데이터 가져오기
+          if (data.novel_pk) {
+            fetchCharacterData(data.novel_pk);
+          }
+          
+          setLoading(false);
       } else if (novelId) {
-        // novelId가 있고, location.state에 데이터가 없는 경우 API 호출
         const fetchNovelData = async () => {
           setLoading(true);
           try {
-            const response = await axios.get(`${BACKEND_URL}novel/${novelId}`, { withCredentials: true });
+            const response = await axios.get(`${BACKEND_URL}novel/${novelId}`);
             const data = response.data;
             setNovelData(data);
             setTitle(data.title || '');
             setWorldView(data.worldview || '');
             setBackground(data.synopsis || '');
-            setSelectedGenre(data.genres || []);
+            setSelectedGenre(data.genres || []); 
             setSummary(data.summary || '');
+            
+            // novel_pk로 캐릭터 데이터 가져오기
+            if (data.novel_pk) {
+              await fetchCharacterData(data.novel_pk);
+            }
+            
           } catch (error) {
             console.error("Error fetching novel data:", error);
           } finally {
@@ -108,10 +116,8 @@ const NovelBackgroundEditor = () => {
           }
         };
         fetchNovelData();
-
       } else {
           setLoading(false);
-          // novelId가 없는 경우, 초기화
           setTitle('');
           setWorldView('');
           setBackground('');
@@ -119,6 +125,37 @@ const NovelBackgroundEditor = () => {
           setSummary('');
       }
   }, [novelId, location.state]);
+
+  // 캐릭터 데이터를 가져오는 함수
+  const fetchCharacterData = async (novel_pk) => {
+    try {
+      const response = await axios.get(`${BACKEND_URL}novel/character/${novel_pk}`);
+      if (response.data && Array.isArray(response.data)) {
+        // 서버에서 받은 데이터로 캐릭터 배열 업데이트
+        console.log(response.data)
+        const updatedCharacters = characters.map((char, index) => {
+          const serverChar = response.data[index];
+          if (serverChar) {
+            return {
+              ...char,
+              id: index + 1,
+              character_pk: serverChar.character_pk || null,
+              role: serverChar.role || '',
+              name: serverChar.name || '',
+              sex: serverChar.sex || '',
+              age: serverChar.age || '',
+              job: serverChar.job || '',
+              profile: serverChar.profile || ''
+            };
+          }
+          return char;
+        });
+        setCharacters(updatedCharacters);
+      }
+    } catch (error) {
+      console.error("Error fetching character data:", error);
+    }
+  };
 
     const handleGenreClick = (genre) => {
       if (selectedGenre.includes(genre)) {
@@ -165,9 +202,9 @@ const NovelBackgroundEditor = () => {
       ...prev,
       {
         id: prev.length + 1,
-        type: 'extra',
+        role: '',
         name: '',
-        gender: '',
+        sex: '',
         age: '',
         job: '',
         profile: '',
@@ -228,7 +265,7 @@ const NovelBackgroundEditor = () => {
                 title: title,
                 worldview: worldView,
                 synopsis: background,
-                genres: selectedGenre,
+                genre: selectedGenre,
                 summary: summary,
             };
 
@@ -341,13 +378,12 @@ const NovelBackgroundEditor = () => {
                     console.warn("Using empty array instead");
                 }
     
-    
                 const formattedCharacters = newCharacters.map((char, index) => {
                     const formattedChar = {
                         id: characters[index]?.id || index + 1,
                         type: char.role || 'protagonist',
                         name: char.name || '',
-                        gender: char.sex || '',
+                        sex: char.sex || '',
                         age: char.age || '',
                         job: char.job || '',
                         profile: char.profile || ''

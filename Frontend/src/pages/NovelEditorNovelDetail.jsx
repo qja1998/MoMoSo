@@ -144,9 +144,18 @@ const NovelEditorNovelDetail = () => {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => navigate(`/novel/edit/background/${novelId}`, {
-            state: { novelData: novelData }  // 기존 navigate에 state 옵션 추가
-          })}
+          onClick={() => {
+            const novelInfo = novelData.novel_info[0];
+            navigate(`/novel/edit/background/${novelId}`, {
+              state: { 
+                novelInfo: {
+                  ...novelInfo,
+                  // genres 배열에서 genre 이름만 추출
+                  genres: novelInfo.genres.map(g => g.genre)
+                }
+              }
+            })
+          }}
           sx={{
             backgroundColor: '#FFA000',
             color: 'white',
