@@ -4,6 +4,7 @@ meeting_minutes/
 # Edit at https://www.toptal.com/developers/gitignore?templates=pycharm,vs,django,vuejs
 
 *.png
+!cover-image-placeholder.png
 
 ### Django ###
 *.log
