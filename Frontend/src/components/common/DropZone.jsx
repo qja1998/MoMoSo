@@ -113,20 +113,10 @@ const DropZone = ({ onFileSelect, accept = 'image/*', loading = false }) => {
         <Typography variant="caption" color="textSecondary" sx={{ mt: 1, mb: 2 }}>
           지원 형식: JPG, PNG, GIF (최대 10MB)
         </Typography>
-        <StyledButton
-          component="span"
-          variant="contained"
-          startIcon={<CloudUploadIcon />}
-          disabled={loading}
-        >
+        <StyledButton component="span" variant="contained" startIcon={<CloudUploadIcon />} disabled={loading}>
           {loading ? '업로드 중...' : '파일 선택'}
         </StyledButton>
-        <VisuallyHiddenInput
-          type="file"
-          onChange={handleChange}
-          accept={accept}
-          disabled={loading}
-        />
+        <VisuallyHiddenInput type="file" onChange={handleChange} accept={accept} disabled={loading} />
       </StyledDropZone>
     </Box>
   )

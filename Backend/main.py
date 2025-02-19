@@ -14,12 +14,8 @@ from auth.oauth_google import router as google_oauth_router
 from database import engine
 from models import Base
 
-thread_pool = None # ThreadPoolExecutor를 전역 변수로 선언
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """FastAPI 애플리케이션 수명 주기 관리 (Redis 및 ThreadPool 초기화 및 종료)"""
-    global thread_pool
     try:
         print("🚀 FastAPI 서버 시작 - lifespan 시작됨!")
         
@@ -27,8 +23,8 @@ async def lifespan(app: FastAPI):
         app.state.redis = await create_redis_client()
         print("✅ Redis 연결 완료!")
         
-        # ThreadPoolExecutor 초기화
-        thread_pool = ThreadPoolExecutor(max_workers=4)
+        # ThreadPoolExecutor를 app.state에 저장
+        app.state.thread_pool = ThreadPoolExecutor(max_workers=4)
         print("✅ ThreadPoolExecutor 초기화 완료!")
         
         # 라우터 등록
@@ -40,20 +36,18 @@ async def lifespan(app: FastAPI):
         
         yield
         
-    except Exception as e:
-        print(f"❌ 서버 초기화 실패: {e}")
-        raise
     finally:
         # Redis 연결 종료
         if hasattr(app.state, "redis"):
             await app.state.redis.close()
         
         # ThreadPoolExecutor 종료
-        if thread_pool:
-            thread_pool.shutdown(wait=True)
+        if hasattr(app.state, "thread_pool"):
+            app.state.thread_pool.shutdown(wait=True)
             print("✅ ThreadPoolExecutor 정상 종료!")
             
         print("🛑 FastAPI 서버 종료!")
+
 
 app = FastAPI(lifespan=lifespan)
 

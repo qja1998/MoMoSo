@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
 import axios from 'axios'
 import 'github-markdown-css'
+import ReactMarkdown from 'react-markdown'
+
+import { useEffect, useState } from 'react'
+
+import { useNavigate, useParams } from 'react-router-dom'
 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AutoStoriesIcon from '@mui/icons-material/AutoStories'
 import IconButton from '@mui/material/IconButton'
-import Skeleton from '@mui/material/Skeleton'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 
@@ -42,9 +43,7 @@ export default function DiscussionSummary() {
   }
 
   if (error) {
-    return (
-      <Typography sx={{ textAlign: 'center', mt: 4, color: 'red' }}>{error}</Typography>
-    )
+    return <Typography sx={{ textAlign: 'center', mt: 4, color: 'red' }}>{error}</Typography>
   }
 
   if (isLoading) {
@@ -66,7 +65,7 @@ export default function DiscussionSummary() {
           p: 2,
           borderBottom: '1px solid #EEEEEE',
           bgcolor: '#FFFFFF',
-          width: '100%'
+          width: '100%',
         }}
       >
         <IconButton onClick={handleBack}>
@@ -106,7 +105,7 @@ export default function DiscussionSummary() {
             bgcolor: '#FFFFFF',
             borderRadius: 2,
             boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.05)',
-            width: '100%'
+            width: '100%',
           }}
         >
           <>
@@ -116,7 +115,7 @@ export default function DiscussionSummary() {
                 토론 요약
               </Typography>
             </Stack>
-            <div style={{ marginBottom: 2 }}></div>  {/* 간격을 위한 div 추가 */}
+            <div style={{ marginBottom: 2 }}></div> {/* 간격을 위한 div 추가 */}
             <div className="markdown-body" style={{ backgroundColor: 'transparent' }}>
               <ReactMarkdown>{summary.summary_text}</ReactMarkdown>
             </div>

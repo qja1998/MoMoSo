@@ -1,14 +1,25 @@
 import { useNavigate } from 'react-router-dom'
 
-import { Box, Button, Container, Typography } from '@mui/material'
+import Button from '@mui/material/Button'
+import Container from '@mui/material/Container'
+import Typography from '@mui/material/Typography'
 
 const NotFound = () => {
   const navigate = useNavigate()
 
   return (
-    <Container sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', textAlign: 'center' }}>
+    <Container
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        textAlign: 'center',
+      }}
+    >
       <img
-        src="/src/assets/logo/graphic-logo.svg"
+        src="/logo/graphic-logo.svg"
         alt="MOMOSO"
         style={{
           width: 'auto',

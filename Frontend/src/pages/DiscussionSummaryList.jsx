@@ -1,21 +1,23 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { useAuth } from '../hooks/useAuth'
+
+import { useEffect, useState } from 'react'
+
+import { useNavigate } from 'react-router-dom'
 
 import {
+  Box,
+  Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   Typography,
-  Stack,
-  CircularProgress,
-  Box
 } from '@mui/material'
+
+import { useAuth } from '../hooks/useAuth'
 
 export default function DiscussionSummaryList() {
   const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
@@ -36,8 +38,8 @@ export default function DiscussionSummaryList() {
         withCredentials: true,
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
+          Accept: 'application/json',
+        },
       })
       setDiscussions(response.data)
       setError(null)
@@ -55,12 +57,7 @@ export default function DiscussionSummaryList() {
 
   if (error) {
     return (
-      <Box 
-        display="flex" 
-        justifyContent="center" 
-        alignItems="center" 
-        minHeight="calc(100vh - 100px)"
-      >
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="calc(100vh - 100px)">
         <Typography color="error">{error}</Typography>
       </Box>
     )
@@ -73,15 +70,8 @@ export default function DiscussionSummaryList() {
       </Typography>
 
       {discussions.length === 0 ? (
-        <Box 
-          display="flex" 
-          justifyContent="center" 
-          alignItems="center" 
-          flex={1}
-        >
-          <Typography>
-            아직 소설에 대한 토론이 없습니다. AI의 도움을 받아 집필해보세요.
-          </Typography>
+        <Box display="flex" justifyContent="center" alignItems="center" flex={1}>
+          <Typography>아직 소설에 대한 토론이 없습니다. AI의 도움을 받아 집필해보세요.</Typography>
         </Box>
       ) : (
         <TableContainer
@@ -91,7 +81,7 @@ export default function DiscussionSummaryList() {
             mb: 3,
             border: '1px solid #e0e0e0',
             '& .MuiTableCell-head': {
-              backgroundColor: (theme) => "#FF8F00",
+              backgroundColor: (theme) => '#FF8F00',
               fontWeight: 700,
             },
           }}
@@ -119,9 +109,7 @@ export default function DiscussionSummaryList() {
                 >
                   <TableCell>{discussion.novel.title}</TableCell>
                   <TableCell>{discussion.topic}</TableCell>
-                  <TableCell>
-                    {discussion.category === 'WHOLE_NOVEL' ? '전체 소설' : '특정 회차'}
-                  </TableCell>
+                  <TableCell>{discussion.category === 'WHOLE_NOVEL' ? '전체 소설' : '특정 회차'}</TableCell>
                   <TableCell align="right">
                     {new Date(discussion.start_time).toLocaleString('ko-KR', {
                       year: 'numeric',
