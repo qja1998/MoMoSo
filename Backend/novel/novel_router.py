@@ -92,7 +92,10 @@ def novel_detail(novel_pk : int, db : Session = Depends(get_db)) :
     novel_info  = novel_crud.search_novel(novel_pk, db)
     discussion = db.query(Discussion).filter(Discussion.novel_pk == novel_pk).all()
     comment = novel_crud.get_novel_comment(novel_pk, db)
-    return {"episode" : episode, "novel_info" : novel_info, "discussion": discussion, "comment" : comment}
+    novel = novel_info[0]
+    author = db.query(User).filter(User.user_pk == novel.user_pk).first()
+    #, "author" : author
+    return {"episode" : episode, "novel_info" : novel_info, "discussion": discussion, "comment" : comment, "author" : author.nickname} 
 
 @router.get("/novel/{novel_pk}") 
 def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
@@ -125,12 +128,8 @@ def update_novel(novel_pk: int, update_data: novel_schema.NovelUpdateBase,db: Se
 
 # 소설 생성
 @router.post("/novel", response_model=novel_schema.NovelShowBase)
-def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Session = Depends(get_db)):
-    
-    print(novel_info)
-
-    novel = novel_crud.create_novel(novel_info, user_pk, db)
-    print("returnging novel", novel)
+def create_novel(novel_info: novel_schema.NovelCreateBase, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    novel = novel_crud.create_novel(novel_info, user.user_pk, db)
     return novel
 
 

@@ -91,7 +91,7 @@ def get_all_novel(db: Session):
 
 
 # 소설 검색 (pk 기반, 테스트 용도라 추후 삭제)
-def search_novel(novel_pk: str, db: Session):
+def search_novel(novel_pk: int, db: Session):
     return db.query(Novel).filter(Novel.novel_pk == novel_pk).all()
 
 
