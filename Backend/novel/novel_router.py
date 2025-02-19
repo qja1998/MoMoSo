@@ -105,6 +105,10 @@ def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
     character = novel_crud.get_character(novel_pk, db)
     return {"novel" : novel, "character" : character} 
 
+@router.get("/novel/character/{novel_pk}")
+def get_character_info(novel_pk : int, db: Session = Depends(get_db)) : 
+    return novel_crud.get_character(novel_pk, db)
+
 #등장인물 CUD
 @router.post("/novel/character/{novel_pk}", response_model=novel_schema.CharacterBase)
 def save_character(novel_pk : int, character_info : novel_schema.CharacterBase, db: Session = Depends(get_db)) :

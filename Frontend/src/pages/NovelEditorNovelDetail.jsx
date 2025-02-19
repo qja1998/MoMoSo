@@ -109,6 +109,7 @@ const NovelEditorNovelDetail = () => {
   const handleEpisodeClick = (ep_pk) => {
     navigate(`/novel/edit/episode/${novelId}/${ep_pk}`)
   }
+  
 
   if (loading) {
     return (
@@ -143,7 +144,18 @@ const NovelEditorNovelDetail = () => {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => navigate('/novel/edit/background')}
+          onClick={() => {
+            const novelInfo = novelData.novel_info[0];
+            navigate(`/novel/edit/background/${novelId}`, {
+              state: { 
+                novelInfo: {
+                  ...novelInfo,
+                  // genres 배열에서 genre 이름만 추출
+                  genres: novelInfo.genres.map(g => g.genre)
+                }
+              }
+            })
+          }}
           sx={{
             backgroundColor: '#FFA000',
             color: 'white',

@@ -74,6 +74,7 @@ before_script:
   - echo "FRONTEND_REDIRECT_URI=$FRONTEND_REDIRECT_URI" >> .env
   - echo "REDIRECT_URI=$REDIRECT_URI" >> .env
 
+
 build_backend:
   stage: build
   tags:
