@@ -1,58 +1,61 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  Box, 
+import { useEffect, useState } from 'react'
+
+import { useNavigate } from 'react-router-dom'
+
+import AddIcon from '@mui/icons-material/Add'
+import FavoriteIcon from '@mui/icons-material/Favorite'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import {
+  Box,
   Button,
-  Card, 
-  CardActionArea, 
-  CardContent, 
-  CardMedia, 
-  Stack, 
-  Typography,
+  Card,
+  CardActionArea,
+  CardContent,
+  CardMedia,
   Container,
-  Grid
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import FavoriteIcon from '@mui/icons-material/Favorite';
-import VisibilityIcon from '@mui/icons-material/Visibility';
+  Grid,
+  Stack,
+  Typography,
+} from '@mui/material'
 
 const NovelEditor = () => {
-  const navigate = useNavigate();
-  const [novels, setNovels] = useState([]);
+  const navigate = useNavigate()
+  const [novels, setNovels] = useState([])
   const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
 
   useEffect(() => {
     const fetchNovels = async () => {
       try {
         const response = await fetch(`${BACKEND_URL}/api/v1/users/novels-written`, {
-          credentials: 'include'
-        });
+          credentials: 'include',
+        })
         if (response.ok) {
-          const data = await response.json();
-          setNovels(data);
+          const data = await response.json()
+          setNovels(data)
         }
       } catch (error) {
-        console.error('Failed to fetch novels:', error);
+        console.error('Failed to fetch novels:', error)
       }
-    };
+    }
 
-    fetchNovels();
-  }, []);
+    fetchNovels()
+  }, [])
 
   const handleNovelClick = (novelId) => {
-    navigate(`/novel/edit/episodelist/${novelId}`);
-  };
+    navigate(`/novel/edit/episodelist/${novelId}`)
+  }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4, m: "2rem 6rem" }}>
+    <Container maxWidth="xl" sx={{ py: 4, m: '2rem 6rem' }}>
       {/* Header with Create Button */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        mb: 4,
-        
-      }}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 4,
+        }}
+      >
         <Typography variant="h4" component="h1" fontWeight="bold">
           집필 중인 소설 목록
         </Typography>
@@ -64,8 +67,8 @@ const NovelEditor = () => {
           sx={{
             color: 'white',
             '&:hover': {
-              backgroundColor: 'success.dark'
-            }
+              backgroundColor: 'success.dark',
+            },
           }}
         >
           새로운 소설 생성하기
@@ -76,22 +79,19 @@ const NovelEditor = () => {
       <Grid container spacing={3}>
         {novels.map((novel) => (
           <Grid item xs={12} sm={6} md={4} lg={3} key={novel.novel_pk}>
-            <Card 
-              sx={{ 
+            <Card
+              sx={{
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
                 transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
                 '&:hover': {
                   transform: 'translateY(-4px)',
-                  boxShadow: 4
-                }
+                  boxShadow: 4,
+                },
               }}
             >
-              <CardActionArea 
-                onClick={() => handleNovelClick(novel.novel_pk)}
-                sx={{ height: '100%' }}
-              >
+              <CardActionArea onClick={() => handleNovelClick(novel.novel_pk)} sx={{ height: '100%' }}>
                 <CardMedia
                   component="img"
                   sx={{ aspectRatio: '3/4', objectFit: 'cover' }}
@@ -139,7 +139,7 @@ const NovelEditor = () => {
         ))}
       </Grid>
     </Container>
-  );
-};
+  )
+}
 
-export default NovelEditor;
+export default NovelEditor

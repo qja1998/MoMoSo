@@ -1,14 +1,19 @@
-import axios from 'axios'
+import { useAuth } from '@/hooks/useAuth'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import Edit from '@mui/icons-material/Edit'
 import Home from '@mui/icons-material/Home'
+import HowToRegIcon from '@mui/icons-material/HowToReg'
 import KeyboardDoubleArrowLeft from '@mui/icons-material/KeyboardDoubleArrowLeft'
 import KeyboardDoubleArrowRight from '@mui/icons-material/KeyboardDoubleArrowRight'
+import LoginIcon from '@mui/icons-material/Login'
+import LogoutIcon from '@mui/icons-material/Logout'
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import MenuBook from '@mui/icons-material/MenuBook'
+import PersonIcon from '@mui/icons-material/Person'
 import VideoCall from '@mui/icons-material/VideoCall'
 import Avatar from '@mui/material/Avatar'
 import Divider from '@mui/material/Divider'
@@ -19,40 +24,23 @@ import ListItem from '@mui/material/ListItem'
 import ListItemButton from '@mui/material/ListItemButton'
 import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
+import Menu from '@mui/material/Menu'
+import MenuItem from '@mui/material/MenuItem'
 import Stack from '@mui/material/Stack'
 
 const drawerWidth = 240
 
-const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
-
 const Sidebar = () => {
   const [open, setOpen] = useState(true)
-  const [userInfo, setUserInfo] = useState(null)
+  const { user, isLoggedIn, showLoginModal, logout } = useAuth()
   const navigate = useNavigate()
-
-  useEffect(() => {
-    const fetchUserInfo = async () => {
-      try {
-        const { data: loginData } = await axios.get(`${BACKEND_URL}/api/v1/users/logged-in`)
-        setUserInfo({
-          nickname: loginData.nickname,
-          email: loginData.email,
-          userImg: loginData.user_img,
-        })
-      } catch (error) {
-        console.error('Failed to fetch user info:', error)
-        setUserInfo(null)
-      }
-    }
-
-    fetchUserInfo()
-  }, [])
+  const [userMenuAnchorEl, setUserMenuAnchorEl] = useState(null)
 
   const menuItems = [
-    { text: 'Dashboard', icon: <Home fontSize="large" />, path: '/' },
-    { text: 'Editor', icon: <Edit fontSize="large" />, path: '/novel/edit' },
-    { text: 'Viewer', icon: <MenuBook fontSize="large" />, path: '/novel/viewer/list' },
-    { text: 'Conference', icon: <VideoCall fontSize="large" />, path: '/conference' },
+    { text: '홈', icon: <Home fontSize="large" />, path: '/' },
+    { text: 'AI소설 에디터', icon: <Edit fontSize="large" />, path: '/novel/edit' },
+    { text: '소설 게시판', icon: <MenuBook fontSize="large" />, path: '/novel/viewer/list' },
+    { text: '그룹 토론', icon: <VideoCall fontSize="large" />, path: '/conference' },
   ]
 
   const handleDrawerToggle = () => {
@@ -61,15 +49,30 @@ const Sidebar = () => {
   }
 
   const handleNavigate = (path) => {
-    // TODO: Add loading state while navigating
-    // TODO: Add route transition animation
+    // 보호된 경로 체크
+    const protectedRoutes = ['/novel/edit', '/conference']
+    if (!isLoggedIn && protectedRoutes.includes(path)) {
+      showLoginModal('/auth/login')
+      return
+    }
     navigate(path)
   }
 
-  const handleProfileClick = () => {
-    // TODO: Add profile menu popup
-    // TODO: Add user authentication check
-    navigate('/auth/mypage')
+  const handleUserMenuOpen = (event) => {
+    if (!isLoggedIn) {
+      showLoginModal('/auth/login')
+      return
+    }
+    setUserMenuAnchorEl(event.currentTarget)
+  }
+
+  const handleUserMenuClose = () => {
+    setUserMenuAnchorEl(null)
+  }
+
+  const handleLogoutClick = () => {
+    handleUserMenuClose()
+    logout()
   }
 
   return (
@@ -101,7 +104,7 @@ const Sidebar = () => {
         {open ? (
           <>
             <Stack sx={{ alignItems: 'center', '& img': { pl: 2, height: '24px', width: 'auto' } }}>
-              <img src="/src/assets/logo/text-logo.svg" alt="MOMOSO" />
+              <img src="/logo/text-logo.svg" alt="MOMOSO" />
             </Stack>
             <IconButton
               onClick={handleDrawerToggle}
@@ -138,7 +141,7 @@ const Sidebar = () => {
                 '& img': { height: '32px', width: 'auto', maxWidth: '100%' },
               }}
             >
-              <img src="/src/assets/logo/graphic-logo.svg" alt="MOMOSO" />
+              <img src="/logo/graphic-logo.svg" alt="MOMOSO" />
             </Stack>
           </>
         )}
@@ -167,20 +170,21 @@ const Sidebar = () => {
               >
                 {item.icon}
               </ListItemIcon>
-              <ListItemText
-                primary={item.text}
-                slotProps={{
-                  primary: {
-                    sx: {
-                      color: '#1E1E1E',
-                      fontFamily: '"Poppins", "Pretendard"',
-                      fontSize: open ? '20px' : '16px',
-                      fontWeight: open ? 'bold' : 'normal',
-                      opacity: open ? 1 : 0,
+              {open && (
+                <ListItemText
+                  primary={item.text}
+                  slotProps={{
+                    primary: {
+                      sx: {
+                        color: '#1E1E1E',
+                        fontFamily: '"Poppins", "Pretendard"',
+                        fontSize: '20px',
+                        fontWeight: 'bold',
+                      },
                     },
-                  },
-                }}
-              />
+                  }}
+                />
+              )}
             </ListItemButton>
           </ListItem>
         ))}
@@ -190,7 +194,7 @@ const Sidebar = () => {
         <Divider />
         <ListItem disablePadding>
           <ListItemButton
-            onClick={userInfo ? handleProfileClick : () => navigate('/auth/login')}
+            onClick={handleUserMenuOpen}
             sx={{
               justifyContent: open ? 'initial' : 'center',
               alignItems: 'center',
@@ -207,7 +211,7 @@ const Sidebar = () => {
               }}
             >
               <Avatar
-                src={userInfo?.userImg}
+                src={user?.user_img}
                 sx={{
                   width: 32,
                   height: 32,
@@ -218,8 +222,8 @@ const Sidebar = () => {
             {open && (
               <Stack sx={{ flex: 1 }}>
                 <ListItemText
-                  primary={userInfo ? userInfo.nickname : '로그인이 필요합니다'}
-                  secondary={userInfo ? userInfo.email : null}
+                  primary={user ? user.nickname : '로그인이 필요합니다'}
+                  secondary={user ? user.email : null}
                   slotProps={{
                     primary: {
                       sx: { color: '#1E1E1E', fontSize: '16px', fontWeight: 'bold', mb: 0 },
@@ -230,6 +234,48 @@ const Sidebar = () => {
               </Stack>
             )}
           </ListItemButton>
+          <Menu
+            anchorEl={userMenuAnchorEl}
+            open={Boolean(userMenuAnchorEl)}
+            onClose={handleUserMenuClose}
+            onClick={handleUserMenuClose}
+            anchorOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+          >
+            {isLoggedIn ? (
+              <>
+                <MenuItem component={Link} to="/auth/mypage">
+                  <PersonIcon sx={{ mr: 1 }} />
+                  마이페이지
+                </MenuItem>
+                <MenuItem component={Link} to="/auth/change-info">
+                  <ManageAccountsIcon sx={{ mr: 1 }} />
+                  회원정보 수정
+                </MenuItem>
+                <MenuItem onClick={handleLogoutClick}>
+                  <LogoutIcon sx={{ mr: 1 }} />
+                  로그아웃
+                </MenuItem>
+              </>
+            ) : (
+              <>
+                <MenuItem onClick={() => showLoginModal('/auth/login')}>
+                  <LoginIcon sx={{ mr: 1 }} />
+                  로그인
+                </MenuItem>
+                <MenuItem component={Link} to="/auth/signup">
+                  <HowToRegIcon sx={{ mr: 1 }} />
+                  회원가입
+                </MenuItem>
+              </>
+            )}
+          </Menu>
         </ListItem>
       </Stack>
     </Drawer>

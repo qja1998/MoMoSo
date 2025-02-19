@@ -1,6 +1,8 @@
+import axios from 'axios'
+
 import { useEffect, useState } from 'react'
+
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
 
 import CheckIcon from '@mui/icons-material/Check'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -15,8 +17,7 @@ import Typography from '@mui/material/Typography'
 import { styled } from '@mui/material/styles'
 
 import { PrimaryButton } from '../components/common/buttons'
-
-import axios from 'axios';
+import { useAuth } from '../hooks/useAuth'
 
 const PasswordGuideItem = styled(Box)(({ theme, isvalid, focused }) => ({
   display: 'flex',
@@ -24,21 +25,13 @@ const PasswordGuideItem = styled(Box)(({ theme, isvalid, focused }) => ({
   gap: theme.spacing(1),
   marginBottom: theme.spacing(1),
   '& .MuiTypography-root': {
-    color: !focused
-      ? theme.palette.text.secondary
-      : isvalid
-        ? theme.palette.success.main
-        : theme.palette.error.main,
+    color: !focused ? theme.palette.text.secondary : isvalid ? theme.palette.success.main : theme.palette.error.main,
     fontSize: '0.875rem',
     fontWeight: isvalid && focused ? 600 : 400,
   },
   '& .MuiSvgIcon-root': {
     fontSize: '1.2rem',
-    color: !focused
-      ? theme.palette.text.secondary
-      : isvalid
-        ? theme.palette.success.main
-        : theme.palette.error.main,
+    color: !focused ? theme.palette.text.secondary : isvalid ? theme.palette.success.main : theme.palette.error.main,
   },
 }))
 
@@ -49,10 +42,10 @@ const UserSignUp = () => {
   const [errors, setErrors] = useState({})
   const [isVerified, setIsVerified] = useState(false)
   const [isPhoneVerified, setIsPhoneVerified] = useState(false)
-  
+
   useEffect(() => {
-    axios.defaults.withCredentials = true;
-    axios.defaults.headers.common['Accept'] = 'application/json';
+    axios.defaults.withCredentials = true
+    axios.defaults.headers.common['Accept'] = 'application/json'
     axios.defaults.headers.post['Content-Type'] = 'application/x-www-form-urlencoded'
   }, [])
 
@@ -101,94 +94,84 @@ const UserSignUp = () => {
 
   const handleVerificationCodeSend = async () => {
     try {
-      console.log("인증번호 전송 요청:", formData.phone);
-      const response = await axios.post(BACKEND_URL+"/api/v1/auth/send-sms", null, {
+      console.log('인증번호 전송 요청:', formData.phone)
+      const response = await axios.post(BACKEND_URL + '/api/v1/auth/send-sms', null, {
         params: { phone: formData.phone },
-      });
-  
-      alert(response.data.message);
+      })
+
+      alert(response.data.message)
     } catch (error) {
-      console.error("인증번호 전송 오류:", error);
-      setErrors({ phone: error.response?.data?.detail || "인증번호 전송에 실패했습니다." });
+      console.error('인증번호 전송 오류:', error)
+      setErrors({ phone: error.response?.data?.detail || '인증번호 전송에 실패했습니다.' })
     }
-  };
+  }
 
   const handleVerificationCodeCheck = async () => {
     try {
-      console.log("인증번호 확인 요청:", formData.phone, formData.verificationCode);
-      const response = await axios.post(BACKEND_URL+"/api/v1/auth/verify-sms-code", null, {
+      console.log('인증번호 확인 요청:', formData.phone, formData.verificationCode)
+      const response = await axios.post(BACKEND_URL + '/api/v1/auth/verify-sms-code', null, {
         params: {
           phone: formData.phone,
           code: formData.verificationCode,
         },
-      });
-  
-      setIsPhoneVerified(true);
-      alert(response.data.message);
+      })
+
+      setIsPhoneVerified(true)
+      alert(response.data.message)
     } catch (error) {
-      console.error("인증번호 확인 오류:", error);
-      setErrors({ verificationCode: error.response?.data?.detail || "인증번호가 올바르지 않습니다." });
+      console.error('인증번호 확인 오류:', error)
+      setErrors({ verificationCode: error.response?.data?.detail || '인증번호가 올바르지 않습니다.' })
     }
-  };
+  }
 
   const handleSignUp = async () => {
-    console.log("회원가입 버튼 클릭됨");
-    console.log("회원가입 요청 데이터:", formData);
+    console.log('회원가입 버튼 클릭됨')
+    console.log('회원가입 요청 데이터:', formData)
 
     try {
       const requestData = {
-        email: formData.email || "",
-        name: formData.name || "",
-        nickname: formData.penName || "",
-        phone: formData.phone || "",
-        password: formData.password || "",
-        confirm_password: formData.passwordConfirm || "",
-      };
+        email: formData.email || '',
+        name: formData.name || '',
+        nickname: formData.penName || '',
+        phone: formData.phone || '',
+        password: formData.password || '',
+        confirm_password: formData.passwordConfirm || '',
+      }
 
-      const signUpResponse = await axios.post(
-        BACKEND_URL+"/api/v1/auth/signup",
-        requestData,
-        {
-          headers: {
-            'Content-Type': 'application/json',  // 이 부분만 수정
-            'Accept': 'application/json'
-          },
-          withCredentials: true,  // 명시적으로 추가
-        }
-      );
+      const signUpResponse = await axios.post(BACKEND_URL + '/api/v1/auth/signup', requestData, {
+        headers: {
+          'Content-Type': 'application/json', // 이 부분만 수정
+          Accept: 'application/json',
+        },
+        withCredentials: true, // 명시적으로 추가
+      })
 
-      console.log("회원가입 성공:", signUpResponse.data);
+      console.log('회원가입 성공:', signUpResponse.data)
 
-      const loginFormData = new URLSearchParams();
-      loginFormData.append("username", formData.email);
-      loginFormData.append("password", formData.password);
+      const loginFormData = new URLSearchParams()
+      loginFormData.append('username', formData.email)
+      loginFormData.append('password', formData.password)
 
-      const loginResponse = await axios.post(
-        BACKEND_URL+"/api/v1/auth/login",
-        loginFormData,
-        {
-          headers: { "Content-Type": "application/x-www-form-urlencoded",
-            'Accept': 'application/json'
-            },
-          withCredentials: true,
-          credentials: 'include'
-        }
-      );
+      const loginResponse = await axios.post(BACKEND_URL + '/api/v1/auth/login', loginFormData, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+        withCredentials: true,
+        credentials: 'include',
+      })
 
-      console.log("로그인 성공:", loginResponse.data);
-      await new Promise(resolve => setTimeout(resolve, 100)); // 100ms 딜레이
-      setIsLoggedIn(true);
-      navigate("/");
+      console.log('로그인 성공:', loginResponse.data)
+      await new Promise((resolve) => setTimeout(resolve, 100)) // 100ms 딜레이
+      setIsLoggedIn(true)
+      navigate('/')
     } catch (error) {
-      console.error("회원가입 오류:", error);
+      console.error('회원가입 오류:', error)
 
       if (error.response && error.response.data) {
-        setErrors(error.response.data);
+        setErrors(error.response.data)
       } else {
-        setErrors({ general: "회원가입 중 오류가 발생했습니다." });
+        setErrors({ general: '회원가입 중 오류가 발생했습니다.' })
       }
     }
-  };
+  }
 
   const checkPasswordCombination = (password) => {
     const hasLetter = /[a-zA-Z]/.test(password)
@@ -197,10 +180,7 @@ const UserSignUp = () => {
 
     const combinationCount = [hasLetter, hasNumber, hasSpecial].filter(Boolean).length
 
-    return (
-      (combinationCount >= 3 && password.length >= 8) ||
-      (combinationCount >= 2 && password.length >= 10)
-    )
+    return (combinationCount >= 3 && password.length >= 8) || (combinationCount >= 2 && password.length >= 10)
   }
 
   const checkNoRepeatOrSequence = (password) => {
@@ -215,10 +195,8 @@ const UserSignUp = () => {
       if (char1 === char2 && char2 === char3) return false
 
       if (
-        (char1.charCodeAt(0) + 1 === char2.charCodeAt(0) &&
-          char2.charCodeAt(0) + 1 === char3.charCodeAt(0)) ||
-        (char1.charCodeAt(0) - 1 === char2.charCodeAt(0) &&
-          char2.charCodeAt(0) - 1 === char3.charCodeAt(0))
+        (char1.charCodeAt(0) + 1 === char2.charCodeAt(0) && char2.charCodeAt(0) + 1 === char3.charCodeAt(0)) ||
+        (char1.charCodeAt(0) - 1 === char2.charCodeAt(0) && char2.charCodeAt(0) - 1 === char3.charCodeAt(0))
       ) {
         return false
       }
@@ -238,8 +216,7 @@ const UserSignUp = () => {
     }
   }, [formData.password])
 
-  const isPasswordMismatch =
-    formData.passwordConfirm && formData.password !== formData.passwordConfirm
+  const isPasswordMismatch = formData.passwordConfirm && formData.password !== formData.passwordConfirm
 
   return (
     <Stack
@@ -355,7 +332,7 @@ const UserSignUp = () => {
               boxShadow: 'none',
             }}
           >
-            {isPhoneVerified ? "인증완료" : "인증번호 전송"}
+            {isPhoneVerified ? '인증완료' : '인증번호 전송'}
           </PrimaryButton>
         </Stack>
         <Stack direction="row" spacing={0}>
@@ -433,19 +410,11 @@ const UserSignUp = () => {
           }}
         />
         <Box>
-          <PasswordGuideItem
-            isvalid={passwordValidation.combinationValid}
-            focused={passwordFieldFocused}
-          >
+          <PasswordGuideItem isvalid={passwordValidation.combinationValid} focused={passwordFieldFocused}>
             <CheckIcon />
-            <Typography>
-              영문, 숫자, 특수문자 3가지 조합 8자리 이상 또는 2가지 조합 10자리 이상
-            </Typography>
+            <Typography>영문, 숫자, 특수문자 3가지 조합 8자리 이상 또는 2가지 조합 10자리 이상</Typography>
           </PasswordGuideItem>
-          <PasswordGuideItem
-            isvalid={passwordValidation.noRepeatValid}
-            focused={passwordFieldFocused}
-          >
+          <PasswordGuideItem isvalid={passwordValidation.noRepeatValid} focused={passwordFieldFocused}>
             <CheckIcon />
             <Typography>공백 및 3자 이상의 연속 또는 중복 문자는 사용 불가</Typography>
           </PasswordGuideItem>
@@ -463,9 +432,7 @@ const UserSignUp = () => {
           onChange={handleInputChange}
           onBlur={() => setConfirmPasswordTouched(true)}
           error={confirmPasswordTouched && isPasswordMismatch}
-          helperText={
-            confirmPasswordTouched && isPasswordMismatch ? '비밀번호가 일치하지 않습니다.' : ' '
-          }
+          helperText={confirmPasswordTouched && isPasswordMismatch ? '비밀번호가 일치하지 않습니다.' : ' '}
           slotProps={{
             inputLabel: {
               shrink: true,

@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import axios from 'axios'
+
+import { useState } from 'react'
+
 import { Box, InputLabel, TextField, Typography } from '@mui/material'
 import { styled } from '@mui/material/styles'
+
 import { PrimaryButton } from '../components/common/buttons'
-import axios from 'axios';
 
 const FindIdContainer = styled(Box)({
   display: 'flex',
@@ -25,78 +28,67 @@ const FindIdBox = styled(Box)({
 
 const UserFindId = () => {
   const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
-  const [error, setError] = useState(''); // 에러 메시지 상태 추가
-  const [foundEmail, setFoundEmail] = useState('');
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [verificationCode, setVerificationCode] = useState('')
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false)
+  const [error, setError] = useState('') // 에러 메시지 상태 추가
+  const [foundEmail, setFoundEmail] = useState('')
 
   const handlePhoneChange = (e) => {
-    const value = e.target.value.replace(/[^0-9]/g, '');
-    let formattedValue = '';
+    const value = e.target.value.replace(/[^0-9]/g, '')
+    let formattedValue = ''
     if (value.length <= 3) {
-      formattedValue = value;
+      formattedValue = value
     } else if (value.length <= 7) {
-      formattedValue = `${value.slice(0, 3)}-${value.slice(3)}`;
+      formattedValue = `${value.slice(0, 3)}-${value.slice(3)}`
     } else {
-      formattedValue = `${value.slice(0, 3)}-${value.slice(3, 7)}-${value.slice(7, 11)}`;
+      formattedValue = `${value.slice(0, 3)}-${value.slice(3, 7)}-${value.slice(7, 11)}`
     }
-    setPhone(formattedValue);
-  };
+    setPhone(formattedValue)
+  }
 
   const handleVerificationCodeSend = async () => {
     try {
-      const response = await axios.post(
-        BACKEND_URL+'/api/v1/auth/send-sms',
-        null,
-        {
-          params: { phone: phone },
-        }
-      );
-      alert(response.data.message);
+      const response = await axios.post(BACKEND_URL + '/api/v1/auth/send-sms', null, {
+        params: { phone: phone },
+      })
+      alert(response.data.message)
     } catch (error) {
-      console.error('인증번호 전송 오류:', error);
-      setError(error.response?.data?.detail || '인증번호 전송에 실패했습니다.');
+      console.error('인증번호 전송 오류:', error)
+      setError(error.response?.data?.detail || '인증번호 전송에 실패했습니다.')
     }
-  };
+  }
 
   const handleVerificationCodeCheck = async () => {
     try {
-      const response = await axios.post(
-        BACKEND_URL+'/api/v1/auth/verify-sms-code',
-        null,
-        {
-          params: {
-            phone: phone,
-            code: verificationCode,
-          },
-        }
-      );
-      setIsPhoneVerified(true);
-      alert(response.data.message);
+      const response = await axios.post(BACKEND_URL + '/api/v1/auth/verify-sms-code', null, {
+        params: {
+          phone: phone,
+          code: verificationCode,
+        },
+      })
+      setIsPhoneVerified(true)
+      alert(response.data.message)
     } catch (error) {
-      console.error('인증번호 확인 오류:', error);
-      setError(error.response?.data?.detail || '인증번호가 올바르지 않습니다.');
+      console.error('인증번호 확인 오류:', error)
+      setError(error.response?.data?.detail || '인증번호가 올바르지 않습니다.')
     }
-  };
+  }
 
   const handleFindId = async () => {
     try {
-      const response = await axios.post(
-        BACKEND_URL+'/api/v1/auth/find-id',
-        {
-          name: name,
-          phone: phone,
-        }
-      );
-      setFoundEmail(response.data.email);
-      setError(''); // 성공 시 에러 메시지 초기화
+      const response = await axios.post(BACKEND_URL + '/api/v1/auth/find-id', {
+        name: name,
+        phone: phone,
+      })
+      setFoundEmail(response.data.email)
+      setError('') // 성공 시 에러 메시지 초기화
     } catch (error) {
-      console.error('아이디 찾기 오류:', error);
-      setError(error.response?.data?.detail || '아이디를 찾을 수 없습니다.');
+      console.error('아이디 찾기 오류:', error)
+      setError(error.response?.data?.detail || '아이디를 찾을 수 없습니다.')
     }
-  };
+  }
 
   return (
     <FindIdContainer>
@@ -183,11 +175,7 @@ const UserFindId = () => {
           </PrimaryButton>
         </Box>
 
-        <PrimaryButton
-          fullWidth
-          onClick={handleFindId}
-          disabled={!isPhoneVerified}
-        >
+        <PrimaryButton fullWidth onClick={handleFindId} disabled={!isPhoneVerified}>
           아이디 찾기
         </PrimaryButton>
 

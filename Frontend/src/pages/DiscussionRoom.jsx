@@ -1,6 +1,7 @@
 import axios from 'axios'
-// import { OpenVidu as OpenViduBrowser } from 'openvidu-browser'
-// import { OpenVidu as OpenViduNode } from 'openvidu-node-client'
+import { OpenVidu as OpenViduBrowser } from 'openvidu-browser'
+import { OpenVidu as OpenViduNode } from 'openvidu-node-client'
+import RecordRTC from 'recordrtc'
 
 import { useEffect, useRef, useState } from 'react'
 
@@ -40,6 +41,166 @@ const debounce = (func, wait) => {
   }
 }
 
+// VAD 클래스 추가
+const VoiceActivityDetector = class {
+  constructor(stream, options = {}) {
+    this.audioContext = new AudioContext()
+    this.microphone = this.audioContext.createMediaStreamSource(stream)
+    this.analyser = this.audioContext.createAnalyser()
+
+    this.recorder = null
+    this.isProcessing = false
+    this.lastProcessedTime = 0
+    this.options = {
+      threshold: 0.13,
+      maxSilentTime: 2400,
+      minRecordingTime: 1000,
+      processingDebounce: 1000,
+    }
+
+    this.setupAnalyser()
+  }
+
+  setupAnalyser() {
+    console.warn = function () {}
+    this.analyser.minDecibels = -45
+    this.analyser.maxDecibels = -10
+    this.analyser.fftSize = 2048
+
+    this.microphone.connect(this.analyser)
+    this.dataArray = new Float32Array(this.analyser.frequencyBinCount)
+  }
+
+  isVoiceActive() {
+    this.analyser.getFloatTimeDomainData(this.dataArray)
+
+    const rms = Math.sqrt(this.dataArray.reduce((sum, value) => sum + value * value, 0) / this.dataArray.length)
+
+    const normalizedVolume = Math.abs(rms)
+    return normalizedVolume > this.options.threshold
+  }
+
+  canProcess() {
+    const now = Date.now()
+    if (now - this.lastProcessedTime < this.options.processingDebounce) {
+      return false
+    }
+    return true
+  }
+
+  async handleRecordingStopped(onDataAvailable) {
+    if (this.isProcessing || !this.canProcess()) return
+
+    this.isProcessing = true
+    this.lastProcessedTime = Date.now()
+
+    try {
+      await new Promise((resolve) => {
+        if (!this.recorder) {
+          resolve()
+          return
+        }
+
+        this.recorder.stopRecording(async () => {
+          try {
+            const blob = this.recorder.getBlob()
+
+            if (blob && blob.size > 0) {
+              try {
+                await onDataAvailable(blob)
+              } catch (error) {
+                console.error('오디오 데이터 전송 실패:', error)
+              }
+            }
+
+            if (this.recorder) {
+              this.recorder.reset()
+              this.recorder.startRecording()
+            }
+            resolve()
+          } catch (error) {
+            console.error('Blob 처리 중 오류:', error)
+            resolve()
+          }
+        })
+      })
+    } finally {
+      this.isProcessing = false
+    }
+  }
+
+  startRecording(onDataAvailable) {
+    if (this.recorder) {
+      try {
+        this.recorder.stopRecording(() => {
+          if (this.recorder) {
+            this.recorder.reset()
+          }
+        })
+      } catch (error) {
+        console.error('기존 레코더 정리 중 오류:', error)
+      }
+    }
+
+    const audioStream = this.microphone.mediaStream
+
+    this.recorder = new RecordRTC(audioStream, {
+      type: 'audio',
+      mimeType: 'audio/wav',
+      recorderType: RecordRTC.StereoAudioRecorder,
+      desiredSampRate: 16000,
+      numberOfAudioChannels: 1,
+    })
+
+    this.recorder.startRecording()
+
+    let isRecording = false
+    let silentTime = 0
+    let recordingTime = 0
+    const CHECK_INTERVAL = 200
+
+    const checkVoiceActivity = setInterval(async () => {
+      if (this.isProcessing) return
+
+      const isActive = this.isVoiceActive()
+
+      if (isActive) {
+        if (!isRecording) {
+          isRecording = true
+          silentTime = 0
+          recordingTime = 0
+        } else {
+          silentTime = 0
+          recordingTime += CHECK_INTERVAL
+        }
+      } else {
+        if (isRecording) {
+          silentTime += CHECK_INTERVAL
+          recordingTime += CHECK_INTERVAL
+
+          if (recordingTime >= this.options.minRecordingTime && silentTime >= this.options.maxSilentTime) {
+            await this.handleRecordingStopped(onDataAvailable)
+            isRecording = false
+            silentTime = 0
+            recordingTime = 0
+          }
+        }
+      }
+    }, CHECK_INTERVAL)
+
+    return async () => {
+      clearInterval(checkVoiceActivity)
+      if (this.recorder) {
+        await this.handleRecordingStopped(onDataAvailable)
+        if (this.recorder) {
+          this.recorder.destroy()
+          this.recorder = null
+        }
+      }
+    }
+  }
+}
+
 export default function DiscussionRoom() {
   const navigate = useNavigate()
   const { discussionId } = useParams()
@@ -73,6 +234,116 @@ export default function DiscussionRoom() {
   // AI 어시스턴트 관련 상태 추가
   const [factChecks, setFactChecks] = useState([])
   const [isGeneratingTopic, setIsGeneratingTopic] = useState(false)
+
+  const vadRef = useRef(null)
+
+  // 오디오 데이터 전송
+  const sendAudioData = async (blob) => {
+    const formData = new FormData()
+    formData.append('audio', blob, `audio_${Date.now()}.wav`)
+    formData.append('roomName', discussionInfo?.session_id)
+    formData.append('userName', loginInfo.current?.nickname)
+
+    try {
+      const response = await axios.post(`${BACKEND_URL}/api/v1/discussion/audio`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        withCredentials: true,
+      })
+
+      if (response.data.text) {
+        console.log(response.data.text)
+        await clientSession.signal({
+          data: JSON.stringify({
+            text: response.data.text,
+            user: loginInfo.current?.nickname,
+          }),
+          type: 'stt',
+        })
+      }
+    } catch (error) {
+      console.error('오디오 전송 에러:', error)
+    }
+  }
+
+  // 마이크 토글 핸들러 수정
+  const handleMicToggle = () => {
+    const newMicState = !isMicOn
+    setIsMicOn(newMicState)
+
+    if (publisher) {
+      publisher.publishAudio(newMicState)
+
+      if (newMicState) {
+        const audioStream = publisher.stream.getMediaStream()
+        const vad = new VoiceActivityDetector(audioStream)
+
+        const stopRecording = vad.startRecording(async (blob) => {
+          await sendAudioData(blob)
+        })
+
+        if (vadRef.current) {
+          vadRef.current()
+        }
+        vadRef.current = stopRecording
+      } else {
+        if (vadRef.current) {
+          vadRef.current()
+          vadRef.current = null
+        }
+      }
+    }
+  }
+
+  // 음성 활동 감지 (게시자)
+  useEffect(() => {
+    if (publisher && publisher.stream && isMicOn) {
+      const audioStream = publisher.stream.getMediaStream()
+      const vad = new VoiceActivityDetector(audioStream)
+
+      const checkVoiceActivity = setInterval(() => {
+        const isActive = vad.isVoiceActive()
+        setSpeakingUsers((prev) => {
+          const newSpeakers = new Set(prev)
+          if (isActive) {
+            newSpeakers.add(loginInfo.current?.user_pk)
+          } else {
+            newSpeakers.delete(loginInfo.current?.user_pk)
+          }
+          return Array.from(newSpeakers)
+        })
+      }, 200)
+
+      return () => clearInterval(checkVoiceActivity)
+    }
+  }, [publisher, isMicOn])
+
+  // 음성 활동 감지 (구독자)
+  useEffect(() => {
+    const voiceActivityChecks = subscribers
+      .filter((sub) => sub.stream.audioActive)
+      .map((sub) => {
+        const connectionData = JSON.parse(sub.stream.connection.data)
+        const audioStream = sub.stream.getMediaStream()
+        const vad = new VoiceActivityDetector(audioStream)
+
+        const checkVoiceActivity = setInterval(() => {
+          const isActive = vad.isVoiceActive()
+          setSpeakingUsers((prev) => {
+            const newSpeakers = new Set(prev)
+            if (isActive) {
+              newSpeakers.add(connectionData.user_pk)
+            } else {
+              newSpeakers.delete(connectionData.user_pk)
+            }
+            return Array.from(newSpeakers)
+          })
+        }, 200)
+
+        return () => clearInterval(checkVoiceActivity)
+      })
+
+    return () => voiceActivityChecks.forEach((cleanup) => cleanup())
+  }, [subscribers])
 
   // 토론방 초기화 로직
   useEffect(() => {
@@ -222,12 +493,25 @@ export default function DiscussionRoom() {
         // 7. 세션 이벤트 핸들러 설정
         // 7-1. 이벤트 핸들러 정의
         const eventHandlers = {
-          // 세션에 새로운 스트림 객체가 생성될 때 발생 (누군가 스트림 발행을 시작할 때)
+          // 스트림이 생성될 때 (누군가 스트림 발행을 시작할 때)
           streamCreated: (event) => {
             const subscriber = clientSideSession.subscribe(event.stream, undefined)
+            // 이미 존재하는 참가자인지 확인
+            // const connectionId = event.stream.connection.connectionId
             const connectionData = JSON.parse(event.stream.connection.data)
 
-            // VAD 이벤트 리스너 등록
+            // setParticipants(prev => {
+            //   // 이미 존재하면 업데이트하지 않음
+            //   if (prev.some(p => p.connectionId === connectionId)) return prev;
+
+            //   return [...prev, {
+            //     connectionId,
+            //     streamManager: subscriber,
+            //     ...connectionData,
+            //   }]
+            // })
+
+            // VAD 이벤트 핸들러 설정
             subscriber.on('publisherStartSpeaking', () => {
               setSpeakingUsers((prev) => [...prev, connectionData.user_pk])
             })
@@ -267,63 +551,35 @@ export default function DiscussionRoom() {
           },
           // 새로운 사용자가 세션에 연결될 때 발생. 이벤트에서 새로운 Connection 객체의 세부 정보를 얻을 수 있음.
           connectionCreated: (event) => {
-            clientSideSession.fetch()
+            // if (event.connection.connectionId === connection.connectionId) return
+
+            const connectionId = event.connection.connectionId
+            const connectionData = JSON.parse(event.connection.data)
+
+            setParticipants((prev) => {
+              // 이미 존재하면 업데이트하지 않음
+              if (prev.some((p) => p.connectionId === connectionId)) return prev
+
+              return [
+                ...prev,
+                {
+                  connectionId,
+                  ...connectionData,
+                },
+              ]
+            })
           },
-          // 사용자가 세션을 나갈 때 발생. 제거된 Connection 객체의 정보를 제공함.
+
+          // 사용자가 세션을 나갈 때
           connectionDestroyed: (event) => {
-            setParticipants((prev) =>
-              prev.filter((participant) => participant.connectionId !== event.connection.connectionId)
-            )
-          },
-          // 세션 연결이 끊겼을 때 발생
-          sessionDisconnected: (event) => {
-            if (event.reason === 'networkDisconnect') {
-              console.warn('네트워크 연결이 끊겼습니다.')
-              // 재연결 시도 로직
-              let retryCount = 0
-              const maxRetries = 3
-              const retryInterval = 3000
-
-              const retryConnection = async () => {
-                if (retryCount < maxRetries) {
-                  try {
-                    console.log(`재연결 시도 ${retryCount + 1}/${maxRetries}`)
-                    await clientSideSession.connect(connection.token)
-                    console.log('재연결 성공')
-
-                    // 재연결 후 스트림 재발행
-                    if (publisher) {
-                      await clientSideSession.publish(publisher)
-                    }
-                  } catch (error) {
-                    console.error('재연결 실패:', error)
-                    retryCount++
-                    setTimeout(retryConnection, retryInterval)
-                  }
-                } else {
-                  console.error('최대 재시도 횟수 초과')
-                  // TODO: 사용자에게 재연결 실패 알림
-                }
+            const connectionId = event.connection.connectionId
+            setParticipants((prev) => {
+              const participant = prev.find((p) => p.connectionId === connectionId)
+              if (participant?.streamManager) {
+                participant.streamManager.stream?.removeAllVideos()
+                participant.streamManager.stream?.dispose()
               }
-
-              retryConnection()
-            }
-          },
-          // 세션에 처음 연결됐을 때 발생
-          sessionConnected: () => {
-            clientSideSession.streamManagers.forEach((streamManager) => {
-              if (streamManager !== publisher) {
-                const subscriber = clientSideSession.subscribe(streamManager.stream, undefined)
-                const connectionData = JSON.parse(streamManager.stream.connection.data)
-                setParticipants((prev) => [
-                  ...prev,
-                  {
-                    connectionId: streamManager.stream.connection.connectionId,
-                    streamManager: subscriber,
-                    ...connectionData,
-                  },
-                ])
-              }
+              return prev.filter((p) => p.connectionId !== connectionId)
             })
           },
         }
@@ -398,66 +654,43 @@ export default function DiscussionRoom() {
 
       const cleanup = async () => {
         try {
-          // 1. 참가자들의 스트림 정리
-          participants.forEach((participant) => {
-            if (participant.streamManager) {
-              // 이벤트 리스너 제거
-              participant.streamManager.off('publisherStartSpeaking')
-              participant.streamManager.off('publisherStopSpeaking')
-
-              // 스트림 정리
-              participant.streamManager.stream?.removeAllVideos()
-              participant.streamManager.stream?.dispose()
-            }
-          })
-
-          // 2. 로컬 스트림 정리
           if (publisher) {
-            publisher.stream?.removeAllVideos()
-            publisher.stream?.dispose()
+            // 오디오 트랙 정리
+            if (publisher.stream?.getMediaStream()) {
+              const tracks = publisher.stream.getMediaStream().getTracks()
+              tracks.forEach((track) => track.stop())
+            }
+
+            // Publisher 이벤트 리스너 제거
             publisher.off('*')
-          }
-
-          // 3. 세션 정리
-          if (clientSession) {
-            // 이벤트 리스너 제거
-            clientSession.off('*')
-            // 연결 해제
-            try {
-              await clientSession.disconnect()
-            } catch (error) {
-              console.error('세션 연결 해제 중 오류:', error)
+            console.log(clientSideSession)
+            // 세션에서 Publisher 제거
+            if (clientSideSession) {
+              await clientSideSession.unpublish(publisher)
             }
           }
 
-          // 3-1. 서버 사이드 세션 정리
-          if (serverSideSession) {
-            try {
-              await serverSideSession.close()
-            } catch (error) {
-              console.error('서버 사이드 세션 정리 중 오류:', error)
-            }
+          console.log(clientSideSession)
+          // 세션 연결 해제
+          if (clientSideSession) {
+            clientSideSession.off('*')
+            await clientSideSession.disconnect()
           }
 
-          // 4. OpenVidu 객체 정리
-          if (openViduNode) {
-            openViduNode = null
-          }
-          if (openViduBrowser) {
-            openViduBrowser = null
-          }
-
-          // 5. 상태 초기화
+          // 상태 초기화
           setClientSession(null)
           setConnection(null)
           setPublisher(null)
           setParticipants([])
-          setDiscussionInfo(null)
           setSpeakingUsers([])
 
-          console.log('토론방 리소스 정리 완료')
+          // VAD 정리
+          if (vadRef.current) {
+            vadRef.current()
+            vadRef.current = null
+          }
         } catch (error) {
-          console.error('리소스 정리 중 예상치 못한 오류 발생:', error)
+          console.error('나가기 처리 중 오류 발생:', error)
         }
       }
 
@@ -467,15 +700,8 @@ export default function DiscussionRoom() {
 
   const handleBack = () => {
     navigate(-1, {
-      replace: true,
+      // replace: true,
     })
-  }
-
-  const handleMicToggle = () => {
-    setIsMicOn(!isMicOn)
-    if (publisher) {
-      publisher.publishAudio(!isMicOn)
-    }
   }
 
   // 볼륨 조절에 debounce 적용
@@ -662,15 +888,15 @@ export default function DiscussionRoom() {
               {/* 참여자 목록 헤더 */}
               <Stack sx={{ p: 2, borderBottom: '1px solid #EEEEEE' }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-                  참여자 ({discussionInfo.participants.length})
+                  토론 참여자 ({discussionInfo.participants.length})
                 </Typography>
               </Stack>
 
               {/* 참여자 목록 */}
               <Stack sx={{ flex: 1, overflow: 'auto', height: 'calc(100% - 100px)' }}>
-                {discussionInfo.participants.map((participant) => (
+                {participants.map((participant) => (
                   <Stack
-                    key={participant.user_pk}
+                    key={participant.connectionId}
                     direction="row"
                     alignItems="center"
                     spacing={1}
