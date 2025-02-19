@@ -26,8 +26,6 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-def key() :
-    return os.environ.get("GOOGLE_API_KEY")
 
 def get_novel(novel_pk: int, db: Session):
     novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
@@ -92,7 +90,13 @@ def get_all_novel(db: Session):
 
 # 소설 검색 (pk 기반, 테스트 용도라 추후 삭제)
 def search_novel(novel_pk: int, db: Session):
-    return db.query(Novel).filter(Novel.novel_pk == novel_pk).all()
+    # return db.query(Novel).filter(Novel.novel_pk == novel_pk).all()
+    return (
+        db.query(Novel)
+        .options(joinedload(Novel.genres))  # Novel과 Genre를 join
+        .filter(Novel.novel_pk == novel_pk)
+        .all()
+    )
 
 
 def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Session):
@@ -132,8 +136,8 @@ def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Ses
     novel_base = novel_schema.NovelShowBase( # NovelShowBase 스키마 사용
         novel_pk=novel.novel_pk,
         title=novel.title,
-        created_date=novel.created_date, # 추가
-        updated_date=novel.updated_date, # 추가
+        worldview=novel.worldview,
+        synopsis=novel.synopsis,
         summary=novel.summary,
         novel_img=novel.novel_img, # 추가 (기본 이미지 URL 설정)
         views=novel.views,

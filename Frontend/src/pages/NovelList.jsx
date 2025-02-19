@@ -46,7 +46,7 @@ const NovelList = () => {
     const fetchNovels = async () => {
       setLoading(true)
       try {
-        const response = await axios.get('/api/v1/novels')
+        const response = await axios.get(`${BACKEND_URL}/api/v1/novels`)
         setNovels(response.data)
         
         // 모든 소설의 장르를 추출하고 중복 제거
@@ -203,7 +203,7 @@ const NovelList = () => {
                 <CardMedia
                   component="img"
                   sx={{ aspectRatio: '3/4', objectFit: 'cover' }}
-                  image={novel.coverImage || coverPlaceholder}
+                  image={novel.novel_img || coverPlaceholder}
                   alt={novel.title}
                 />
                 <CardContent>
@@ -224,7 +224,7 @@ const NovelList = () => {
                       mb: 2,
                     }}
                   >
-                    {novel.description}
+                    {novel.summary}
                   </Typography>
                   <Stack direction="row" spacing={2}>
                     <Stack direction="row" spacing={0.5} alignItems="center">
