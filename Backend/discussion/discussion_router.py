@@ -297,7 +297,7 @@ async def get_note_summary(note_id: int, db: Session = Depends(get_db)):
         .options(
             joinedload(Note.discussion),  # discussion 정보 로드
         )
-        .filter(Note.note_pk == note_pk)
+        .filter(Note.note_pk == note_id)
         .first()
     )
 
