@@ -23,7 +23,7 @@ import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 
-import coverPlaceholder from '/placeholder/cover-image-placeholder.png'
+import coverPlaceholder from '../assets/placeholder/cover-image-placeholder.png'
 
 const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
 
