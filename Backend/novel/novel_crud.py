@@ -308,11 +308,11 @@ def delete_episode(novel_pk: int, episode_pk : int, db: Session) :
 
 # 특정 에피소드의 모든 댓글 조회
 def get_all_ep_comment(novel_pk: int, ep_pk: int, db: Session):
-    return db.query(Comment).filter(Comment.ep_pk == ep_pk).all()
+    return db.query(Comment).filter(Comment.ep_pk == ep_pk).options(joinedload(Comment.user)).all()
 
 # 특정 소설의 모든 댓글 조회
 def get_novel_comment(novel_pk: int, db: Session):
-    return db.query(Comment).filter(Comment.novel_pk == novel_pk).all()
+    return db.query(Comment).filter(Comment.novel_pk == novel_pk).options(joinedload(Comment.user)).all()
 
 # 댓글 작성
 def create_comment(comment_info: novel_schema.CommentBase, novel_pk: int, ep_pk: int, user_pk: int, db: Session):
@@ -329,8 +329,11 @@ def create_comment(comment_info: novel_schema.CommentBase, novel_pk: int, ep_pk:
     return comment
 
 # 댓글 수정
-def update_comment(content: str, comment_pk: int, db: Session):
-    comment = db.query(Comment).filter(Comment.comment_pk == comment_pk).first()
+def update_comment(content: str, comment_pk: int, user_pk: int, db: Session):
+    comment = db.query(Comment).filter(
+        Comment.comment_pk == comment_pk,
+        Comment.user_pk == user_pk  # 작성자 확인
+    ).first()
     if not comment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="댓글을 찾을 수 없습니다.")
     
@@ -340,8 +343,11 @@ def update_comment(content: str, comment_pk: int, db: Session):
     return comment
 
 # 댓글 삭제
-def delete_comment(comment_pk: int, db: Session):
-    comment = db.query(Comment).filter(Comment.comment_pk == comment_pk).first()
+def delete_comment(comment_pk: int, user_pk: int, db: Session):
+    comment = db.query(Comment).filter(
+        Comment.comment_pk == comment_pk,
+        Comment.user_pk == user_pk  # 작성자 확인
+    ).first()
     if not comment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="댓글을 찾을 수 없습니다.")
     
