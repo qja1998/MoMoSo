@@ -47,6 +47,8 @@ before_script:
 
   - echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" >> .env
   - echo "GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET" >> .env
+  - echo "GOOGLE_TOKEN_URL=$GOOGLE_TOKEN_URL" >> .env
+  - echo "GOOGLE_USERINFO_URL=$GOOGLE_USERINFO_URL" >> .env
 
   - echo "KAKAO_CLIENT_ID=$KAKAO_CLIENT_ID" >> .env
   - echo "KAKAO_CLIENT_SECRET=$KAKAO_CLIENT_SECRET" >> .env

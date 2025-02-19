@@ -661,3 +661,5 @@ momoso-450108-0d3ffb86c6ef.json
 *.rdb
 
 # End of https://www.toptal.com/developers/gitignore/api/redis
+
+Backend/audio_uploads/
