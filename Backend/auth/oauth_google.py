@@ -20,10 +20,10 @@ REFRESH_TOKEN_EXPIRE_DAYS = float(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS"))
 # Google OAuth2 설정
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
-GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
-REDIRECT_URI = "http://localhost:8000/api/v1/oauth/google/callback"
-FRONTEND_REDIRECT_URI = os.getenv("FRONTEND_REDIRECT_URI", "http://localhost:5173/") # 프론트엔드 URI
+GOOGLE_TOKEN_URL = os.getenv("GOOGLE_TOKEN_URL")
+GOOGLE_USERINFO_URL = os.getenv("GOOGLE_USERINFO_URL")
+REDIRECT_URI = os.getenv("REDIRECT_URI")
+FRONTEND_REDIRECT_URI = os.getenv("FRONTEND_REDIRECT_URI") # 프론트엔드 URI
 
 from utils.redis_utils import get_redis # utils.redis_utils에서 get_redis 함수 import
 from redis import Redis
