@@ -85,13 +85,36 @@ const LoggedInContent = React.memo(({ mainData, onNovelClick, onNavigateToNovel 
           gap: 3,
           mb: 6 
         }}>
-          <StatsCard color="#6C5CE7">
+          <StatsCard 
+            color="#6C5CE7"
+            onClick={() => mainData?.recent_best?.pk && onNovelClick(mainData.recent_best.pk)}
+            sx={{ 
+              cursor: mainData?.recent_best?.pk ? 'pointer' : 'default',
+              transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+              '&:hover': mainData?.recent_best?.pk ? {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
+              } : {}
+            }}
+          >
             <Typography variant="h6">실시간 인기</Typography>
-            <Typography variant="body1">{mainData?.recent_best || '로딩 중...'}</Typography>
+            <Typography variant="body1">{mainData?.recent_best?.title || '로딩 중...'}</Typography>
           </StatsCard>
-          <StatsCard color="#FF6B6B">
+
+          <StatsCard 
+            color="#FF6B6B"
+            onClick={() => mainData?.month_best?.pk && onNovelClick(mainData.month_best.pk)}
+            sx={{ 
+              cursor: mainData?.month_best?.pk ? 'pointer' : 'default',
+              transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+              '&:hover': mainData?.month_best?.pk ? {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
+              } : {}
+            }}
+          >
             <Typography variant="h6">이달의 화제작</Typography>
-            <Typography variant="body1">{mainData?.month_best || '로딩 중...'}</Typography>
+            <Typography variant="body1">{mainData?.month_best?.title || '로딩 중...'}</Typography>
           </StatsCard>
         </Box>
 
