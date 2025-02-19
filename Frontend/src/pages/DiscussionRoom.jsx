@@ -270,32 +270,45 @@ export default function DiscussionRoom() {
 
   // 마이크 토글 핸들러 수정
   const handleMicToggle = () => {
-    const newMicState = !isMicOn
-    setIsMicOn(newMicState)
+    const newMicState = !isMicOn;
+    setIsMicOn(newMicState);
     
     if (publisher) {
-      publisher.publishAudio(newMicState)
-
+      publisher.publishAudio(newMicState);
       if (newMicState) {
-        const audioStream = publisher.stream.getMediaStream()
-        const vad = new VoiceActivityDetector(audioStream)
-        
-        const stopRecording = vad.startRecording(async (blob) => {
-          await sendAudioData(blob)
-        })
-
+        // 기존 VAD 정리
         if (vadRef.current) {
-          vadRef.current()
+          vadRef.current();
+          vadRef.current = null;
         }
-        vadRef.current = stopRecording
+  
+        // 스트림이 활성 상태인지 확인
+        const audioStream = publisher.stream.getMediaStream();
+        const audioTracks = audioStream.getAudioTracks();
+        console.log('audiotrack 확인용',audioStream)
+        if (audioTracks.length > 0 && audioTracks[0].readyState === 'live') {
+          try {
+            const vad = new VoiceActivityDetector(audioStream);
+            const stopRecording = vad.startRecording(async (blob) => {
+              await sendAudioData(blob);
+            });
+            
+            vadRef.current = stopRecording;
+          } catch (error) {
+            console.error('VAD 설정 중 오류:', error);
+          }
+        } else {
+          console.warn('오디오 트랙이 활성화되지 않았습니다.');
+        }
       } else {
+        // 마이크를 끌 때는 VAD도 정리
         if (vadRef.current) {
-          vadRef.current()
-          vadRef.current = null
+          vadRef.current();
+          vadRef.current = null;
         }
       }
     }
-  }
+  };
 
   // 음성 활동 감지 (게시자)
   useEffect(() => {
@@ -321,32 +334,53 @@ export default function DiscussionRoom() {
   }, [publisher, isMicOn])
 
   // 음성 활동 감지 (구독자)
-  useEffect(() => {
-    const voiceActivityChecks = subscribers
-      .filter(sub => sub.stream.audioActive)
-      .map((sub) => {
-        const connectionData = JSON.parse(sub.stream.connection.data)
-        const audioStream = sub.stream.getMediaStream()
-        const vad = new VoiceActivityDetector(audioStream)
+useEffect(() => {
+  const voiceActivityChecks = subscribers
+    .filter(sub => sub.stream.audioActive && sub.stream.getMediaStream())
+    .map((sub) => {
+      try {
+        const connectionData = JSON.parse(sub.stream.connection.data);
+        const mediaStream = sub.stream.getMediaStream();
+        
+        // mediaStream이 유효한지 확인
+        if (!mediaStream || !mediaStream.getAudioTracks().length) {
+          console.warn('Invalid media stream for subscriber:', connectionData);
+          return null;
+        }
+
+        const vad = new VoiceActivityDetector(mediaStream);
         
         const checkVoiceActivity = setInterval(() => {
-          const isActive = vad.isVoiceActive()
+          const isActive = vad.isVoiceActive();
           setSpeakingUsers(prev => {
-            const newSpeakers = new Set(prev)
+            const newSpeakers = new Set(prev);
             if (isActive) {
-              newSpeakers.add(connectionData.user_pk)
+              newSpeakers.add(connectionData.user_pk);
             } else {
-              newSpeakers.delete(connectionData.user_pk)
+              newSpeakers.delete(connectionData.user_pk);
             }
-            return Array.from(newSpeakers)
-          })
-        }, 200)
+            return Array.from(newSpeakers);
+          });
+        }, 200);
 
-        return () => clearInterval(checkVoiceActivity)
-      })
+        return () => {
+          clearInterval(checkVoiceActivity);
+          // AudioContext 정리
+          if (vad.audioContext) {
+            vad.audioContext.close();
+          }
+        };
+      } catch (error) {
+        console.error('Failed to initialize VAD for subscriber:', error);
+        return null;
+      }
+    })
+    .filter(Boolean); // null 값 제거
 
-    return () => voiceActivityChecks.forEach(cleanup => cleanup())
-  }, [subscribers])
+  return () => {
+    voiceActivityChecks.forEach(cleanup => cleanup && cleanup());
+  };
+}, [subscribers]);
 
   // 토론방 초기화 로직
   useEffect(() => {
@@ -466,15 +500,17 @@ export default function DiscussionRoom() {
         // 5. 로컬 스트림 초기화
         try {
           publisher = await openViduBrowser.initPublisherAsync(undefined, {
-            audioSource: undefined, // 기본 마이크 사용
+            audioSource: true, // 기본 마이크 사용
             videoSource: false, // 비디오 미사용
             publishAudio: true, // 오디오 사용
             publishVideo: false, // 비디오 미사용
+            insertMode: 'APPEND', 
             mediaOptions: {
               audio: {
                 echoCancellation: true, // 에코 제거
                 noiseSuppression: true, // 잡음 제거
                 autoGainControl: true, // 자동 볼륨 조절
+                sampleRate: 44100, // 샘플 레이트 추가
               },
             },
           })
@@ -498,7 +534,13 @@ export default function DiscussionRoom() {
         const eventHandlers = {
           // 스트림이 생성될 때 (누군가 스트림 발행을 시작할 때)
           streamCreated: (event) => {
-            const subscriber = clientSideSession.subscribe(event.stream, undefined)
+            const subscriberOptions = {
+              insertMode: 'APPEND',
+              subscribeToAudio: true,
+              subscribeToVideo: false
+            };
+        
+            const subscriber = clientSideSession.subscribe(event.stream,undefined,subscriberOptions);
             // 이미 존재하는 참가자인지 확인
             // const connectionId = event.stream.connection.connectionId
             const connectionData = JSON.parse(event.stream.connection.data)
@@ -592,11 +634,14 @@ export default function DiscussionRoom() {
         // 8. 세션 연결
         await clientSideSession.connect(connection.token)
         console.log('[Step 8] 세션 연결 성공')
+        // 스트림 발행 전 상태 확인
+        const audioTracks = publisher.stream?.getMediaStream()?.getAudioTracks() || [];
+        console.log('Pre-publish audio tracks:', audioTracks);
 
         // 9. 세션에 스트림 발행
         await clientSideSession.publish(publisher)
         console.log('[Step 9] 세션에 스트림 발행 성공')
-
+        
         // 10. 전체 데이터 확인
         console.log('[Step 10] 전체 데이터 확인', {
           clientSideSession,
