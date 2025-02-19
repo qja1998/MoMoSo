@@ -752,7 +752,7 @@ const NovelEpisodeList = () => {
       {/* <Stack spacing={2}>
           {comments.map((comment) => (
             <Paper
-              key={comment.id}
+              key={comment.comment_pk}
               variant="outlined"
               sx={{
                 p: 2,
