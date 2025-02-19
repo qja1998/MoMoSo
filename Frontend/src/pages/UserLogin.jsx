@@ -1,154 +1,58 @@
-import { Link, useNavigate } from 'react-router-dom';
-import Email from '@mui/icons-material/Email';
-import Lock from '@mui/icons-material/Lock';
-import Button from '@mui/material/Button';
-import InputAdornment from '@mui/material/InputAdornment';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import GoogleIcon from '../assets/icons/GoogleIcon';
-import { PrimaryButton } from '../components/common/buttons';
-import graphicLogo from '/src/assets/logo/graphic-logo.svg';
-import { useEffect, useState } from "react";
-import axios from 'axios';
-import { useAuth } from '../hooks/useAuth';
-import Visibility from '@mui/icons-material/Visibility';
-import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import IconButton from '@mui/material/IconButton';
+import { useEffect, useState } from 'react'
 
-const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+
+import Email from '@mui/icons-material/Email'
+import Lock from '@mui/icons-material/Lock'
+import Visibility from '@mui/icons-material/Visibility'
+import VisibilityOff from '@mui/icons-material/VisibilityOff'
+import Button from '@mui/material/Button'
+import IconButton from '@mui/material/IconButton'
+import InputAdornment from '@mui/material/InputAdornment'
+import Stack from '@mui/material/Stack'
+import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
+
+import GoogleIcon from '../assets/icons/GoogleIcon'
+import { PrimaryButton } from '../components/common/buttons'
+import { useAuth } from '../hooks/useAuth'
+
+const graphicLogo = '/logo/graphic-logo.svg'
 
 const UserLogin = () => {
-  const [googleLoginUrl, setGoogleLoginUrl] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [emailFocused, setEmailFocused] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
-  const navigate = useNavigate();
-  const { isLoggedIn, setIsLoggedIn } = useAuth();
+  // 이메일, 비밀번호 입력값 상태 관리
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loginError, setLoginError] = useState('')
 
-  useEffect(() => {
-    axios.defaults.withCredentials = true;
+  // UI 상태 관리
+  const [emailFocused, setEmailFocused] = useState(false)
+  const [passwordFocused, setPasswordFocused] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
-    axios
-      .get(`${BACKEND_URL}/api/v1/oauth/google/login`)
-      .then((response) => {
-        setGoogleLoginUrl(response.data.login_url);
-      })
-      .catch((error) => {
-        console.error('구글 로그인 URL 가져오기 실패:', error);
-      });
+  // 라우터 네비게이션 훅
+  const navigate = useNavigate()
+  const location = useLocation()
 
-      const handleMessage = (event) => {
-        console.log('Received message:', event.data); // 1. 수신된 메시지 전체 내용 확인
-        if (!event.origin.includes('localhost')) {
-          console.log('Origin mismatch:', event.origin); // 2. 오리진 불일치 확인
-          return;
-        }
-      
-        if (event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
-          console.log('소셜 로그인 성공:', event.data.data); // 3. 성공 메시지 확인
-          setIsLoggedIn(true);
-          navigate('/');
-        } else if (event.data.type === 'GOOGLE_LOGIN_ERROR') {
-          console.error('소셜 로그인 실패'); // 4. 실패 메시지 확인
-        }
-      };
-  
-      // 팝업 닫기 요청 처리
-      const closePopupHandler = (event) => {
-        if (event.origin !== BACKEND_URL+'') return;
-        if (event.data.type === 'CLOSE_POPUP') {
-          window.removeEventListener('message', closePopupHandler);
-          window.close(); // 팝업 창 닫기
-        }
-      };
-      window.addEventListener('message', handleMessage);
-  
-      return () => {
-        window.removeEventListener('message', handleMessage);
-      };
-    }, [navigate, setIsLoggedIn]);
+  // useAuth 훅에서 제공하는 인증 관련 상태와 함수들
+  const { isLoggedIn, login, handleSocialLogin } = useAuth()
 
-  // isLoggedIn 상태 변화 감지하여 리다이렉션
   useEffect(() => {
     if (isLoggedIn) {
-      console.log('isLoggedIn is true, navigating to /'); // isLoggedIn 상태 확인
-      navigate('/');
+      const from = location.state?.from?.pathname || '/'
+      navigate(from)
     }
-    else {
-      console.log('isLoggedIn is false'); // isLoggedIn 상태 확인
-    }
-  }, [isLoggedIn, navigate]);
+  }, [isLoggedIn, navigate, location])
 
-  const handleSocialLogin = () => {
-    if (googleLoginUrl) {
-      const width = 500;
-      const height = 600;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
-      const popup = window.open(
-        googleLoginUrl,
-        'googleLogin',
-        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-      );
-
-      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
-      }
-
-      const checkPopupClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkPopupClosed);
-          console.log('팝업이 닫혔습니다.');
-        }
-      }, 1000);
-    } else {
-      console.error('로그인 URL을 가져오지 못했습니다.');
-    }
-  };
-
-  const handleLogin = async () => {
-    if (!email || !password) {
-      setLoginError('이메일과 비밀번호를 모두 입력해주세요.');
-      return;
-    }
-    setLoginError('');
-
+  const handleSubmit = async (e) => {
+    e.preventDefault()
     try {
-      const formData = new URLSearchParams();
-      formData.append('username', email);
-      formData.append('password', password);
-
-      await axios.post(
-        `${BACKEND_URL}/api/v1/auth/login`,
-        formData,
-        {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          withCredentials: true,
-        }
-      );
-
-      console.log('로그인 성공');
-      setIsLoggedIn(true); // ✅ 로그인 상태 즉시 업데이트
-      navigate('/'); // ✅ 로그인 성공 시 메인 페이지로 이동
-
+      await login(email, password)
     } catch (error) {
-      console.error('로그인 실패:', error);
-      if (error.response?.status === 400) {
-        setLoginError(error.response.data.detail);
-      } else {
-        setLoginError('로그인에 실패했습니다. 잠시 후 다시 시도해주세요.');
-      }
+      console.error('Login failed:', error)
+      setLoginError(error.response?.data?.detail || '로그인에 실패했습니다.')
     }
-  };
-
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    handleLogin();
-  };
+  }
 
   return (
     <Stack
@@ -213,11 +117,7 @@ const UserLogin = () => {
               ),
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton
-                    aria-label="비밀번호 보기 토글"
-                    onClick={() => setShowPassword(!showPassword)}
-                    edge="end"
-                  >
+                  <IconButton aria-label="비밀번호 보기 토글" onClick={() => setShowPassword(!showPassword)} edge="end">
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
                 </InputAdornment>
@@ -238,11 +138,7 @@ const UserLogin = () => {
             아이디 찾기
           </Button>
           <span style={{ color: '#c9c9c9' }}>|</span>
-          <Button
-            component={Link}
-            to="/auth/find-password"
-            sx={{ fontWeight: 600, color: '#555555' }}
-          >
+          <Button component={Link} to="/auth/find-password" sx={{ fontWeight: 600, color: '#555555' }}>
             비밀번호 찾기
           </Button>
           <span style={{ color: '#c9c9c9' }}>|</span>
@@ -252,11 +148,7 @@ const UserLogin = () => {
         </Stack>
 
         <Stack direction="column" justifyContent="center" alignItems="center" spacing={2}>
-          <PrimaryButton 
-            fullWidth 
-            type="submit"
-            sx={{ borderRadius: '4px' }}
-          >
+          <PrimaryButton fullWidth type="submit" sx={{ borderRadius: '4px' }}>
             <img
               src={graphicLogo}
               alt="모모소 로그인"
@@ -282,7 +174,7 @@ const UserLogin = () => {
             fullWidth
             variant="outlined"
             onClick={handleSocialLogin}
-            startIcon={<GoogleIcon />}
+            startIcon={<GoogleIcon width="24" height="24" />}
             sx={{
               height: '40px',
               backgroundColor: '#ffffff',
@@ -305,7 +197,7 @@ const UserLogin = () => {
         </Stack>
       </Stack>
     </Stack>
-  );
-};
+  )
+}
 
-export default UserLogin;
+export default UserLogin

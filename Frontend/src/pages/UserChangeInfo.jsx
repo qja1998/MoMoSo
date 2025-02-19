@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import axios from 'axios'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import CheckIcon from '@mui/icons-material/Check'
+import { useAuth } from '../hooks/useAuth'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import Box from '@mui/material/Box'
@@ -15,7 +16,6 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { styled } from '@mui/material/styles'
 import { PrimaryButton } from '../components/common/buttons'
-import axios from 'axios'
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': { width: '100%', maxWidth: 500, padding: theme.spacing(2) },
@@ -47,44 +47,53 @@ const UpdateUserContainer = ({ children }) => (
 )
 
 const UpdateUserBox = ({ children }) => (
-  <Box sx={{ width: "100%", maxWidth: "500px", margin: "0 auto", padding: 4 }}>
-    {children}
-  </Box>
+  <Box sx={{ width: '100%', maxWidth: '500px', margin: '0 auto', padding: 4 }}>{children}</Box>
 )
 
-const InfoItem = ({ children }) => (
-  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-    {children}
-  </Box>
-)
+const InfoItem = ({ children }) => <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>{children}</Box>
 
 const UserChangeInfo = () => {
   const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [showPasswordModal, setShowPasswordModal] = useState(true)
+  const [showPasswordModal, setShowPasswordModal] = useState(user?.is_oauth_user ? false : true)
   const [showPassword, setShowPassword] = useState(false)
   const [password, setPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [updateError, setUpdateError] = useState('')
+  const [verificationError, setVerificationError] = useState('')
+  const [verificationCodeError, setVerificationCodeError] = useState('')
 
   const [profileData, setProfileData] = useState({
-    email: "",
-    name: "",
-    nickname: "",
-    phone: "",
-    user_img: "",
+    email: '',
+    name: '',
+    nickname: '',
+    phone: '',
+    user_img: '',
   })
 
-  const [verificationCode, setVerificationCode] = useState("")
+  const [verificationCode, setVerificationCode] = useState('')
   const [isPhoneVerified, setIsPhoneVerified] = useState(false)
+  const [isSendingCode, setIsSendingCode] = useState(false)
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false)
+
+  useEffect(() => {
+    // 소셜 로그인 사용자인 경우 바로 인증 처리
+    if (user?.is_oauth_user) {
+      setIsAuthenticated(true)
+      setShowPasswordModal(false)
+      fetchUserInfo()
+    }
+  }, [user])
 
   // 사용자 정보 조회
   const fetchUserInfo = async () => {
     try {
-      const response = await axios.get(BACKEND_URL+'/api/v1/users/logged-in', {
-        withCredentials: true
+      const response = await axios.get(BACKEND_URL + '/api/v1/users/logged-in', {
+        withCredentials: true,
       })
+      console.log(response.data)
       setProfileData(response.data)
     } catch (error) {
       console.error('사용자 정보 조회 실패:', error)
@@ -96,7 +105,7 @@ const UserChangeInfo = () => {
   const handlePasswordSubmit = async () => {
     try {
       await axios.post(
-        BACKEND_URL+'/api/v1/auth/verify-password',
+        BACKEND_URL + '/api/v1/auth/verify-password',
         { password },
         {
           headers: { 'Content-Type': 'application/json' },
@@ -106,38 +115,101 @@ const UserChangeInfo = () => {
       setIsAuthenticated(true)
       setShowPasswordModal(false)
       setPasswordError('')
-      await fetchUserInfo() // 비밀번호 인증 성공 후 사용자 정보 조회
+      await fetchUserInfo()
     } catch (error) {
-      setPasswordError(error.response?.status === 400 
-        ? '비밀번호를 다시 확인해주세요' 
-        : '오류가 발생했습니다. 다시 시도해주세요.')
+      setPasswordError(
+        error.response?.status === 400 ? '비밀번호를 다시 확인해주세요' : '오류가 발생했습니다. 다시 시도해주세요.'
+      )
     }
   }
 
   const handlePhoneChange = (e) => {
     const value = e.target.value.replace(/[^0-9]/g, '').replace(/^(\d{3})(\d{4})(\d{4})$/, '$1-$2-$3')
-    setProfileData(prev => ({ ...prev, phone: value }))
+    setProfileData((prev) => ({ ...prev, phone: value }))
+    // 전화번호가 변경되면 인증 상태 초기화
+    setIsPhoneVerified(false)
+    setVerificationCode('')
+    setVerificationError('')
+    setVerificationCodeError('')
+  }
+
+  // 인증번호 전송
+  const handleVerificationCodeSend = async () => {
+    setIsSendingCode(true)
+    setVerificationError('')
+    
+    try {
+      const response = await axios.post(
+        BACKEND_URL + '/api/v1/auth/send-sms',
+        null,
+        {
+          params: { phone: profileData.phone },
+          withCredentials: true
+        }
+      )
+      alert(response.data.message)
+    } catch (error) {
+      setVerificationError(error.response?.data?.detail || '인증번호 전송에 실패했습니다.')
+      console.error('인증번호 전송 오류:', error)
+    } finally {
+      setIsSendingCode(false)
+    }
+  }
+
+  // 인증번호 확인
+  const handleVerificationCodeCheck = async () => {
+    setIsVerifyingCode(true)
+    setVerificationCodeError('')
+
+    try {
+      const response = await axios.post(
+        BACKEND_URL + '/api/v1/auth/verify-sms-code',
+        null,
+        {
+          params: {
+            phone: profileData.phone,
+            code: verificationCode,
+          },
+          withCredentials: true
+        }
+      )
+      setIsPhoneVerified(true)
+      alert(response.data.message)
+    } catch (error) {
+      setVerificationCodeError(error.response?.data?.detail || '인증번호가 올바르지 않습니다.')
+      console.error('인증번호 확인 오류:', error)
+    } finally {
+      setIsVerifyingCode(false)
+    }
   }
 
   // 정보 수정
   const handleUpdateInfo = async () => {
+    // updateData 객체 생성 시 null 값 필터링
+    const updateData = {
+      nickname: profileData.nickname,
+      // phone이 빈 문자열이거나 null이면 제외
+      ...(profileData.phone && { phone: profileData.phone })
+    };
+    
+    console.log('Update request data:', updateData);
+    
     try {
-      await axios.put(
-        BACKEND_URL+'/api/v1/users/',
-        {
-          nickname: profileData.nickname,
-          phone: profileData.phone,
-        },
+      const response = await axios.put(
+        BACKEND_URL + '/api/v1/users/',
+        updateData,
         {
           withCredentials: true,
         }
-      )
-      alert('회원정보가 성공적으로 수정되었습니다.')
-      navigate('/')
+      );
+      console.log('Update response:', response.data);
+      alert('회원정보가 성공적으로 수정되었습니다.');
+      navigate('/');
     } catch (error) {
-      setUpdateError(error.response?.data?.detail || '회원정보 수정에 실패했습니다.')
+      console.error('Update error:', error.response?.data);
+      setUpdateError(error.response?.data?.detail || '회원정보 수정에 실패했습니다.');
     }
-  }
+  };
 
   // 비밀번호 변경 페이지로 이동
   const handleNavigateToResetPassword = () => {
@@ -146,48 +218,43 @@ const UserChangeInfo = () => {
 
   return (
     <>
-      <StyledDialog open={showPasswordModal} onClose={() => {}}>
-        <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.5rem' }}>
-          비밀번호 확인
-        </DialogTitle>
-        <DialogContent>
-          <Typography sx={{ mb: 3, textAlign: 'center', color: 'text.secondary' }}>
-            안전한 개인정보보호를 위해 비밀번호를 입력해 주세요.
-          </Typography>
-          <TextField
-            fullWidth
-            type={showPassword ? 'text' : 'password'}
-            placeholder="비밀번호를 입력해 주세요."
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            error={!!passwordError}
-            helperText={passwordError}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton onClick={() => setShowPassword(!showPassword)}>
-                    {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-            sx={{ mb: 2 }}
-          />
-          <StyledButton 
-            fullWidth 
-            variant="contained" 
-            onClick={handlePasswordSubmit}
-            disabled={!password}
-          >
-            확인
-          </StyledButton>
-        </DialogContent>
-      </StyledDialog>
+      {!user?.is_oauth_user && (
+        <StyledDialog open={showPasswordModal} onClose={() => {}}>
+          <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.5rem' }}>비밀번호 확인</DialogTitle>
+          <DialogContent>
+            <Typography sx={{ mb: 3, textAlign: 'center', color: 'text.secondary' }}>
+              안전한 개인정보보호를 위해 비밀번호를 입력해 주세요.
+            </Typography>
+            <TextField
+              fullWidth
+              type={showPassword ? 'text' : 'password'}
+              placeholder="비밀번호를 입력해 주세요."
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={!!passwordError}
+              helperText={passwordError}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setShowPassword(!showPassword)}>
+                      {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ mb: 2 }}
+            />
+            <StyledButton fullWidth variant="contained" onClick={handlePasswordSubmit} disabled={!password}>
+              확인
+            </StyledButton>
+          </DialogContent>
+        </StyledDialog>
+      )}
 
-      {isAuthenticated && (
+      {(isAuthenticated || user?.is_oauth_user) && (
         <UpdateUserContainer>
           <UpdateUserBox>
-            <Typography variant="h4" align="center" gutterBottom fontWeight={950} marginBottom={"3rem"}>
+            <Typography variant="h4" align="center" gutterBottom fontWeight={950} marginBottom={'3rem'}>
               회원 정보 수정
             </Typography>
 
@@ -199,37 +266,29 @@ const UserChangeInfo = () => {
 
             <Stack spacing={3}>
               <InfoItem>
-                <Typography sx={{ width: "60px", flexShrink: 0, fontWeight: 'bold' }}>
-                  아이디
-                </Typography>
+                <Typography sx={{ width: '60px', flexShrink: 0, fontWeight: 'bold' }}>아이디</Typography>
                 <Typography>{profileData.email}</Typography>
               </InfoItem>
 
               <InfoItem>
-                <Typography sx={{ width: "60px", flexShrink: 0, fontWeight: 'bold' }}>
-                  이름
-                </Typography>
+                <Typography sx={{ width: '60px', flexShrink: 0, fontWeight: 'bold' }}>이름</Typography>
                 <Typography>{profileData.name}</Typography>
               </InfoItem>
 
               <InfoItem>
-                <Typography sx={{ width: "60px", flexShrink: 0, fontWeight: 'bold' }}>
-                  필명
-                </Typography>
+                <Typography sx={{ width: '60px', flexShrink: 0, fontWeight: 'bold' }}>필명</Typography>
                 <TextField
                   fullWidth
                   placeholder="필명을 입력해주세요"
                   value={profileData.nickname}
-                  onChange={(e) => setProfileData(prev => ({ ...prev, nickname: e.target.value }))}
+                  onChange={(e) => setProfileData((prev) => ({ ...prev, nickname: e.target.value }))}
                 />
               </InfoItem>
 
               <InfoItem>
-                <Typography sx={{ width: "60px", flexShrink: 0, fontWeight: 'bold' }}>
-                  연락처
-                </Typography>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 2, flexGrow: 1 }}>
-                  <Box sx={{ display: "flex", gap: 2 }}>
+                <Typography sx={{ width: '60px', flexShrink: 0, fontWeight: 'bold' }}>연락처</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
                     <TextField
                       id="phone"
                       name="phone"
@@ -238,24 +297,27 @@ const UserChangeInfo = () => {
                       variant="outlined"
                       value={profileData.phone}
                       onChange={handlePhoneChange}
+                      error={!!verificationError}
+                      helperText={verificationError}
                       inputProps={{
                         maxLength: 13,
-                        inputMode: "numeric",
-                        pattern: "[0-9]*",
+                        inputMode: 'numeric',
+                        pattern: '[0-9]*',
                       }}
                     />
                     <PrimaryButton
-                      disabled={isPhoneVerified}
+                      onClick={handleVerificationCodeSend}
+                      disabled={isPhoneVerified || isSendingCode || !profileData.phone}
                       sx={{
                         px: 2,
-                        whiteSpace: "nowrap",
+                        whiteSpace: 'nowrap',
                         flexShrink: 0,
                       }}
                     >
-                      인증번호 전송
+                      {isSendingCode ? '전송중...' : '인증번호 전송'}
                     </PrimaryButton>
                   </Box>
-                  <Box sx={{ display: "flex", gap: 2 }}>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
                     <TextField
                       id="verificationCode"
                       name="verificationCode"
@@ -265,16 +327,19 @@ const UserChangeInfo = () => {
                       value={verificationCode}
                       onChange={(e) => setVerificationCode(e.target.value)}
                       disabled={isPhoneVerified}
+                      error={!!verificationCodeError}
+                      helperText={verificationCodeError}
                     />
                     <PrimaryButton
-                      disabled={isPhoneVerified}
+                      onClick={handleVerificationCodeCheck}
+                      disabled={isPhoneVerified || isVerifyingCode || !verificationCode}
                       sx={{
                         px: 2,
-                        whiteSpace: "nowrap",
+                        whiteSpace: 'nowrap',
                         flexShrink: 0,
                       }}
                     >
-                      인증번호 확인
+                      {isVerifyingCode ? '확인중...' : '인증번호 확인'}
                     </PrimaryButton>
                   </Box>
                 </Box>
@@ -286,30 +351,32 @@ const UserChangeInfo = () => {
                   fullWidth
                   onClick={handleUpdateInfo}
                   sx={{
-                    backgroundColor: "#FFB347",
-                    "&:hover": { backgroundColor: "#FFA022" },
+                    backgroundColor: '#FFB347',
+                    '&:hover': { backgroundColor: '#FFA022' },
                   }}
                 >
                   정보 수정하기
                 </StyledButton>
 
-                <StyledButton
-                  variant="outlined"
-                  fullWidth
-                  onClick={handleNavigateToResetPassword}
-                  sx={{
-                    backgroundColor: "transparent",
-                    color: "#FFB347",
-                    borderColor: "#FFB347",
-                    "&:hover": {
-                      backgroundColor: "transparent",
-                      color: "#FFA022",
-                      borderColor: "#FFA022",
-                    },
-                  }}
-                >
-                  비밀번호 변경
-                </StyledButton>
+                {!user?.is_oauth_user && (
+                  <StyledButton
+                    variant="outlined"
+                    fullWidth
+                    onClick={handleNavigateToResetPassword}
+                    sx={{
+                      backgroundColor: 'transparent',
+                      color: '#FFB347',
+                      borderColor: '#FFB347',
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        color: '#FFA022',
+                        borderColor: '#FFA022',
+                      },
+                    }}
+                  >
+                    비밀번호 변경
+                  </StyledButton>
+                )}
               </Stack>
             </Stack>
           </UpdateUserBox>

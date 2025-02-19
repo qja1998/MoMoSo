@@ -7,6 +7,8 @@ from typing import List, Optional
 from utils.auth_utils import get_optional_user
 from fastapi import File, UploadFile # 삭제 예정 
 import os
+from dotenv import load_dotenv
+import httpx
 
 # AI 이미지 생성 
 from ai.gen_image import ImageGenerator
@@ -81,7 +83,7 @@ print("router has started")
 # 장르도 같이 제공해줘야 함.
 @router.get("/novels", response_model=List[novel_schema.NovelShowBase])
 def all_novel(db: Session = Depends(get_db)):
-    return novel_crud.get_all_novel(db)
+    return novel_crud.get_all_novel(db) 
 
 # 디테일 페이지, 아직 미완
 @router.get("/novel/{novel_pk}/detail")
@@ -90,7 +92,10 @@ def novel_detail(novel_pk : int, db : Session = Depends(get_db)) :
     novel_info  = novel_crud.search_novel(novel_pk, db)
     discussion = db.query(Discussion).filter(Discussion.novel_pk == novel_pk).all()
     comment = novel_crud.get_novel_comment(novel_pk, db)
-    return {"episode" : episode, "novel_info" : novel_info, "discussion": discussion, "comment" : comment}
+    novel = novel_info[0]
+    author = db.query(User).filter(User.user_pk == novel.user_pk).first()
+    #, "author" : author
+    return {"episode" : episode, "novel_info" : novel_info, "discussion": discussion, "comment" : comment, "author" : author.nickname} 
 
 @router.get("/novel/{novel_pk}") 
 def get_novel_info(novel_pk : int, db: Session = Depends(get_db)) :
@@ -118,13 +123,17 @@ def delete_character(character_pk : int, db: Session = Depends(get_db)) :
 # 수정한 소설 저장하기
 @router.put("/novel/{novel_pk}")
 def update_novel(novel_pk: int, update_data: novel_schema.NovelUpdateBase,db: Session = Depends(get_db)):
-    novel_crud.update_novel(novel_pk, update_data, db)
-    return HTTPException(status_code=status.HTTP_200_OK)
+    novel = novel_crud.update_novel(novel_pk, update_data, db)
+    return novel
 
 # 소설 생성
-@router.post("/novel", response_model=novel_schema.NovelCreateBase)
-def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Session = Depends(get_db)):
-    return novel_crud.create_novel(novel_info, user_pk, db)
+@router.post("/novel", response_model=novel_schema.NovelShowBase)
+def create_novel(novel_info: novel_schema.NovelCreateBase, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    novel = novel_crud.create_novel(novel_info, user.user_pk, db)
+    return novel
+
+
+
 
 @router.delete("/novel/{novel_pk}")
 def delete_novel(novel_pk: int, db: Session = Depends(get_db)):
@@ -266,21 +275,21 @@ async def upload_image(user_novel: str, pk: int, file: UploadFile = File(...), d
     file_path = await novel_crud.image_upload(file)
 
     # 여기서 기존에 있던 이미지 삭제해야 함
-    if img_info :
-        novel_crud.delete_image(img_info, drive_path)
+    # if img_info :
+    #     novel_crud.delete_image(img_info, drive_path)
 
-    else :
-        print("삭제할 이미지 없음.") 
+    # else :
+    #     print("삭제할 이미지 없음.") 
     
     # 원격 저장소에 이미지 저장
-    novel_crud.save_cover(user_novel, pk, file_path, drive_path, db)
+    # novel_crud.save_cover(user_novel, pk, file_path, drive_path, db)
 
     # Local static에서 이미지 삭제
     os.remove(file_path)
 
-@router.delete("/image")
-def delete_img(file_id : str, drive_folder_id : str, novel_pk : int , db: Session = Depends(get_db)) :
-    return novel_crud.delete_image(file_id, drive_folder_id)
+# @router.delete("/image")
+# def delete_img(file_id : str, drive_folder_id : str, novel_pk : int , db: Session = Depends(get_db)) :
+#     return novel_crud.delete_image(file_id, drive_folder_id)
 
 
 @router.post("/ai/worldview")
@@ -405,6 +414,55 @@ async def generate_image(req: novel_schema.ImageRequest):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+# load_dotenv()
+
+# IMGUR_CLIENT_ID = os.environ.get("IMGUR_CLIENT_ID")
+
+@router.post("/upload-image/{novel_pk}")
+async def upload_drive(novel_pk: int, image: UploadFile = File(...), db: Session = Depends(get_db)):
+    try:
+        # Imgur에 이미지 업로드 및 URL 얻기
+        link_image = await novel_crud.upload_to_imgur(image)
+
+        # Novel 모델 업데이트
+        novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+        if novel is None:
+            raise HTTPException(status_code=404, detail="Novel not found")
+        novel.novel_img = link_image
+        db.commit()
+        db.refresh(novel)
+        
+        return {"message": "Image uploaded and linked successfully", "url": link_image}
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"Upload failed: {e}")
+        raise HTTPException(status_code=500, detail="이미지 업로드 실패")
 
 
+@router.delete("/api/v1/delete-image/{delete_hash}")
+async def delete_image(delete_hash: str):
+    try:
+        # Imgur에 이미지 삭제 요청
+        imgur_url = f"https://api.imgur.com/3/image/{delete_hash}"
+        headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
+
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(imgur_url, headers=headers)
+
+        response.raise_for_status()
+        data = response.json()
+
+        if data["success"]:
+            return {"message": "Image deleted successfully"}
+        else:
+            raise HTTPException(status_code=500, detail=data["data"]["error"])
+
+    except httpx.HTTPStatusError as e:
+        print(f"Imgur API error: {e}")
+        raise HTTPException(status_code=500, detail="Imgur API 오류")
+    except Exception as e:
+        print(f"Delete failed: {e}")
+        raise HTTPException(status_code=500, detail="이미지 삭제 실패")

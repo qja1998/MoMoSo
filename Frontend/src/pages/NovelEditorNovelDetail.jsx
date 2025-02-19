@@ -2,7 +2,7 @@ import styled from '@emotion/styled'
 import axios from 'axios'
 import dayjs from 'dayjs'
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -25,7 +25,7 @@ import {
 } from '@mui/material'
 
 import { useAuth } from '../hooks/useAuth'
-import coverPlaceholder from '/src/assets/placeholder/cover-image-placeholder.png'
+import coverPlaceholder from '/placeholder/cover-image-placeholder.png'
 
 const NovelInfo = styled(Paper)({
   padding: '24px',
@@ -45,6 +45,7 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 }))
 
 const NovelEditorNovelDetail = () => {
+  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
   const { novelId } = useParams()
@@ -84,7 +85,7 @@ const NovelEditorNovelDetail = () => {
 
       setLoading(true)
       try {
-        const response = await axios.get(`/api/v1/novel/${novelId}/detail`, {
+        const response = await axios.get(`${BACKEND_URL}/api/v1/novel/${novelId}/detail`, {
           withCredentials: true,
         })
         setNovelData(response.data)
@@ -106,8 +107,8 @@ const NovelEditorNovelDetail = () => {
   }, [isLoggedIn, novelId, navigate])
 
   const handleEpisodeClick = (ep_pk) => {
-    navigate(`/novel/edit/episode/${novelId}/${ep_pk}`);
-  };
+    navigate(`/novel/edit/episode/${novelId}/${ep_pk}`)
+  }
 
   if (loading) {
     return (
@@ -126,7 +127,7 @@ const NovelEditorNovelDetail = () => {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4, m: "2rem 6rem" }}>
+    <Container maxWidth="xl" sx={{ py: 4, m: '2rem 6rem' }}>
       {/* Header with Create Button */}
       <Box
         sx={{
@@ -140,18 +141,18 @@ const NovelEditorNovelDetail = () => {
           에피소드 편집하기
         </Typography>
         <Button
-        variant="contained"
-        startIcon={<AddIcon />}
-        onClick={() => navigate('/novel/edit/background')}
-        sx={{
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => navigate('/novel/edit/background')}
+          sx={{
             backgroundColor: '#FFA000',
             color: 'white',
             '&:hover': {
-            backgroundColor: '#FF8F00',
+              backgroundColor: '#FF8F00',
             },
-        }}
+          }}
         >
-        소설 기본 정보 변경하기
+          소설 기본 정보 변경하기
         </Button>
       </Box>
 
@@ -196,7 +197,7 @@ const NovelEditorNovelDetail = () => {
           </Stack>
         </Stack>
       </NovelInfo>
-      
+
       {/* 새 에피소드 작성 버튼 */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
         <Button
@@ -241,9 +242,7 @@ const NovelEditorNovelDetail = () => {
                 <TableCell>{episode.ep_pk}</TableCell>
                 <TableCell>{episode.ep_title}</TableCell>
                 <TableCell align="right">{episode.views?.toLocaleString() || '0'}</TableCell>
-                <TableCell align="right">
-                  {dayjs(episode.created_date).format('YYYY.MM.DD')}
-                </TableCell>
+                <TableCell align="right">{dayjs(episode.created_date).format('YYYY.MM.DD')}</TableCell>
               </TableRow>
             ))}
           </TableBody>
