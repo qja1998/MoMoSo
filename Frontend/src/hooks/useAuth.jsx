@@ -35,9 +35,16 @@ export const AuthProvider = ({ children }) => {
 
   // 로그인 상태 확인
   const checkLoginStatus = async () => {
+    console.log('Checking login status...');
     setLoading(true)
     try {
-      const response = await axios.get('/api/v1/auth/me')
+      const response = await axios.get('/api/v1/auth/me', {
+      withCredentials: true,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
       if (response.data) {
         setIsLoggedIn(true)
         setUser(response.data)
@@ -60,6 +67,7 @@ export const AuthProvider = ({ children }) => {
       setIsLoggedIn(false)
       setUser(null)
       setOpenLogoutModal(true)
+      navigate('/auth/login')
     } catch (error) {
       console.error('로그아웃 실패:', error)
     }
@@ -114,56 +122,14 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  // 구글 로그인 URL 가져오기
-  useEffect(() => {
-    const baseURL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
-    axios
-      .get(`${baseURL}/api/v1/oauth/google/login`)
-      .then((response) => {
-        setGoogleLoginUrl(response.data.login_url)
-      })
-      .catch((error) => {
-        console.error('구글 로그인 URL 가져오기 실패:', error)
-      })
-  }, [])
 
-  // 구글 로그인 메시지 핸들러
-  const handleGoogleLoginMessage = useCallback(
-    (event) => {
-      if (!event.origin.includes('localhost')) return
-
-      if (event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
-        setIsLoggedIn(true)
-        checkLoginStatus()
-        navigate('/')
-        window.removeEventListener('message', handleGoogleLoginMessage)
-      }
-    },
-    [navigate]
-  )
-
-  // 구글 로그인 팝업 처리
-  const handleSocialLogin = useCallback(() => {
-    if (googleLoginUrl) {
-      const width = 500
-      const height = 600
-      const left = window.screenX + (window.outerWidth - width) / 2
-      const top = window.screenY + (window.outerHeight - height) / 2
-      const popup = window.open(
-        googleLoginUrl,
-        'googleLogin',
-        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-      )
-
-      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.')
-      }
-
-      window.addEventListener('message', handleGoogleLoginMessage)
-    } else {
-      console.error('로그인 URL을 가져오지 못했습니다.')
-    }
-  }, [googleLoginUrl, handleGoogleLoginMessage])
+  const handleSocialLogin = useCallback(async () => {
+    // 로그인 전에 loading 상태를 true로 설정
+    setLoading(true);
+    
+    // Google 로그인 페이지로 리다이렉트
+    window.location.href = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/oauth/google/login`;
+  }, []);
 
   useEffect(() => {
     checkLoginStatus()
@@ -180,6 +146,8 @@ export const AuthProvider = ({ children }) => {
         logout,
         showLoginModal,
         handleSocialLogin,
+        checkLoginStatus, // 추가
+        setIsLoggedIn, // 추가
       }}
     >
       {children}
