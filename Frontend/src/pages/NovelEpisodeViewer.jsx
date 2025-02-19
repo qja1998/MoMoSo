@@ -2,7 +2,7 @@ import styled from '@emotion/styled'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ko'
 
-import { useCallback, useEffect, useState, useMemo, createContext, useContext, } from 'react'
+import { useCallback, useEffect, useState, useMemo, createContext, useContext } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useNovel } from '../contexts/NovelContext'
 
@@ -96,6 +96,7 @@ const NovelEpisodeViewer = ({ children }) => {
   // 댓글 수정 상태 추가
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editContent, setEditContent] = useState('');
+  const [episodeComments, setEpisodeComments] = useState([]);
 
   const {
     novelData,
@@ -240,41 +241,70 @@ const NovelEpisodeViewer = ({ children }) => {
   const hasPrevious = currentIndex > 0
   const hasNext = currentIndex < novelData.episode.length - 1 && currentIndex !== -1
 
-  // 댓글 작성 핸들러
-  const handleSubmitComment = useCallback(async () => {
-    if (!commentInput.trim()) return
+  const fetchEpisodeComments = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `${BACKEND_URL}/api/v1/novel/${novelId}/episode/${episodeId}/comments`,
+        {
+          credentials: 'include',
+        }
+      );
 
-    // 로그인 체크
+      if (!response.ok) {
+        throw new Error('Failed to fetch episode comments');
+      }
+
+      const commentsData = await response.json();
+      setEpisodeComments(commentsData);
+    } catch (error) {
+      console.error('Error fetching episode comments:', error);
+    }
+  }, [novelId, episodeId]);
+
+  // Update useEffect to fetch episode comments when episode changes
+  useEffect(() => {
+    if (episodeId) {
+      fetchEpisodeComments();
+    }
+  }, [episodeId, fetchEpisodeComments]);
+
+  // Update comment submission handler
+  const handleSubmitComment = useCallback(async () => {
+    if (!commentInput.trim()) return;
+
     if (!isLoggedIn) {
-      showLoginModal('/auth/login')
-      return
+      showLoginModal('/auth/login');
+      return;
     }
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/v1/novel/${novelId}/episode/${episodeId}/comment`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: commentInput,
-        }),
-      })
+      const response = await fetch(
+        `${BACKEND_URL}/api/v1/novel/${novelId}/episode/${episodeId}/comment`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content: commentInput,
+          }),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error('댓글 작성에 실패했습니다.')
+        throw new Error('Failed to submit comment');
       }
 
-      const newComment = await response.json()
-      setCommentInput('')
-      await fetchNovelData(parseInt(novelId))
-
+      await response.json();
+      setCommentInput('');
+      // Fetch updated comments instead of entire novel data
+      fetchEpisodeComments();
     } catch (error) {
-      console.error('댓글 작성 실패:', error)
-      alert('댓글 작성에 실패했습니다.')
+      console.error('Comment submission failed:', error);
+      alert('댓글 작성에 실패했습니다.');
     }
-  }, [commentInput, novelId, episodeId, isLoggedIn, showLoginModal, fetchNovelData])
+  }, [commentInput, novelId, episodeId, isLoggedIn, showLoginModal, fetchEpisodeComments]);
 
 
   // 댓글 좋아요 핸들러
@@ -283,31 +313,34 @@ const NovelEpisodeViewer = ({ children }) => {
       showLoginModal('/auth/login');
       return;
     }
-  
+
     try {
-      const response = await fetch(`${BACKEND_URL}/api/v1/novel/comment/${commentPk}/like`, {
-        method: 'PUT',
-        credentials: 'include',  // 쿠키에 있는 access_token을 서버로 전송
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `${BACKEND_URL}/api/v1/novel/comment/${commentPk}/like`,
+        {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         }
-      });
-  
+      );
+
       if (!response.ok) {
         if (response.status === 401) {
           showLoginModal('/auth/login');
           return;
         }
-        throw new Error('좋아요 처리에 실패했습니다.');
+        throw new Error('Failed to like comment');
       }
-  
-      // 좋아요 후 소설 데이터 새로고침
-      await fetchNovelData(parseInt(novelId));
+
+      // Fetch updated comments
+      fetchEpisodeComments();
     } catch (error) {
-      console.error('좋아요 처리 실패:', error);
+      console.error('Like failed:', error);
       alert('좋아요 처리에 실패했습니다.');
     }
-  }, [isLoggedIn, showLoginModal, fetchNovelData, novelId]);
+  }, [isLoggedIn, showLoginModal, fetchEpisodeComments]);
   
 
   // 댓글 수정 핸들러
@@ -321,15 +354,14 @@ const handleSaveEdit = useCallback(async (commentPk) => {
   if (!editContent.trim()) return;
 
   try {
-    // URL에 content를 query parameter로 추가
     const response = await fetch(
-      `${BACKEND_URL}/api/v1/novel/${novelId}/episode/${episodeId}/comment/${commentPk}?content=${encodeURIComponent(editContent)}`, 
+      `${BACKEND_URL}/api/v1/novel/${novelId}/episode/${episodeId}/comment/${commentPk}?content=${encodeURIComponent(editContent)}`,
       {
         method: 'PUT',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
       }
     );
 
@@ -338,42 +370,47 @@ const handleSaveEdit = useCallback(async (commentPk) => {
         showLoginModal('/auth/login');
         return;
       }
-      throw new Error('댓글 수정에 실패했습니다.');
+      throw new Error('Failed to edit comment');
     }
 
     setEditingCommentId(null);
     setEditContent('');
-    await fetchNovelData(parseInt(novelId));
+    // Fetch updated comments
+    fetchEpisodeComments();
   } catch (error) {
-    console.error('댓글 수정 실패:', error);
+    console.error('Comment edit failed:', error);
     alert('댓글 수정에 실패했습니다.');
   }
-}, [editContent, novelId, episodeId, showLoginModal, fetchNovelData]);
+}, [editContent, novelId, episodeId, showLoginModal, fetchEpisodeComments]);
 
 // 댓글 삭제 핸들러
 const handleDeleteComment = useCallback(async (commentPk) => {
   if (!confirm('정말 삭제하시겠습니까?')) return;
 
   try {
-    const response = await fetch(`${BACKEND_URL}/api/v1/novel/${novelId}/episode/${episodeId}/comment/${commentPk}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    });
+    const response = await fetch(
+      `${BACKEND_URL}/api/v1/novel/${novelId}/episode/${episodeId}/comment/${commentPk}`,
+      {
+        method: 'DELETE',
+        credentials: 'include',
+      }
+    );
 
     if (!response.ok) {
       if (response.status === 401) {
         showLoginModal('/auth/login');
         return;
       }
-      throw new Error('댓글 삭제에 실패했습니다.');
+      throw new Error('Failed to delete comment');
     }
 
-    await fetchNovelData(parseInt(novelId));
+    // Fetch updated comments
+    fetchEpisodeComments();
   } catch (error) {
-    console.error('댓글 삭제 실패:', error);
+    console.error('Comment deletion failed:', error);
     alert('댓글 삭제에 실패했습니다.');
   }
-}, [novelId, episodeId, showLoginModal, fetchNovelData]);
+}, [novelId, episodeId, showLoginModal, fetchEpisodeComments]);
 
   if (!currentEpisode) {
     return <Typography>Loading...</Typography>
@@ -522,12 +559,7 @@ const handleDeleteComment = useCallback(async (commentPk) => {
       </Menu>
 
       {/* Comments Section */}
-      <Paper sx={{
-        mt: 3,
-        p: 3,
-        borderRadius: 2,
-        border: '1px solid #e0e0e0',
-      }}>
+      <Paper sx={{ mt: 3, p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="h6" fontWeight={700}>
@@ -543,7 +575,7 @@ const handleDeleteComment = useCallback(async (commentPk) => {
                 color: 'text.secondary',
               }}
             >
-              {comments?.length || 0}
+              {episodeComments?.length || 0}
             </Typography>
           </Stack>
         </Box>
@@ -586,7 +618,7 @@ const handleDeleteComment = useCallback(async (commentPk) => {
 
         {/* Comments List */}
         <Stack spacing={2}>
-          {comments?.map((comment) => (
+          {episodeComments?.map((comment) => (
             <Paper
               key={comment.comment_pk}
               variant="outlined"
