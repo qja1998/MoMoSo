@@ -650,3 +650,43 @@ async def upload_to_imgur(image: UploadFile):
     except Exception as e:
         print(f"Upload failed: {e}")
         raise HTTPException(status_code=500, detail="이미지 업로드 실패")
+    
+def get_episode_detail(novel_pk: int, ep_pk: int, db: Session):
+    """
+    Get detailed information about a specific episode of a novel
+    
+    Args:
+        novel_pk (int): Primary key of the novel
+        ep_pk (int): Primary key of the episode
+        db (Session): Database session
+        
+    Returns:
+        tuple: Novel and Episode objects
+        
+    Raises:
+        HTTPException: If novel or episode is not found
+    """
+    # Query both novel and episode
+    novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+    if not novel:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Novel not found"
+        )
+    
+    episode = db.query(Episode).filter(
+        Episode.novel_pk == novel_pk,
+        Episode.ep_pk == ep_pk
+    ).first()
+    if not episode:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Episode not found"
+        )
+    
+    # Increment view count
+    episode.views += 1
+    db.commit()
+    db.refresh(episode)
+    
+    return novel, episode

@@ -281,6 +281,51 @@ const NovelEpisodeList = () => {
     console.log('Delete comment:', commentId)
   }, [])*/
 
+  return (
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
+      <Paper
+        sx={{
+          p: { xs: '12px', sm: '16px', md: '24px' },
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: { xs: '16px', md: '24px' },
+          elevation: 0,
+          mb: '24px',
+          borderRadius: 2,
+          border: '1px solid #e0e0e0',
+          bgcolor: '#ffffff',
+          width: '100%',
+        }}
+      >
+        {/* 표지 섹션 */}
+        <Box
+          component="img"
+          src={coverPlaceholder}
+          alt="소설 표지"
+          sx={{
+            width: { xs: '100%', sm: 200 },
+            height: { xs: 'auto', sm: 267 },
+            aspectRatio: '3/4',
+            objectFit: 'cover',
+            borderRadius: 2,
+            border: '1px solid #e0e0e0',
+            flex: { xs: 'none', md: 2 },
+          }}
+        />
+
+<<<<<<< HEAD
+
+if (loading) {
+    return <Typography>Loading...</Typography>;
+}
+
+if (error) {
+    return <Typography color="error">Error: {error}</Typography>;
+}
+
+
+
+
 return (
     <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
         <NovelInfo>
@@ -329,7 +374,38 @@ return (
                         </Stack>
                     </Stack>
                 </Stack>
+=======
+        {/* 소설 정보 섹션 */}
+        <Stack direction="column" sx={{ flex: { xs: 1, md: 4 }, justifyContent: 'space-between' }}>
+          <Typography variant="h1" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' }, fontWeight: 950 }}>
+            시간을 달리는 소녀
+          </Typography>
+          <Stack direction="column" spacing={1}>
+            <Typography variant="body1" color="text.secondary">
+              김희진 작가
+            </Typography>
+            <Typography variant="body1">
+              서울의 한적한 골목길, 한 젊은 소녀가 운석은 오래된 골동품점에서 운석을 발견한다. 1920년대 여인의 손때 묻은
+              기록과 그를 시간의 흐름 속으로 이끌고, 그는 그 곳에서 보편적 동료 시점에서 만난 주인공 그때에 단순
+              이야기를 들려준다.
+            </Typography>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Stack direction="row" spacing={1} alignItems="center">
+                <VisibilityIcon color="action" />
+                <Typography variant="body2" color="text.secondary">
+                  {totalViews.toLocaleString()}
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <FavoriteIcon color="error" />
+                <Typography variant="body2" color="text.secondary">
+                  {totalLikes.toLocaleString()}
+                </Typography>
+              </Stack>
+>>>>>>> 2a8fbc0f542dba03b53554faa0d4dc083895b052
             </Stack>
+          </Stack>
+        </Stack>
 
         {/* 토론방 섹션 */}
         <Stack spacing={2} sx={{ flex: { xs: 1, md: 4 }, height: { xs: 'auto', md: '100%' } }}>
@@ -468,6 +544,283 @@ return (
                     }))
                   }}
                 >
+<<<<<<< HEAD
+                    토론 생성
+                </Button>
+
+                {/* 토론 목록 */}
+                <Stack spacing={2}>
+                    {discussions.map((discussion) => (
+                        <Paper
+                            key={discussion.discussion_pk}
+                            elevation={1}
+                            sx={{
+                                p: 2,
+                                borderRadius: 1,
+                                cursor: 'pointer',
+                                '&:hover': { bgcolor: 'grey.50' },
+                            }}
+                        >
+                            <DiscussionBadge status={discussion.ep_pk ? '2화 토론' : '전체 토론'}>
+                                {discussion.ep_pk ? '2화 토론' : '전체 토론'}
+                            </DiscussionBadge>
+                            <Typography variant="h6" sx={{ mb: 1 }}>
+                                {discussion.topic}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                {dayjs(discussion.start_time).format('YYYY.MM.DD HH:mm')}
+                            </Typography>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                                <Typography variant="body2" color="text.secondary">
+                                    참여 인원 0/{discussion.max_participants}명 {/* TODO: 참여 인원 수 API 연동 */}
+                                </Typography>
+                            </Stack>
+                        </Paper>
+                    ))}
+                </Stack>
+            </Stack>
+
+            {/* 토론방 생성 모달 */}
+            <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
+                <DialogTitle sx={{ fontWeight: 700 }}>토론방 생성</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={3} sx={{ mt: 2 }}>
+                        <FormControl fullWidth>
+                            <InputLabel>토론 유형</InputLabel>
+                            <Select
+                                value={discussionForm.type}
+                                label="토론 유형"
+                                slotProps={{
+                                    inputLabel: {
+                                        shrink: true,
+                                    },
+                                }}
+                                onChange={(e) => setDiscussionForm({ ...discussionForm, type: e.target.value })}
+                            >
+                                <MenuItem value="default">
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <MenuBookIcon />
+                                        <Box>
+                                            <Typography>전체 작품 토론</Typography>
+                                            <Typography variant="caption" color="text.secondary">
+                                                작품 전체에 대해 토론
+                                            </Typography>
+                                        </Box>
+                                    </Stack>
+                                </MenuItem>
+                                <MenuItem value="episode">
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <MenuBookIcon />
+                                        <Box>
+                                            <Typography>회차별 토론</Typography>
+                                            <Typography variant="caption" color="text.secondary">
+                                                특정 회차에 대해 토론
+                                            </Typography>
+                                        </Box>
+                                    </Stack>
+                                </MenuItem>
+                            </Select>
+                        </FormControl>
+
+                        <FormControl fullWidth>
+                            <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                <DateTimePicker
+                                    value={discussionForm.dateTime}
+                                    onChange={(newValue) =>
+                                        setDiscussionForm({ ...discussionForm, dateTime: newValue })
+                                    }
+                                    minDateTime={dayjs()}
+                                    format="YYYY/MM/DD HH:mm"
+                                    ampm={false}
+                                    slotProps={{
+                                        inputLabel: {
+                                            shrink: true,
+                                        },
+                                        textField: {
+                                            fullWidth: true,
+                                            required: true,
+                                            label: '토론 일시',
+                                            variant: 'outlined',
+                                        },
+                                    }}
+                                />
+                            </LocalizationProvider>
+                        </FormControl>
+
+                        <TextField
+                            fullWidth
+                            variant="outlined"
+                            label="토론 주제"
+                            placeholder="토론 주제를 입력하세요."
+                            value={discussionForm.topic}
+                            slotProps={{
+                                inputLabel: {
+                                    shrink: true,
+                                },
+                            }}
+                            onChange={(e) => setDiscussionForm({ ...discussionForm, topic: e.target.value })}
+                        />
+
+                        <FormControl fullWidth>
+                            <TextField
+                                value={discussionForm.maxParticipants}
+                                label="최대 참여 인원"
+                                type="number"
+                                slotProps={{
+                                    inputLabel: {
+                                        shrink: true,
+                                    },
+                                }}
+                                onChange={(e) =>
+                                    setDiscussionForm({ ...discussionForm, maxParticipants: e.target.value })
+                                }
+                            />
+                        </FormControl>
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ p: 3 }}>
+                    <Button onClick={handleCloseModal} variant="outlined">
+                        취소
+                    </Button>
+                    <Button
+                        onClick={handleCreateDiscussion}
+                        variant="contained"
+                        sx={{
+                            backgroundColor: '#FFA000',
+                            '&:hover': { bgcolor: '#FF8F00' },
+                        }}
+                    >
+                        생성하기
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </NovelInfo>
+
+        {/* 에피소드 목록 */}
+        <TableContainer component={Paper}>
+            <Table>
+                <TableHead>
+                    <TableRow>
+                        <StyledTableCell>화수</StyledTableCell>
+                        <StyledTableCell>제목</StyledTableCell>
+                        <StyledTableCell align="right">조회수</StyledTableCell>
+                        <StyledTableCell align="right">게시일</StyledTableCell>
+                    </TableRow>
+                </TableHead>
+                <TableBody>
+                    {episodes.map((episode) => (
+                        <TableRow
+                            key={episode.ep_pk}
+                            sx={{
+                                '&:hover': {
+                                    backgroundColor: 'grey.50',
+                                    cursor: 'pointer',
+                                },
+                            }}
+                            onClick={() => handleEpisodeClick(episode.ep_pk)} // 클릭 이벤트 핸들러 추가
+                        >
+                            <TableCell>{episode.ep_pk}</TableCell>
+                            <TableCell>{episode.ep_title}</TableCell>
+                            <TableCell align="right">{episode.views.toLocaleString()}</TableCell>
+                            <TableCell align="right">{dayjs(episode.created_date).format('YYYY.MM.DD')}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </TableContainer>
+
+        댓글 섹션
+        <Paper sx={{ mt: 3, p: 3, borderRadius: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="h6" fontWeight={700}>
+                        작품리뷰
+                    </Typography>
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            backgroundColor: 'grey.100',
+                            px: 1,
+                            py: 0.5,
+                            borderRadius: 1,
+                            color: 'text.secondary',
+                        }}
+                    >
+                        {comments.length}
+                    </Typography>
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                    <IconButton size="small">
+                        <RefreshIcon />
+                    </IconButton>
+                    <IconButton size="small">
+                        <InfoOutlinedIcon />
+                    </IconButton>
+                </Stack>
+            </Box>
+
+            댓글 입력 영역
+            <Paper
+                variant="outlined"
+                sx={{
+                    p: 2,
+                    mb: 3,
+                    borderRadius: 2,
+                }}
+            >
+                <TextField
+                    fullWidth
+                    multiline
+                    rows={4}
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    placeholder="댓글을 남기려면 로그인이 필요합니다."
+                    disabled
+                    sx={{ mb: 2 }}
+                />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Stack direction="row" spacing={1}>
+                        <IconButton>
+                            <InsertEmoticonIcon />
+                        </IconButton>
+                        <IconButton>
+                            <ImageIcon />
+                        </IconButton>
+                    </Stack>
+                    <Button
+                        variant="contained"
+                        disabled
+                        onClick={handleSubmitComment}
+                        startIcon={<SendIcon />}
+                        sx={{
+                            bgcolor: '#FFA000',
+                            '&:hover': { bgcolor: '#FF8F00' },
+                        }}
+                    >
+                        등록하기
+                    </Button>
+                </Box>
+            </Paper>
+
+            {/* 클린봇 알림 */}
+            <Paper
+                variant="outlined"
+                sx={{
+                    p: 2,
+                    mb: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderRadius: 2,
+                    bgcolor: '#F5F5F5',
+                }}
+            >
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <SmartToyIcon sx={{ color: '#00DC64' }} />
+                    <Typography>
+                        <Typography component="span" fontWeight={700}>
+                            클린봇
+=======
                   <MenuItem value={false}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <MenuBookIcon />
@@ -475,6 +828,7 @@ return (
                         <Typography>전체 작품 토론</Typography>
                         <Typography variant="caption" color="text.secondary">
                           작품 전체에 대해 토론
+>>>>>>> 2a8fbc0f542dba03b53554faa0d4dc083895b052
                         </Typography>
                       </Box>
                     </Stack>
@@ -493,6 +847,65 @@ return (
                 </Select>
               </FormControl>
 
+<<<<<<< HEAD
+            댓글 목록
+            <Stack spacing={2}>
+                {comments.map((comment) => (
+                    <Paper
+                        key={comment.comment_pk}
+                        variant="outlined"
+                        sx={{
+                            p: 2,
+                            borderRadius: 2,
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                                <Typography fontWeight={700}>User {comment.user_pk}</Typography> {/* TODO: 실제 사용자 이름으로 변경 */}
+                                <Typography variant="body2" color="text.secondary">
+                                    {dayjs(comment.created_date).format('YYYY.MM.DD HH:mm')}
+                                </Typography>
+                            </Stack>
+                            <IconButton size="small">
+                                <MoreVertIcon />
+                            </IconButton>
+                        </Box>
+                        {/*{comment.isBest && ( // isBest! 속성이 없으므로 제거*/}
+                        {/*    <Box*/}
+                        {/*        sx={{*/}
+                        {/*            display: 'inline-block',*/}
+                        {/*            px: 1.5,*/}
+                        {/*            py: 0.5,*/}
+                        {/*            borderRadius: 2,*/}
+                        {/*            bgcolor: '#E3F2FD',*/}
+                        {/*            color: '#1976D2',*/}
+                        {/*            mb: 1,*/}
+                        {/*        }}*/}
+                        {/*    >*/}
+                        {/*        <Typography variant="caption" fontWeight={700}>*/}
+                        {/*            BEST*/}
+                        {/*        </Typography>*/}
+                        {/*    </Box>*/}
+                        {/*)}*/}
+                        <Typography>{comment.content}</Typography>
+                        <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                            <Button
+                                startIcon={<ThumbUpIcon />}
+                                size="small"
+                                onClick={() => handleLike(comment.comment_pk)}
+                                sx={{ color: 'text.secondary' }}
+                            >
+                                {comment.likes}
+                            </Button>
+                            <Button
+                                startIcon={<ThumbDownIcon />}
+                                size="small"
+                                onClick={() => handleDislike(comment.comment_pk)}
+                                sx={{ color: 'text.secondary' }}
+                            >
+                                {comment.dislikes} {/* dislikes 속성이 없으므로 제거하거나, 필요에 따라 다른 값으로 대체 */}
+                            </Button>
+=======
               {discussionForm.category && (
                 <FormControl fullWidth error={formErrors.episode}>
                   <InputLabel>토론할 회차</InputLabel>
@@ -516,6 +929,7 @@ return (
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Typography>{episode.id}화</Typography>
                           <Typography color="text.secondary">{episode.title}</Typography>
+>>>>>>> 2a8fbc0f542dba03b53554faa0d4dc083895b052
                         </Stack>
                       </MenuItem>
                     ))}
@@ -655,35 +1069,35 @@ return (
         </Table>
       </TableContainer>
 
-        댓글 섹션
-        <Paper sx={{ mt: 3, p: 3, borderRadius: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="h6" fontWeight={700}>
-                        작품리뷰
-                    </Typography>
-                    <Typography
-                        variant="body2"
-                        sx={{
-                            backgroundColor: 'grey.100',
-                            px: 1,
-                            py: 0.5,
-                            borderRadius: 1,
-                            color: 'text.secondary',
-                        }}
-                    >
-                        {comments.length}
-                    </Typography>
-                </Stack>
-                <Stack direction="row" spacing={1}>
-                    <IconButton size="small">
-                        <RefreshIcon />
-                    </IconButton>
-                    <IconButton size="small">
-                        <InfoOutlinedIcon />
-                    </IconButton>
-                </Stack>
-            </Box>
+      {/* 댓글 섹션 */}
+      {/*<Paper sx={{ mt: 3, p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="h6" fontWeight={700}>
+              작품리뷰
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                backgroundColor: 'grey.100',
+                px: 1,
+                py: 0.5,
+                borderRadius: 0.5,
+                color: 'text.secondary',
+              }}
+            >
+              26
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <IconButton size="small">
+              <RefreshIcon />
+            </IconButton>
+            <IconButton size="small">
+              <InfoOutlinedIcon />
+            </IconButton>
+          </Stack>
+        </Box>*/}
 
       {/* 댓글 입력 영역 */}
       {/*<Paper
@@ -728,75 +1142,75 @@ return (
           </Box>
         </Paper>*/}
 
-            댓글 목록
-            <Stack spacing={2}>
-                {comments.map((comment) => (
-                    <Paper
-                        key={comment.comment_pk}
-                        variant="outlined"
-                        sx={{
-                            p: 2,
-                            borderRadius: 2,
-                        }}
-                    >
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Stack direction="row" spacing={1} alignItems="center">
-                                <Typography fontWeight={700}>User {comment.user_pk}</Typography> {/* TODO: 실제 사용자 이름으로 변경 */}
-                                <Typography variant="body2" color="text.secondary">
-                                    {dayjs(comment.created_date).format('YYYY.MM.DD HH:mm')}
-                                </Typography>
-                            </Stack>
-                            <IconButton size="small">
-                                <MoreVertIcon />
-                            </IconButton>
-                        </Box>
-                        {/*{comment.isBest && ( // isBest! 속성이 없으므로 제거*/}
-                        {/*    <Box*/}
-                        {/*        sx={{*/}
-                        {/*            display: 'inline-block',*/}
-                        {/*            px: 1.5,*/}
-                        {/*            py: 0.5,*/}
-                        {/*            borderRadius: 2,*/}
-                        {/*            bgcolor: '#E3F2FD',*/}
-                        {/*            color: '#1976D2',*/}
-                        {/*            mb: 1,*/}
-                        {/*        }}*/}
-                        {/*    >*/}
-                        {/*        <Typography variant="caption" fontWeight={700}>*/}
-                        {/*            BEST*/}
-                        {/*        </Typography>*/}
-                        {/*    </Box>*/}
-                        {/*)}*/}
-                        <Typography>{comment.content}</Typography>
-                        <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                            <Button
-                                startIcon={<ThumbUpIcon />}
-                                size="small"
-                                onClick={() => handleLike(comment.comment_pk)}
-                                sx={{ color: 'text.secondary' }}
-                            >
-                                {comment.likes}
-                            </Button>
-                            <Button
-                                startIcon={<ThumbDownIcon />}
-                                size="small"
-                                onClick={() => handleDislike(comment.comment_pk)}
-                                sx={{ color: 'text.secondary' }}
-                            >
-                                {comment.dislikes} {/* dislikes 속성이 없으므로 제거하거나, 필요에 따라 다른 값으로 대체 */}
-                            </Button>
-                        </Stack>
-                        <IconButton
-                            size="small"
-                            onClick={() => handleDeleteComment(comment.comment_pk)}
-                            sx={{ position: 'absolute', top: 8, right: 8 }}
-                        >
-                            <MoreVertIcon />
-                        </IconButton>
-                    </Paper>
-                ))}
-            </Stack>
-        </Paper>
+      {/* 댓글 목록 */}
+      {/*<Stack spacing={2}>
+          {comments.map((comment) => (
+            <Paper
+              key={comment.id}
+              variant="outlined"
+              sx={{
+                p: 2,
+                borderRadius: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography fontWeight={700}>{comment.author}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {comment.date}
+                  </Typography>
+                </Stack>
+                <IconButton size="small">
+                  <MoreVertIcon />
+                </IconButton>
+              </Box>
+              {comment.isBest && (
+                <Box
+                  sx={{
+                    display: 'inline-block',
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: 2,
+                    bgcolor: '#E3F2FD',
+                    color: '#1976D2',
+                    mb: 1,
+                  }}
+                >
+                  <Typography variant="caption" fontWeight={700}>
+                    BEST
+                  </Typography>
+                </Box>
+              )}
+              <Typography>{comment.content}</Typography>
+              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                <Button
+                  startIcon={<ThumbUpIcon />}
+                  size="small"
+                  onClick={() => handleLike(comment.id)}
+                  sx={{ color: 'text.secondary' }}
+                >
+                  {comment.likes}
+                </Button>
+                <Button
+                  startIcon={<ThumbDownIcon />}
+                  size="small"
+                  onClick={() => handleDislike(comment.id)}
+                  sx={{ color: 'text.secondary' }}
+                >
+                  {comment.dislikes}
+                </Button>
+              </Stack>
+              <IconButton
+                size="small"
+                onClick={() => handleDeleteComment(comment.id)}
+                sx={{ position: 'absolute', top: 8, right: 8 }}
+              >
+                <MoreVertIcon />
+              </IconButton>
+            </Paper>
+          ))}
+        </Stack>
+      </Paper>*/}
     </Box>
   )
 }
