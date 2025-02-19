@@ -63,7 +63,7 @@ router = APIRouter(
 
 @router.get("/me", description="현재 로그인 한 사용자 조회")
 async def get_user_info(current_user: User = Depends(get_current_user)):
-    return {"user_pk": current_user.user_pk, "email": current_user.email, "nickname":current_user.nickname}
+    return {"user_pk": current_user.user_pk, "email": current_user.email, "nickname":current_user.nickname, "is_oauth_user": current_user.is_oauth_user}
 
 
 # ======================================= 회원가입 로직 ======================================= 

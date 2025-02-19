@@ -1,9 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import os
 from contextlib import asynccontextmanager
 from redis.asyncio import Redis
 from concurrent.futures import ThreadPoolExecutor
 from utils.redis_utils import create_redis_client
+from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 
 from user import user_router
 from auth import auth_router
@@ -13,6 +15,14 @@ from auth.oauth_google import router as google_oauth_router
 
 from database import engine
 from models import Base
+
+# CustomHeaderMiddleware 정의
+class CustomHeaderMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
+        response.headers["Cross-Origin-Embedder-Policy"] = "unsafe-none"
+        return response
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -48,12 +58,9 @@ async def lifespan(app: FastAPI):
             
         print("🛑 FastAPI 서버 종료!")
 
-
 app = FastAPI(lifespan=lifespan)
 
-# CORS 설정
-from fastapi.middleware.cors import CORSMiddleware
-
+# CORS origins 설정
 origins = [
     "http://localhost",
     "http://localhost:5173",
@@ -66,12 +73,16 @@ origins = [
     "https://momoso106.duckdns.org/",
 ]
 
+# 미들웨어 추가 (순서 중요)
+app.add_middleware(CustomHeaderMiddleware)  # 먼저 CustomHeaderMiddleware 추가
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS", "DELETE", "PATCH", "PUT"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Set-Cookie"],
+    expose_headers=["Set-Cookie"],
 )
 
 @app.get("/")

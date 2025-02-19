@@ -25,7 +25,7 @@ import {
 } from '@mui/material'
 
 import { useAuth } from '../hooks/useAuth'
-import coverPlaceholder from '/placeholder/cover-image-placeholder.png'
+import coverPlaceholder from '../assets/placeholder/cover-image-placeholder.png'
 
 const NovelInfo = styled(Paper)({
   padding: '24px',

@@ -206,29 +206,50 @@ def ep_comment(novel_pk: int, ep_pk: int, db: Session = Depends(get_db)):
 
 # 댓글 작성
 @router.post("/novel/{novel_pk}/episode/{ep_pk}/comment", response_model=novel_schema.CommentBase)
-def save_comment(comment_info: novel_schema.CommentBase, novel_pk: int, ep_pk: int, user_pk: int, db: Session = Depends(get_db)):
-    comment = novel_crud.create_comment(comment_info, novel_pk, ep_pk, user_pk, db)
+def save_comment(
+    comment_info: novel_schema.CommentBase, 
+    novel_pk: int, 
+    ep_pk: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # current_user의 user_pk를 사용
+    comment = novel_crud.create_comment(comment_info, novel_pk, ep_pk, current_user.user_pk, db)
     if not comment:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="댓글 작성에 실패했습니다.")
     return comment
 
 # 댓글 수정
-@router.put("/novel/{novel_pk}/episode/{ep_pk}/comment")
-def change_comment(content: str, comment_pk: int, db: Session = Depends(get_db)):
-    comment = novel_crud.update_comment(content, comment_pk, db)
+@router.put("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}")
+def change_comment(
+    content: str, 
+    comment_pk: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    comment = novel_crud.update_comment(content, comment_pk, current_user.user_pk, db)
     if not comment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="댓글을 찾을 수 없습니다.")
     return comment
 
 # 댓글 삭제
-@router.delete("/novel/{novel_pk}/episode/{ep_pk}/comment")
-def delete_comment(comment_pk: int, db: Session = Depends(get_db)):
-    return novel_crud.delete_comment(comment_pk, db)
+@router.delete("/novel/{novel_pk}/episode/{ep_pk}/comment/{comment_pk}")
+def delete_comment(
+    comment_pk: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return novel_crud.delete_comment(comment_pk, current_user.user_pk, db)
+
 
 # 댓글 좋아요
 @router.put("/novel/comment/{comment_pk}/like")
-def like_comment(comment_pk: int, user_pk : int,db: Session = Depends(get_db)):
-    return novel_crud.like_comment(comment_pk, user_pk,db)
+def like_comment(
+    comment_pk: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+): 
+    return novel_crud.like_comment(comment_pk, current_user.user_pk, db)
 
 # 대댓글 CRUD
 

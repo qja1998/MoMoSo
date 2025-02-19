@@ -3,8 +3,6 @@ meeting_minutes/
 # Created by https://www.toptal.com/developers/gitignore/api/pycharm,vs,django,vuejs
 # Edit at https://www.toptal.com/developers/gitignore?templates=pycharm,vs,django,vuejs
 
-*.png
-
 ### Django ###
 *.log
 *.pot
@@ -660,3 +658,5 @@ momoso-450108-0d3ffb86c6ef.json
 *.rdb
 
 # End of https://www.toptal.com/developers/gitignore/api/redis
+
+Backend/audio_uploads/

@@ -38,13 +38,16 @@ async def update_user(
     updated_user: user_schema.UpdateUserForm,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    redis_client: Redis = Depends(get_redis)  # Redis 클라이언트 의존성 주입
+    redis_client: Redis = Depends(get_redis)
 ):
-    # 전화번호 변경 시 인증 여부 확인
-    if updated_user.phone and updated_user.phone != current_user.phone:
-        await check_verified(updated_user.phone, redis_client)
+    
+    if updated_user.phone:
+        if not current_user.phone or updated_user.phone != current_user.phone:
+            try:
+                await check_verified(updated_user.phone, redis_client)
+            except Exception as e:
+                raise
 
-    # 현재 사용자 정보 수정
     updated_user = user_crud.update_user(db, current_user, updated_user)
     return updated_user
 
