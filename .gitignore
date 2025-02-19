@@ -3,9 +3,12 @@ meeting_minutes/
 # Created by https://www.toptal.com/developers/gitignore/api/pycharm,vs,django,vuejs
 # Edit at https://www.toptal.com/developers/gitignore?templates=pycharm,vs,django,vuejs
 
+<<<<<<< HEAD
 *.png
 !cover-image-placeholder.png
 
+=======
+>>>>>>> develop
 ### Django ###
 *.log
 *.pot
