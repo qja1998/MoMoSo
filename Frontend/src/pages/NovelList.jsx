@@ -67,7 +67,7 @@ const NovelList = () => {
     const fetchNovels = async () => {
       setLoading(true)
       try {
-        const response = await axios.get('/api/v1/novels')
+        const response = await axios.get(`${BACKEND_URL}/api/v1/novels`)
         setNovels(response.data)
       } catch (err) {
         setError(err.message)

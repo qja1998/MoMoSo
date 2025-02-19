@@ -109,6 +109,7 @@ const NovelEditorNovelDetail = () => {
   const handleEpisodeClick = (ep_pk) => {
     navigate(`/novel/edit/episode/${novelId}/${ep_pk}`)
   }
+  
 
   if (loading) {
     return (
@@ -143,7 +144,9 @@ const NovelEditorNovelDetail = () => {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => navigate('/novel/edit/background')}
+          onClick={() => navigate(`/novel/edit/background/${novelId}`, {
+            state: { novelData: novelData }  // 기존 navigate에 state 옵션 추가
+          })}
           sx={{
             backgroundColor: '#FFA000',
             color: 'white',
