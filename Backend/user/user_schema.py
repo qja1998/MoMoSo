@@ -59,35 +59,31 @@ class UserNovel(BaseModel):
 
 class UserComment(BaseModel):
     comment_pk: int
+    novel_pk: int
+    ep_pk: int
     content: str
+    created_date: datetime
     cocomment_cnt: int
     likes: int
+    novel_title: str
+    ep_title: str
 
     class Config:
         from_attributes = True
 
 class UserCocomment(BaseModel):
     cocomment_pk: int
+    comment_pk: int
     content: str
+    created_date: datetime
     likes: int
+    novel_title: str
+    ep_title: str
+    novel_pk: int
+    ep_pk: int
 
     class Config:
         from_attributes = True
-
-# 사용자 상세 정보 조회 스키마
-class UserDetail(BaseModel):
-    user_pk: int
-    name: str
-    nickname: str
-    user_img: str
-    recent_novels: Optional[List[RecentNovel]]
-    liked_novels: List[UserNovel]
-    liked_comments: List[UserComment]
-    liked_cocomments: List[UserCocomment]
-
-    class Config:
-        from_attributes = True
-
 
 class UserWrittenNovel(BaseModel):
     novel_pk: int
@@ -104,4 +100,19 @@ class UserWrittenNovel(BaseModel):
     class Config:
         from_attributes = True
 
+# 사용자 상세 정보 조회 스키마
+class UserDetail(BaseModel):
+    user_pk: int
+    name: str
+    nickname: str
+    user_img: str
+    recent_novels: Optional[List[RecentNovel]]
+    liked_novels: List[UserNovel]
+    liked_comments: List[UserComment]
+    liked_cocomments: List[UserCocomment]
+    comments: List[UserComment]
+    cocomments: List[UserCocomment] 
+    novels_written: List[UserWrittenNovel] 
 
+    class Config:
+        from_attributes = True

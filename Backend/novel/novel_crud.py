@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException, status, Request
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from . import novel_schema
 from models import Novel, Episode, Comment, CoComment, Character, Genre, novel_genre_table, user_like_table, User, user_recent_novel_table
 from user.user_schema import RecentNovel
@@ -10,7 +10,7 @@ from typing import Optional
 # from sqlalchemy import select
 from datetime import datetime, timedelta
 from collections import Counter
-import os 
+import os
 from dotenv import load_dotenv
 from fastapi import File, UploadFile 
 import httpx
@@ -208,31 +208,22 @@ def like_novel(novel_pk: int, user_pk: int, db: Session):
 
 # 실시간 인기
 
-def recent_hit(days: int, db: Session) -> Optional[str]: 
+def recent_hit(days: int, db: Session) -> Optional[str]:
     """
     최근 N일 동안 가장 많이 좋아요를 받은 소설 1개의 제목 반환
     """
     today = datetime.now()
     day_2_back = today - timedelta(days=days)
 
-    # 좋아요 데이터를 필터링
-    recent_hit = db.query(user_like_table.c.liked_date).filter(user_like_table.c.liked_date >= day_2_back).all()
-    
-    if not recent_hit: 
-        return None
-
-    novel_pks = [like[0] for like in recent_hit]  # 좋아요 받은 novel_pk 리스트 추출
-
-    # 가장 많이 좋아요 받은 novel_pk 찾기
-    most_common_novel_pk = Counter(novel_pks).most_common(1)  # 최상위 1개만 가져오기
-
-    if not most_common_novel_pk:
-        return None
-
-    most_popular_novel_pk = most_common_novel_pk[0][0]
-
-    # novel_pk에 해당하는 소설 제목 반환
-    hit_novel = db.query(Novel.title).filter(Novel.novel_pk == most_popular_novel_pk).first()
+    # Novel 테이블에서 likes 컬럼을 기준으로 정렬하여 가장 인기있는 소설 가져오기
+    hit_novel = (
+        db.query(Novel)
+        .join(user_like_table)
+        .filter(user_like_table.c.liked_date >= day_2_back)
+        .group_by(Novel.novel_pk)
+        .order_by(func.count(user_like_table.c.user_pk).desc())
+        .first()
+    )
 
     return hit_novel.title if hit_novel else None
     

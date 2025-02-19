@@ -122,37 +122,40 @@ const NovelEpisodeViewer = ({ children }) => {
   useEffect(() => {
     const loadEpisodeData = async () => {
       try {
-        // URL 형식: /novel/{novelId}/{episodeId}
         const urlParts = window.location.pathname.split('/')
         const novelId = parseInt(urlParts[2])
         const targetEpId = parseInt(urlParts[3])
-
+  
+        const response = await fetch(
+          `${BACKEND_URL}/api/v1/novel/${novelId}/episodes/${targetEpId}`,
+          {
+            credentials: 'include',
+          }
+        );
+  
+        if (!response.ok) {
+          throw new Error('Failed to fetch episode data');
+        }
+  
+        const episodeData = await response.json();
+        
         if (!novelData.episode.length) {
           const result = await fetchNovelData(novelId)
           
           if (result) {
-            const episode = result.episode.find(ep => ep.ep_pk === targetEpId)
-            
-            if (episode) {
-              setCurrentEpisode(episode)
-            } else {
-              navigate('/novel/' + novelId) // 에피소드 목록으로 리다이렉트
-            }
-          }
-        } else {
-          const episode = novelData.episode.find(ep => ep.ep_pk === targetEpId)
-          if (episode) {
-            setCurrentEpisode(episode)
+            setCurrentEpisode(episodeData)
           } else {
             navigate('/novel/' + novelId)
           }
+        } else {
+          setCurrentEpisode(episodeData)
         }
       } catch (error) {
         console.error('에피소드 데이터 로딩 실패')
         navigate('/novel/' + novelId)
       }
     }
-
+  
     loadEpisodeData()
   }, [episodeId, fetchNovelData, setCurrentEpisode, navigate, novelData.episode])
 
