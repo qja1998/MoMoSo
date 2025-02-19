@@ -119,6 +119,7 @@ const NovelEpisodeList = () => {
       const response = await axios.post(`${BACKEND_URL}/api/v1/discussion/`, requestData, { withCredentials: true })
       
       const novelResponse = await axios.get(`${BACKEND_URL}/api/v1/novel/${novelId}/detail`, { withCredentials: true })
+
       setNovelData(novelResponse.data)
       setDiscussions(novelResponse.data.discussion || [])
 
@@ -132,6 +133,8 @@ const NovelEpisodeList = () => {
       })
     } catch (error) {
       console.error('토론방 생성 실패')
+    } finally {
+      console.log(novelResponse.data)
     }
   }, [discussionForm, novelId])
 
@@ -192,7 +195,7 @@ const NovelEpisodeList = () => {
         {/* 표지 섹션 */}
         <Box
           component="img"
-          src={coverPlaceholder}
+          src={novelData.novel_info[0].novel_img || coverPlaceholder}
           alt="소설 표지"
           sx={{
             width: { xs: '100%', sm: 200 },
@@ -212,9 +215,9 @@ const NovelEpisodeList = () => {
           </Typography>
           <Stack direction="column" spacing={1}>
             <Typography variant="body1" color="text.secondary">
-              {'//TODO: 작가명 받아와서 반영해야함'}
+              {novelData.author}
             </Typography>
-            <Typography variant="body1">{novelData.novel_info[0]?.synopsis || '시놉시스 없음'}</Typography>
+            <Typography variant="body1">{novelData.novel_info[0]?.summary || '시놉시스 없음'}</Typography>
             <Stack direction="row" spacing={2} alignItems="center">
               <Stack direction="row" spacing={1} alignItems="center">
                 <VisibilityIcon color="action" />
@@ -572,7 +575,7 @@ const NovelEpisodeList = () => {
       </TableContainer>
 
       {/* 댓글 섹션 */}
-      <Paper sx={{ mt: 3, p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+      {/* <Paper sx={{ mt: 3, p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="h6" fontWeight={700}>
@@ -599,7 +602,7 @@ const NovelEpisodeList = () => {
               <InfoOutlinedIcon />
             </IconButton>
           </Stack>
-        </Box>
+        </Box> */}
 
         {/* 댓글 입력 영역 */}
         {/*<Paper
@@ -645,7 +648,7 @@ const NovelEpisodeList = () => {
         </Paper>*/}
 
         {/* 댓글 목록 */}
-        <Stack spacing={2}>
+        {/* <Stack spacing={2}>
           {comments.map((comment) => (
             <Paper
               key={comment.id}
@@ -711,8 +714,8 @@ const NovelEpisodeList = () => {
               </IconButton>
             </Paper>
           ))}
-        </Stack>
-      </Paper>
+        </Stack> */}
+      {/* </Paper> */}
     </Box>
   )
 }
