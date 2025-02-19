@@ -61,16 +61,16 @@ class NovelCreateBase(BaseModel):
         from_attributes = True
 
 
-class NovelShowBase(BaseModel) : 
-    novel_pk : int
-    title: str
-    worldview: str
-    synopsis: str
-    summary : Optional[str] = None
-    genres: List[str] = Field(description="List of genre names")
+# class NovelShowBase(BaseModel) : 
+#     novel_pk : int
+#     title: str
+#     worldview: str
+#     synopsis: str
+#     summary : Optional[str] = None
+#     genres: List[str] = Field(description="List of genre names")
 
-    class Config:
-        from_attributes = True
+#     class Config:
+#         from_attributes = True
 
 
 # 소설 기본 정보 (응답용)

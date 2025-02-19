@@ -21,6 +21,8 @@ import Grid from '@mui/material/Grid2'
 
 import coverPlaceholder from '/src/assets/placeholder/cover-image-placeholder.png'
 
+const DRIVE_URL = "https://drive.google.com/file/d/1hMmtvEVeTSa6UMxI0-yNUPoEC0xhhGFq/view"
+
 const SearchBar = styled(TextField)({
   '& .MuiOutlinedInput-root': { borderRadius: '4px', backgroundColor: '#ffffff' },
 })
@@ -138,7 +140,7 @@ const NovelList = () => {
                 <CardMedia
                   component="img"
                   sx={{ aspectRatio: '3/4', objectFit: 'cover' }}
-                  image={novel.coverImage || coverPlaceholder}
+                  image={novel.novel_img || coverPlaceholder}
                   alt={novel.title}
                 />
                 <CardContent>
@@ -159,7 +161,7 @@ const NovelList = () => {
                       mb: 2,
                     }}
                   >
-                    {novel.description}
+                    {novel.summary}
                   </Typography>
                   <Stack direction="row" spacing={2}>
                     <Stack direction="row" spacing={0.5} alignItems="center">

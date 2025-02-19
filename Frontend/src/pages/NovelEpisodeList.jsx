@@ -212,7 +212,10 @@ return (
             {/* 표지 섹션 */}
             <Box
                 component="img"
-                src={coverPlaceholder}
+                src={
+                    novelInfo.novel_img === "static_url"
+                      ? coverPlaceholder : `${novelInfo.novel_img}`
+                    }
                 alt="소설 표지"
                 sx={{
                     width: 200,
@@ -234,7 +237,7 @@ return (
                         {novelInfo.user_pk || '작가 정보 없음'}
                     </Typography>
                     <Typography variant="body1">
-                        {novelInfo.synopsis || '시놉시스 없음'}
+                        {novelInfo.summary || '시놉시스 없음'}
                     </Typography>
                     <Stack direction="row" spacing={2} alignItems="center">
                         <Stack direction="row" spacing={1} alignItems="center">
@@ -452,7 +455,7 @@ return (
             </Table>
         </TableContainer>
 
-        {/* 댓글 섹션 */}
+        댓글 섹션
         <Paper sx={{ mt: 3, p: 3, borderRadius: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -482,7 +485,7 @@ return (
                 </Stack>
             </Box>
 
-            {/* 댓글 입력 영역 */}
+            댓글 입력 영역
             <Paper
                 variant="outlined"
                 sx={{
@@ -552,7 +555,7 @@ return (
                 </Button>
             </Paper>
 
-            {/* 댓글 목록 */}
+            댓글 목록
             <Stack spacing={2}>
                 {comments.map((comment) => (
                     <Paper

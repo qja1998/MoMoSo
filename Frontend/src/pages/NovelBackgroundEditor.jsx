@@ -46,9 +46,9 @@ const stylePresets = [
   { id: 4, name: '포토리얼', description: '사실적이고 생동감 있는 사진 스타일' },
   { id: 5, name: '미니멀', description: '심플하고 모던한 미니멀 스타일' },
 ]
-
+const BACKEND_URL = "http://127.0.0.1:8000/api/v1/"
 const NovelBackgroundEditor = () => {
-  const [selectedGenre, setSelectedGenre] = useState('')
+  const [selectedGenre, setSelectedGenre] = useState([])
   const [title, setTitle] = useState('')
   const [worldView, setWorldView] = useState('')
   const [background, setBackground] = useState('')
@@ -108,16 +108,20 @@ const NovelBackgroundEditor = () => {
         fetchUserInfo();
     }, []); // Empty dependency array ensures this runs only once on mount
 
-  const handleGenerate = () => {
-    setIsGenerating(true)
-    // TODO: AI 생성 로직 구현
-    setResults(Array(4).fill(null))
-  }
+    const handleGenreClick = (genre) => {
+      if (selectedGenre.includes(genre)) {
+        // 이미 선택된 장르인 경우, 제거
+        setSelectedGenre(selectedGenre.filter((g) => g !== genre));
+      } else {
+        // 선택되지 않은 장르인 경우, 추가
+        setSelectedGenre([...selectedGenre, genre]);
+      }
+    };
 
     const handleWorldviewGenerate = async () => {
         try {
             const response = await axios.post("http://127.0.0.1:8000/api/v1/ai/worldview", {
-                genre: selectedGenre,
+                genre: selectedGenre.join(" "),
                 title: title,
             }, {
                 headers: {
@@ -132,6 +136,7 @@ const NovelBackgroundEditor = () => {
             // Handle error appropriately (e.g., display an error message to the user)
         }
     };
+
 
 
   const handleCharacterChange = (characterId) => (newCharacterData) => {
@@ -161,25 +166,28 @@ const NovelBackgroundEditor = () => {
   }
 
   // 파일 업로드 핸들러
-  const handleFileSelect = async (file) => {
-    setUploadLoading(true)
-    try {
-      // TODO: 실제 파일 업로드 로직 구현
-      console.log('Selected file:', file)
-      await new Promise((resolve) => setTimeout(resolve, 2000)) // 임시 딜레이
-    } catch (error) {
-      console.error('File upload failed:', error)
-    } finally {
-      setUploadLoading(false)
-    }
-  }
+  // const handleFileSelect = async (file) => {
+  //   setUploadLoading(true)
+  //   try {
+  //     // TODO: 실제 파일 업로드 로직 구현
+  //     console.log('Selected file:', file)
+  //     await new Promise((resolve) => setTimeout(resolve, 2000)) // 임시 딜레이
+  //   } catch (error) {
+  //     console.error('File upload failed:', error)
+  //   } finally {
+  //     setUploadLoading(false)
+  //   }
+  // }
 
-  const handleAddKeyword = () => {
-    if (keywordInput.trim()) {
-      setKeywords([...keywords, keywordInput.trim()])
-      setKeywordInput('')
-    }
-  }
+  const handleKeywordInputKeyDown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (keywordInput.trim()) {
+              setKeywords(prev => [...prev, keywordInput.trim()]);
+              setKeywordInput('');
+          }
+      }
+  };
 
   const handleDeleteKeyword = (keywordToDelete) => {
     setKeywords(keywords.filter((k) => k !== keywordToDelete))
@@ -188,7 +196,7 @@ const NovelBackgroundEditor = () => {
     const handleSynopsisGenerate = async () => {
         try {
             const response = await axios.post("http://127.0.0.1:8000/api/v1/ai/synopsis", {
-                genre: selectedGenre,
+                genre: selectedGenre.join(" "),
                 title: title,
                 worldview: worldView, // Corrected variable name
             }, {
@@ -210,7 +218,7 @@ const NovelBackgroundEditor = () => {
                 title: title,
                 worldview: worldView,
                 synopsis: background,
-                genres: [selectedGenre],
+                genres: selectedGenre,
                 summary: summary,
             };
     
@@ -258,7 +266,7 @@ const NovelBackgroundEditor = () => {
             );
     
             const requestData = {
-                genre: selectedGenre,
+                genre: selectedGenre.join(" "),
                 title: title,
                 worldview: worldView,
                 synopsis: background,
@@ -356,7 +364,7 @@ const NovelBackgroundEditor = () => {
         setIsGeneratingSummary(true);
         try {
             const requestData = {
-                genre: selectedGenre,
+                genre: selectedGenre.join(" "),
                 title: title,
                 worldview: worldView,
                 synopsis: background
@@ -374,19 +382,19 @@ const NovelBackgroundEditor = () => {
             setIsGeneratingSummary(false);
         }
     };
- const handleFileUpload = async (event) => { // Renamed for clarity
-        const file = event.target.files[0];
-        if (!file) return;
-
+    const handleFileUpload = async (file) => {
+        if (!file || !novelPk) {
+          alert("소설을 먼저 저장해주세요.");
+          return;
+        }
+    
         setUploadLoading(true);
         try {
             const formData = new FormData();
-            formData.append("user_novel", "novel");
-            formData.append("pk", novelPk);
             formData.append("file", file);
-
+      
             const response = await axios.post(
-                "http://127.0.0.1:8000/save", // Changed to the correct endpoint
+                `${BACKEND_URL}save?user_novel=novel&pk=${novelPk}`,
                 formData,
                 {
                     headers: {
@@ -394,23 +402,52 @@ const NovelBackgroundEditor = () => {
                     },
                 }
             );
-
+    
             if (response.status === 200) {
                 console.log("File uploaded successfully:", response.data);
                 alert("표지 이미지가 성공적으로 업로드되었습니다.");
-            } else {
-                console.error("File upload failed:", response.status, response.data);
-                alert("표지 이미지 업로드에 실패했습니다.");
             }
         } catch (error) {
             console.error("File upload error:", error);
-            alert("표지 이미지 업로드 중 오류가 발생했습니다.");
+            alert("표지 이미지 업로드에 실패했습니다.");
+            if (error.response) {
+              console.log("Server responded with:", error.response.status, error.response.data);
+            }
+
         } finally {
             setUploadLoading(false);
-            // Clear the file input
-            if (fileInputRef.current) {
-                fileInputRef.current.value = null;
+        }
+    };
+    const handleGenerate = async () => {
+        setIsGenerating(true);
+        try {
+            const requestData = {
+                genre: selectedGenre,
+                style: stylePresets.find(style => style.id === selectedStyle)?.name || '',
+                title: title,
+                worldview: worldView,
+                keywords: keywords
+            };
+    
+            const response = await axios.post(
+                "http://localhost:8000/image/generate",
+                requestData,
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+    
+            if (response.status === 200) {
+                // 응답 데이터에 따라 결과 처리
+                setResults([response.data]); // 또는 적절한 데이터 처리
             }
+        } catch (error) {
+            console.error("Image generation error:", error);
+            alert("이미지 생성에 실패했습니다.");
+        } finally {
+            setIsGenerating(false);
         }
     };
     
@@ -466,30 +503,30 @@ const NovelBackgroundEditor = () => {
             }}
           >
             {genres.map((genre) => (
-              <Button
-                key={genre}
-                variant={selectedGenre === genre ? 'contained' : 'outlined'}
-                onClick={() => setSelectedGenre(genre)}
-                sx={{
-                  color: selectedGenre === genre ? 'white' : 'grey.700',
-                  fontWeight: 600,
-                  backgroundColor: selectedGenre === genre ? '#FFA000' : 'transparent',
-                  whiteSpace: 'nowrap',
-                  borderRadius: '20px',
-                  minWidth: 'auto',
-                  width: 'fit-content',
-                  py: 1,
-                  px: 2,
-                  flex: '0 0 auto',
-                  '&:hover': {
-                    backgroundColor: selectedGenre === genre ? '#FFA000' : 'rgba(255, 160, 0, 0.1)',
-                  },
-                  borderColor: selectedGenre === genre ? '#FFA000' : 'grey.300',
-                }}
-              >
-                {genre}
-              </Button>
-            ))}
+    <Button
+        key={genre}
+        variant={selectedGenre.includes(genre) ? 'contained' : 'outlined'}
+        onClick={() => handleGenreClick(genre)}
+        sx={{
+          color: selectedGenre.includes(genre) ? 'white' : 'grey.700',
+          fontWeight: 600,
+          backgroundColor: selectedGenre.includes(genre) ? '#FFA000' : 'transparent',
+          whiteSpace: 'nowrap',
+          borderRadius: '20px',
+          minWidth: 'auto',
+          width: 'fit-content',
+          py: 1,
+          px: 2,
+          flex: '0 0 auto',
+          '&:hover': {
+            backgroundColor: selectedGenre.includes(genre) ? '#FFA000' : 'rgba(255, 160, 0, 0.1)',
+          },
+          borderColor: selectedGenre.includes(genre) ? '#FFA000' : 'grey.300',
+        }}
+      >
+        {genre}
+      </Button>
+    ))}
           </Stack>
         </Box>
 
@@ -769,7 +806,7 @@ const NovelBackgroundEditor = () => {
           </Stack>
 
           {generationType === 'upload' && (
-            <DropZone onFileSelect={handleFileSelect} accept="image/*" loading={uploadLoading} />
+            <DropZone onFileSelect={handleFileUpload} accept="image/*" loading={uploadLoading} />
           )}
 
           {generationType === 'ai' && (
@@ -780,16 +817,16 @@ const NovelBackgroundEditor = () => {
                   이미지 생성 키워드
                 </Typography>
                 <TextField
-                  fullWidth
-                  value={keywordInput}
-                  onChange={(e) => setKeywordInput(e.target.value)}
-                  onKeyPress={handleAddKeyword}
-                  placeholder="키워드를 입력하고 Enter를 눌러주세요 (쉼표로 구분)"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '8px',
-                    },
-                  }}
+                    fullWidth
+                    value={keywordInput}
+                    onChange={(e) => setKeywordInput(e.target.value)}
+                    onKeyDown={handleKeywordInputKeyDown}
+                    placeholder="키워드를 입력하고 Enter나 Space를 눌러주세요"
+                    sx={{
+                        '& .MuiOutlinedInput-root': {
+                            borderRadius: '8px',
+                        },
+                    }}
                 />
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                   {keywords.map((keyword, index) => (
