@@ -16,7 +16,6 @@ services:
     #   dockerfile: Dockerfile.prod
     image: kwon0528/b106-frontend:release
     container_name: prod-frontend
-    # command: cp -r /app/dist /app/frontend_build
     volumes:
       - ./frontend_build:/app/frontend_build
     ports:
