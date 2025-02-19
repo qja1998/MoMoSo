@@ -40,7 +40,6 @@ function App() {
                 <Route path="/" element={<NovelList />} />
                 <Route path="/auth">
                   <Route path="login" element={<UserLogin />} />
-                  <Route path="login-success" element={<UserLoginSuccess />} />
                   <Route path="signup" element={<UserSignUp />} />
                   <Route path="find-id" element={<UserFindId />} />
                   <Route path="find-password" element={<UserFindPassword />} />
