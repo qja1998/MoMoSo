@@ -5,7 +5,7 @@ from sqlalchemy import select, func
 from . import novel_schema
 from models import Novel, Episode, Comment, CoComment, Character, Genre, novel_genre_table, user_like_table, User, user_recent_novel_table
 from user.user_schema import RecentNovel
-from typing import Optional
+from typing import Optional, Dict, Any
 
 # from sqlalchemy import select
 from datetime import datetime, timedelta
@@ -212,24 +212,28 @@ def like_novel(novel_pk: int, user_pk: int, db: Session):
 
 # 실시간 인기
 
-def recent_hit(days: int, db: Session) -> Optional[str]:
+def recent_hit(days: int, db: Session) -> Optional[Dict[str, Any]]:
     """
-    최근 N일 동안 가장 많이 좋아요를 받은 소설 1개의 제목 반환
+    최근 N일 동안 가장 많이 좋아요를 받은 소설 정보 반환
     """
     today = datetime.now()
-    day_2_back = today - timedelta(days=days)
+    day_n_back = today - timedelta(days=days)
 
-    # Novel 테이블에서 likes 컬럼을 기준으로 정렬하여 가장 인기있는 소설 가져오기
     hit_novel = (
         db.query(Novel)
         .join(user_like_table)
-        .filter(user_like_table.c.liked_date >= day_2_back)
+        .filter(user_like_table.c.liked_date >= day_n_back)
         .group_by(Novel.novel_pk)
         .order_by(func.count(user_like_table.c.user_pk).desc())
         .first()
     )
 
-    return hit_novel.title if hit_novel else None
+    if hit_novel:
+        return {
+            "title": hit_novel.title,
+            "pk": hit_novel.novel_pk
+        }
+    return None
     
 
 #추천 작품

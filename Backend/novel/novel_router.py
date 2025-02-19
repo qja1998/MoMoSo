@@ -38,6 +38,7 @@ router = APIRouter(
     prefix='/api/v1',
 )
 
+# router.py
 @router.get("/main", response_model=novel_schema.MainPageResponse)
 async def main_page(
     db: Session = Depends(get_db),
@@ -45,24 +46,16 @@ async def main_page(
 ):
     """
     메인 페이지: 최근 인기 소설, 최근 본 소설 정보 반환
-    - 로그인한 사용자의 정보와 최근 본 소설을 함께 반환
     """
-    # 최근 인기 소설 조회
-    recent_best = novel_crud.recent_hit(2, db)  # 최근 좋아요 많은 소설
-    month_best = novel_crud.recent_hit(30, db)  # 한 달 동안 좋아요 많은 소설
-    
-    # 로그인한 사용자의 최근 본 소설 조회
-    recent_novels = novel_crud.get_recent_novels(db, current_user.user_pk)
-    
     response_data = {
         "user": {
             "user_pk": current_user.user_pk,
             "name": current_user.name,
             "nickname": current_user.nickname,
-            "recent_novels": recent_novels
+            "recent_novels": novel_crud.get_recent_novels(db, current_user.user_pk)
         },
-        "recent_best": recent_best,
-        "month_best": month_best
+        "recent_best": novel_crud.recent_hit(2, db),
+        "month_best": novel_crud.recent_hit(30, db)
     }
     
     return response_data
