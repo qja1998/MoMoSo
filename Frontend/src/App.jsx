@@ -3,13 +3,13 @@ import { Route, BrowserRouter as Router, Routes } from 'react-router-dom'
 import { CssBaseline } from '@mui/material'
 import { ThemeProvider } from '@mui/material/styles'
 
-import DiscussionRoom from './pages/DiscussionRoom'
-import DiscussionSummary from './pages/DiscussionSummary'
-import DiscussionSummaryList from './pages/DiscussionSummaryList'
+import { NovelProvider } from './contexts/NovelContext'
 import NavbarLayout from '/src/components/layout/NavbarLayout'
 import SidebarLayout from '/src/components/layout/SidebarLayout'
 import { AuthProvider } from '/src/hooks/useAuth'
-// import MyPage from '/src/pages/MyPage'
+import DiscussionRoom from '/src/pages/DiscussionRoom'
+import DiscussionSummary from '/src/pages/DiscussionSummary'
+import DiscussionSummaryList from '/src/pages/DiscussionSummaryList'
 import NotFound from '/src/pages/NotFound'
 import NovelBackgroundEditor from '/src/pages/NovelBackgroundEditor'
 import NovelEditor from '/src/pages/NovelEditor'
@@ -32,66 +32,52 @@ function App() {
       <CssBaseline />
       <Router>
         <AuthProvider>
-          <Routes>
-            {/* Navbar Layout */}
-            <Route element={<NavbarLayout />}>
-              {/* Auth routes */}
-              <Route path="/" element={<NovelList />} />
-              <Route path="/auth">
-                <Route path="login" element={<UserLogin />} />
-                <Route path="signup" element={<UserSignUp />} />
-                <Route path="find-id" element={<UserFindId />} />
-                <Route path="find-password" element={<UserFindPassword />} />
-                <Route path="reset-password" element={<UserResetPassword />} />
-                {/* <Route path="mypage" element={<MyPage />} /> */}
-                <Route path="change-info" element={<UserChangeInfo />} />
+          <NovelProvider>
+            <Routes>
+              {/* Navbar Layout */}
+              <Route element={<NavbarLayout />}>
+                {/* Auth routes */}
+                <Route path="/" element={<NovelList />} />
+                <Route path="/auth">
+                  <Route path="login" element={<UserLogin />} />
+                  <Route path="login-success" element={<UserLoginSuccess />} />
+                  <Route path="signup" element={<UserSignUp />} />
+                  <Route path="find-id" element={<UserFindId />} />
+                  <Route path="find-password" element={<UserFindPassword />} />
+                  <Route path="reset-password" element={<UserResetPassword />} />
+                  <Route path="change-info" element={<UserChangeInfo />} />
+                </Route>
+
+                <Route path="/novel">
+                  <Route path="" element={<NovelList />} />
+                  <Route path=":novelId" element={<NovelEpisodeList />} />
+                  <Route path=":novelId/:episodeId" element={<NovelEpisodeViewer />} />
+                </Route>
               </Route>
 
-              {/* 실제 프로덕션용 라우트 */}
-              <Route path="/novel">
-                <Route path="" element={<NovelList />} />
-                <Route path=":novelId" element={<NovelEpisodeList />} />
-                <Route path=":novelId/:episodeId" element={<NovelEpisodeViewer />} />
-                <Route path="edit/:novelId" element={<NovelEditor />} />
+              {/* Sidebar Layout */}
+              <Route element={<SidebarLayout />}>
+                <Route path="/discussion">
+                  <Route path=":discussionId" element={<DiscussionRoom />} />
+                  <Route path=":discussionId/summary" element={<DiscussionSummary />} />
+                </Route>
+
+                <Route path="/novel/edit">
+                  <Route path="" element={<NovelEditor />} />
+                  <Route path="episodelist/:novelId" element={<NovelEditorNovelDetail />} />
+                  <Route path="background" element={<NovelBackgroundEditor />} />
+                  <Route path="background/:novelId" element={<NovelBackgroundEditor />} />
+                  <Route path="episode/:novelId" element={<NovelEditorEpisode />} />
+                  <Route path="episode/:novelId/:episodeId" element={<NovelEditorEpisode />} />
+                  <Route path="idea/notes" element={<DiscussionSummaryList />} />
+                  <Route path="idea/:noteId" element={<DiscussionSummary />} />
+                </Route>
               </Route>
 
-              {/* 디버그용 라우트 */}
-              <Route path="/debug/viewer/1" element={<NovelEpisodeList />} />
-              <Route path="/debug/viewer" element={<NovelEpisodeViewer />} />
-            </Route>
-
-            {/* 실제 프로덕션용 라우트 */}
-            <Route path="/novel">
-              <Route path=":novelId" element={<NovelEpisodeList />} />
-              <Route path=":novelId/:episodeId" element={<NovelEpisodeViewer />} />
-            </Route>
-            {/* Sidebar Layout */}
-            <Route element={<SidebarLayout />}>
-              <Route path="/novel/edit" element={<NovelEditor />} />
-              <Route path="/novel/edit/episodelist/:novelId" element={<NovelEditorNovelDetail />} />
-              <Route path="/discussion">
-                <Route path=":discussionId" element={<DiscussionRoom />} />
-                <Route path=":discussionId/summary" element={<DiscussionSummary />} />
-              </Route>
-
-              <Route path="/novel/edit">
-                <Route path="background" element={<NovelBackgroundEditor />} />
-                <Route path="background/:novelId" element={<NovelBackgroundEditor />} />
-                <Route path="episode/:novelId" element={<NovelEditorEpisode />} />
-                <Route path="episode/:novelId/:episodeId" element={<NovelEditorEpisode />} />
-                <Route path="idea/notes" element={<DiscussionSummaryList />} />
-                <Route path="idea/:noteId" element={<DiscussionSummary />} />
-              </Route>
-
-              {/* 디버그용 라우트 */}
-              <Route path="/debug">
-                <Route path="discussion" element={<DiscussionRoom />} />
-              </Route>
-            </Route>
-
-            {/* Not Found Page - 모든 정의되지 않은 경로에 대해 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              {/* Not Found Page - 모든 정의되지 않은 경로에 대해 */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </NovelProvider>
         </AuthProvider>
       </Router>
     </ThemeProvider>
