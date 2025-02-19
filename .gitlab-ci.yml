@@ -70,6 +70,10 @@ before_script:
 
   - echo "JUPYTER_URL=$JUPYTER_URL" >> .env
 
+  - echo "ENVIRONMENT=$ENVIRONMENT" >> .env
+  - echo "FRONTEND_REDIRECT_URI=$FRONTEND_REDIRECT_URI" >> .env
+  - echo "REDIRECT_URI=$REDIRECT_URI" >> .env
+
 build_backend:
   stage: build
   tags:
