@@ -2,32 +2,35 @@ import styled from '@emotion/styled'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ko'
 
-import { useCallback, useEffect, useState, useMemo } from 'react'
-
+import { useCallback, useEffect, useState, useMemo, createContext, useContext, } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useNovel } from '../contexts/NovelContext'
 
 // 아이콘
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
-import BookmarkIcon from '@mui/icons-material/Bookmark'
-import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder'
-import FavoriteIcon from '@mui/icons-material/Favorite'
-import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import SettingsIcon from '@mui/icons-material/Settings'
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 // 디자인 컴포넌트
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
+import DialogTitle from '@mui/material/DialogTitle'
 import Divider from '@mui/material/Divider'
 import IconButton from '@mui/material/IconButton'
 import Menu from '@mui/material/Menu'
+import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper'
 import Popover from '@mui/material/Popover'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import TextField from '@mui/material/TextField'
-// 댓글 관련 아이콘 추가
+// 댓글 관련 아이콘
 import InsertEmoticonIcon from '@mui/icons-material/InsertEmoticon'
 import ImageIcon from '@mui/icons-material/Image'
 import SendIcon from '@mui/icons-material/Send'
@@ -35,35 +38,39 @@ import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 
-const ViewerContainer = styled(Box)({
+import { useAuth } from '../hooks/useAuth'
+import { createTheme, ThemeProvider } from '@mui/material/styles'
+
+const ViewerContainer = styled(Box)(() => ({
   maxWidth: '800px',
   margin: '0 auto',
   padding: '24px',
   position: 'relative',
-})
+}));
 
-const ViewerHeader = styled(Paper)({
+const ViewerHeader = styled(Paper)(() => ({
   padding: '16px 24px',
   marginBottom: '24px',
   borderRadius: '8px',
-  backgroundColor: '#ffffff',
   boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
   top: 0,
   zIndex: 100,
-})
+}));
 
-const ViewerContent = styled(Paper)({
+const ViewerContent = styled(Paper)(({ bgcolor }) => ({
   padding: '32px',
   marginBottom: '24px',
   borderRadius: '8px',
-  backgroundColor: '#ffffff',
+  backgroundColor: bgcolor,
+  color: bgcolor === '#000000' ? '#ffffff' : '#000000',
   boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
   lineHeight: '1.8',
   fontSize: '1.1rem',
   '& p': {
     marginBottom: '1.5em',
+    color: bgcolor === '#000000' ? '#ffffff' : '#000000',
   },
-})
+}));
 
 const FloatingButton = styled(IconButton)({
   position: 'fixed',
@@ -78,9 +85,18 @@ const FloatingButton = styled(IconButton)({
   boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.2)',
 })
 
-const NovelEpisodeViewer = () => {
-  const { episodeId } = useParams()
+
+
+const NovelEpisodeViewer = ({ children }) => {
+  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
+
+  const { novelId, episodeId } = useParams()
   const navigate = useNavigate()
+  const { user, isLoggedIn, showLoginModal } = useAuth()
+  // 댓글 수정 상태 추가
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editContent, setEditContent] = useState('');
+
   const {
     novelData,
     currentEpisode,
@@ -225,47 +241,147 @@ const NovelEpisodeViewer = () => {
   const hasNext = currentIndex < novelData.episode.length - 1 && currentIndex !== -1
 
   // 댓글 작성 핸들러
-  const handleSubmitComment = useCallback(() => {
+  const handleSubmitComment = useCallback(async () => {
     if (!commentInput.trim()) return
 
-    // TODO: 
-    // 1. API를 통해 댓글 작성 요청 전송
-    // 2. 성공 시 댓글 목록 새로고침
-    // 3. 실패 시 에러 처리
-    setCommentInput('')
-  }, [commentInput])
+    // 로그인 체크
+    if (!isLoggedIn) {
+      showLoginModal('/auth/login')
+      return
+    }
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/v1/novel/${novelId}/episode/${episodeId}/comment`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: commentInput,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('댓글 작성에 실패했습니다.')
+      }
+
+      const newComment = await response.json()
+      setCommentInput('')
+      await fetchNovelData(parseInt(novelId))
+
+    } catch (error) {
+      console.error('댓글 작성 실패:', error)
+      alert('댓글 작성에 실패했습니다.')
+    }
+  }, [commentInput, novelId, episodeId, isLoggedIn, showLoginModal, fetchNovelData])
+
 
   // 댓글 좋아요 핸들러
-  const handleLike = useCallback((commentId) => {
-    // TODO:
-    // 1. API를 통해 좋아요 요청 전송
-    // 2. 성공 시 좋아요 상태 업데이트
-    // 3. 실패 시 에러 처리
-  }, [])
+  const handleLike = useCallback(async (commentPk) => {
+    if (!isLoggedIn) {
+      showLoginModal('/auth/login');
+      return;
+    }
+  
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/v1/novel/comment/${commentPk}/like`, {
+        method: 'PUT',
+        credentials: 'include',  // 쿠키에 있는 access_token을 서버로 전송
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+  
+      if (!response.ok) {
+        if (response.status === 401) {
+          showLoginModal('/auth/login');
+          return;
+        }
+        throw new Error('좋아요 처리에 실패했습니다.');
+      }
+  
+      // 좋아요 후 소설 데이터 새로고침
+      await fetchNovelData(parseInt(novelId));
+    } catch (error) {
+      console.error('좋아요 처리 실패:', error);
+      alert('좋아요 처리에 실패했습니다.');
+    }
+  }, [isLoggedIn, showLoginModal, fetchNovelData, novelId]);
+  
 
-  // 댓글 싫어요 핸들러
-  const handleDislike = useCallback((commentId) => {
-    // TODO:
-    // 1. API를 통해 싫어요 요청 전송
-    // 2. 성공 시 싫어요 상태 업데이트
-    // 3. 실패 시 에러 처리
-  }, [])
+  // 댓글 수정 핸들러
+const handleEditComment = useCallback((comment) => {
+  setEditingCommentId(comment.comment_pk);
+  setEditContent(comment.content);
+}, []);
 
-  // 댓글 삭제 핸들러
-  const handleDeleteComment = useCallback((commentId) => {
-    // TODO:
-    // 1. API를 통해 댓글 삭제 요청 전송
-    // 2. 성공 시 댓글 목록에서 제거
-    // 3. 실패 시 에러 처리
-  }, [])
+// 댓글 수정 저장
+const handleSaveEdit = useCallback(async (commentPk) => {
+  if (!editContent.trim()) return;
+
+  try {
+    // URL에 content를 query parameter로 추가
+    const response = await fetch(
+      `${BACKEND_URL}/api/v1/novel/${novelId}/episode/${episodeId}/comment/${commentPk}?content=${encodeURIComponent(editContent)}`, 
+      {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        showLoginModal('/auth/login');
+        return;
+      }
+      throw new Error('댓글 수정에 실패했습니다.');
+    }
+
+    setEditingCommentId(null);
+    setEditContent('');
+    await fetchNovelData(parseInt(novelId));
+  } catch (error) {
+    console.error('댓글 수정 실패:', error);
+    alert('댓글 수정에 실패했습니다.');
+  }
+}, [editContent, novelId, episodeId, showLoginModal, fetchNovelData]);
+
+// 댓글 삭제 핸들러
+const handleDeleteComment = useCallback(async (commentPk) => {
+  if (!confirm('정말 삭제하시겠습니까?')) return;
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/v1/novel/${novelId}/episode/${episodeId}/comment/${commentPk}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        showLoginModal('/auth/login');
+        return;
+      }
+      throw new Error('댓글 삭제에 실패했습니다.');
+    }
+
+    await fetchNovelData(parseInt(novelId));
+  } catch (error) {
+    console.error('댓글 삭제 실패:', error);
+    alert('댓글 삭제에 실패했습니다.');
+  }
+}, [novelId, episodeId, showLoginModal, fetchNovelData]);
 
   if (!currentEpisode) {
     return <Typography>Loading...</Typography>
   }
 
   return (
-    <ViewerContainer>
-      <ViewerHeader>
+    <ViewerContainer >
+      <ViewerHeader >
         <Stack spacing={2}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Box
@@ -286,12 +402,6 @@ const NovelEpisodeViewer = () => {
               <ArrowDropDownIcon />
             </Box>
             <Stack direction="row" spacing={1}>
-              <IconButton onClick={toggleBookmark}>
-                {isBookmarked ? <BookmarkIcon color="primary" /> : <BookmarkBorderIcon />}
-              </IconButton>
-              <IconButton onClick={toggleLike}>
-                {isLiked ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
-              </IconButton>
               <IconButton onClick={(event) => setAnchorEl(event.currentTarget)}>
                 <SettingsIcon />
               </IconButton>
@@ -307,7 +417,7 @@ const NovelEpisodeViewer = () => {
         </Stack>
       </ViewerHeader>
 
-      <ViewerContent sx={{ backgroundColor: viewerSettings.bgColor }}>
+      <ViewerContent bgcolor={viewerSettings.bgColor}>
         {parseContent(currentEpisode.ep_content || '내용 없음')}
       </ViewerContent>
 
@@ -411,8 +521,13 @@ const NovelEpisodeViewer = () => {
         </Box>
       </Menu>
 
-      {/* 댓글 섹션 */}
-      <Paper sx={{ mt: 3, p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+      {/* Comments Section */}
+      <Paper sx={{
+        mt: 3,
+        p: 3,
+        borderRadius: 2,
+        border: '1px solid #e0e0e0',
+      }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="h6" fontWeight={700}>
@@ -433,14 +548,14 @@ const NovelEpisodeViewer = () => {
           </Stack>
         </Box>
 
-        {/* 댓글 입력 영역 */}
+        {/* Comment Input Area */}
         <Paper
           variant="outlined"
           sx={{
             p: 2,
             mb: 3,
             borderRadius: 2,
-          }}
+            }}
         >
           <TextField
             fullWidth
@@ -448,22 +563,17 @@ const NovelEpisodeViewer = () => {
             rows={4}
             value={commentInput}
             onChange={(e) => setCommentInput(e.target.value)}
-            placeholder="댓글을 작성해주세요."
+            placeholder={isLoggedIn ? "댓글을 작성해주세요." : "댓글을 작성하려면 로그인이 필요합니다."}
             sx={{ mb: 2 }}
           />
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Stack direction="row" spacing={1}>
-              <IconButton>
-                <InsertEmoticonIcon />
-              </IconButton>
-              <IconButton>
-                <ImageIcon />
-              </IconButton>
             </Stack>
             <Button
               variant="contained"
               onClick={handleSubmitComment}
               startIcon={<SendIcon />}
+              disabled={!commentInput.trim()}
               sx={{
                 bgcolor: '#FFA000',
                 '&:hover': { bgcolor: '#FF8F00' },
@@ -474,49 +584,91 @@ const NovelEpisodeViewer = () => {
           </Box>
         </Paper>
 
-        {/* 댓글 목록 */}
+        {/* Comments List */}
         <Stack spacing={2}>
           {comments?.map((comment) => (
             <Paper
-              key={comment.id}
+              key={comment.comment_pk}
               variant="outlined"
               sx={{
                 p: 2,
                 borderRadius: 2,
                 position: 'relative',
-              }}
+                }}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography fontWeight={700}>{comment.author}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {comment.date}
-                  </Typography>
-                </Stack>
-                <IconButton
-                  size="small"
-                  onClick={() => handleDeleteComment(comment.id)}
-                >
-                  <MoreVertIcon />
-                </IconButton>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography fontWeight={700}>
+                  {comment.user?.nickname || '알 수 없는 사용자'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {dayjs(comment.created_date).format('YYYY-MM-DD HH:mm')}
+                </Typography>
+              </Stack>
+                {user && user.user_pk === comment.user_pk && (
+                  <Stack direction="row" spacing={1}>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDeleteComment(comment.comment_pk)}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleEditComment(comment)}
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                )}
               </Box>
-              <Typography>{comment.content}</Typography>
+              {editingCommentId === comment.comment_pk ? (
+                <Box sx={{ mt: 1 }}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    sx={{ mb: 1 }}
+                  />
+                  <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    <Button 
+                      size="small" 
+                      onClick={() => {
+                        setEditingCommentId(null);
+                        setEditContent('');
+                      }}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      onClick={() => handleSaveEdit(comment.comment_pk)}
+                    >
+                      저장
+                    </Button>
+                  </Stack>
+                </Box>
+              ) : (
+                <Typography>{comment.content}</Typography>
+              )}
               <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                 <Button
-                  startIcon={<ThumbUpIcon />}
+                  startIcon={
+                    comment.liked_users?.includes(user?.user_pk) ? 
+                    <ThumbUpIcon color="primary" /> : 
+                    <ThumbUpIcon />
+                  }
                   size="small"
-                  onClick={() => handleLike(comment.id)}
-                  sx={{ color: 'text.secondary' }}
+                  onClick={() => handleLike(comment.comment_pk)}
+                  disabled={!isLoggedIn}
+                  sx={{ 
+                    color: comment.liked_users?.includes(user?.user_pk) ? 'primary.main' : 'text.secondary',
+                  }}
                 >
                   {comment.likes}
-                </Button>
-                <Button
-                  startIcon={<ThumbDownIcon />}
-                  size="small"
-                  onClick={() => handleDislike(comment.id)}
-                  sx={{ color: 'text.secondary' }}
-                >
-                  {comment.dislikes}
                 </Button>
               </Stack>
             </Paper>
