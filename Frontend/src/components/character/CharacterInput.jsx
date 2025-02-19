@@ -1,22 +1,16 @@
+import axios from 'axios'
 import PropTypes from 'prop-types'
+
+import { useState } from 'react'
 
 import DeleteIcon from '@mui/icons-material/Delete'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import SaveIcon from '@mui/icons-material/Save'
-import {
-  Box,
-  Card,
-  Divider,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material'
+import { Box, Card, Divider, Stack, TextField } from '@mui/material'
 
 import { PrimaryButton } from '../common/buttons'
+
+// Import axios
 
 const CHARACTER_TYPES = {
   protagonist: '주인공',
@@ -25,9 +19,47 @@ const CHARACTER_TYPES = {
   extra: '기타 인물',
 }
 
-const CharacterInput = ({ type, character, onChange, onGenerate }) => {
+const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
+  // Add novelPk prop
+  const [isSaving, setIsSaving] = useState(false)
+
   const handleChange = (field) => (event) => {
     onChange({ ...character, [field]: event.target.value })
+  }
+
+  const handleSaveClick = async () => {
+    setIsSaving(true)
+    try {
+      const characterData = {
+        name: character.name,
+        role: character.type, // Assuming 'type' maps to 'role'
+        age: parseInt(character.age, 10), // Convert age to integer
+        sex: character.gender === 'male', // Convert gender to boolean
+        job: character.job,
+        profile: character.profile,
+      }
+
+      console.log('Sending character data:', characterData) // Check the transformed data
+
+      const response = await axios.post(`http://127.0.0.1:8000/api/v1/novel/character/${novelPk}`, characterData, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (response.status === 200) {
+        console.log('Character saved successfully:', response.data)
+        alert('캐릭터가 성공적으로 저장되었습니다.')
+      } else {
+        console.error('Error saving character:', response.status, response.data)
+        alert('캐릭터 저장에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('Error saving character:', error)
+      alert('캐릭터 저장 중 오류가 발생했습니다.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -42,28 +74,19 @@ const CharacterInput = ({ type, character, onChange, onGenerate }) => {
       }}
     >
       <Stack direction="row" spacing={2} alignItems="center">
-        <Typography variant="h3" sx={{ fontSize: '1.2rem', fontWeight: 700, flex: 1 }}>
-          {CHARACTER_TYPES[type]}
-        </Typography>
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>캐릭터 유형</InputLabel>
-          <Select
-            value={type}
-            label="캐릭터 유형"
-            onChange={handleChange('type')}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '8px',
-              },
-            }}
-          >
-            {Object.entries(CHARACTER_TYPES).map(([value, label]) => (
-              <MenuItem key={value} value={value}>
-                {label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <TextField
+          label="캐릭터 유형"
+          value={type}
+          onChange={handleChange('type')}
+          placeholder={'주인공, 조력자, 적대자 등'}
+          fullWidth
+          size="small"
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '8px',
+            },
+          }}
+        />
       </Stack>
       <Divider sx={{ my: 2 }} />
       <Stack spacing={2}>
@@ -134,9 +157,7 @@ const CharacterInput = ({ type, character, onChange, onGenerate }) => {
           }}
         />
       </Stack>
-
       <Divider sx={{ my: 2 }} />
-
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'flex-end' }}>
         <PrimaryButton
           startIcon={<RefreshIcon />}
@@ -152,8 +173,10 @@ const CharacterInput = ({ type, character, onChange, onGenerate }) => {
           backgroundColor="#111111"
           hoverBackgroundColor="#404040"
           sx={{ py: 0.5 }}
+          onClick={handleSaveClick} // Call the save function
+          disabled={isSaving}
         >
-          저장
+          {isSaving ? '저장 중...' : '저장'}
         </PrimaryButton>
         <PrimaryButton
           startIcon={<DeleteIcon />}
@@ -179,6 +202,7 @@ CharacterInput.propTypes = {
   }).isRequired,
   onChange: PropTypes.func.isRequired,
   onGenerate: PropTypes.func.isRequired,
+  novelPk: PropTypes.any, // Add novelPk prop
 }
 
 export default CharacterInput

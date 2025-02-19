@@ -80,12 +80,16 @@ const [loading, setLoading] = useState(true);
 const [error, setError] = useState(null);
 const navigate = useNavigate();
 
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
+
+
 useEffect(() => {
     const fetchNovelDetails = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`http://127.0.0.1:8000/api/v1/novel/${novelId}/detail`);
+            const response = await axios.get(`${BACKEND_URL}/api/v1/novel/${novelId}/detail`);
             setNovelData(response.data);
+            console.log(response.data)
         } catch (err) {
             setError(err.message || '소설 정보를 불러오는 데 실패했습니다.');
             console.error("Error fetching novel details:", err);
@@ -212,7 +216,10 @@ return (
             {/* 표지 섹션 */}
             <Box
                 component="img"
-                src={coverPlaceholder}
+                src={
+                    novelInfo.novel_img === "static_url"
+                      ? coverPlaceholder : `${novelInfo.novel_img}`
+                    }
                 alt="소설 표지"
                 sx={{
                     width: 200,
@@ -231,10 +238,10 @@ return (
                 </Typography>
                 <Stack direction="column" spacing={1}>
                     <Typography variant="body1" color="text.secondary">
-                        {novelInfo.user_pk || '작가 정보 없음'}
+                        {novelData.author || '작가 정보 없음'}
                     </Typography>
                     <Typography variant="body1">
-                        {novelInfo.synopsis || '시놉시스 없음'}
+                        {novelInfo.summary || '시놉시스 없음'}
                     </Typography>
                     <Stack direction="row" spacing={2} alignItems="center">
                         <Stack direction="row" spacing={1} alignItems="center">
@@ -452,7 +459,7 @@ return (
             </Table>
         </TableContainer>
 
-        {/* 댓글 섹션 */}
+        댓글 섹션
         <Paper sx={{ mt: 3, p: 3, borderRadius: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -482,7 +489,7 @@ return (
                 </Stack>
             </Box>
 
-            {/* 댓글 입력 영역 */}
+            댓글 입력 영역
             <Paper
                 variant="outlined"
                 sx={{
@@ -552,7 +559,7 @@ return (
                 </Button>
             </Paper>
 
-            {/* 댓글 목록 */}
+            댓글 목록
             <Stack spacing={2}>
                 {comments.map((comment) => (
                     <Paper

@@ -1,27 +1,21 @@
 import styled from '@emotion/styled'
-import { useState } from 'react'
+import axios from 'axios'
+import { useEffect, useState } from 'react'
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
+// Import useEffect
 import AddIcon from '@mui/icons-material/Add'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import DeleteIcon from '@mui/icons-material/Delete'
 import OfflineBoltIcon from '@mui/icons-material/OfflineBolt'
 import SaveIcon from '@mui/icons-material/Save'
-import {
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Divider,
-  Grid,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material'
+import { Box, Button, Chip, CircularProgress, Divider, Grid, Paper, Stack, TextField, Typography } from '@mui/material'
 
 import CharacterInput from '../components/character/CharacterInput'
 import DropZone from '../components/common/DropZone'
 import { PrimaryButton } from '../components/common/buttons'
+
+// Import Axios
 
 // 결과 이미지 슬롯 스타일링
 const ResultSlot = styled(Paper)(({ theme }) => ({
@@ -43,21 +37,22 @@ const stylePresets = [
   { id: 2, name: '유화', description: '클래식하고 고급스러운 유화 스타일' },
   { id: 3, name: '일러스트', description: '현대적이고 감각적인 일러스트 스타일' },
   { id: 4, name: '포토리얼', description: '사실적이고 생동감 있는 사진 스타일' },
-  { id: 5, name: '미니멀', description: '심플하고 모던한 미니멀 스타일' },
+  { id: 5, name: '미니멈', description: '심플하고 모던한 미니멈 스타일' },
 ]
-
+const BACKEND_URL = "http://127.0.0.1:8000/api/v1/"
 const NovelBackgroundEditor = () => {
-  const [selectedGenre, setSelectedGenre] = useState('')
+  const [selectedGenre, setSelectedGenre] = useState([])
   const [title, setTitle] = useState('')
   const [worldView, setWorldView] = useState('')
   const [background, setBackground] = useState('')
   const [characters, setCharacters] = useState([
-    { id: 1, type: 'protagonist', name: '', gender: '', age: '', job: '', profile: '' },
-    { id: 2, type: 'protagonist', name: '', gender: '', age: '', job: '', profile: '' },
-    { id: 3, type: 'protagonist', name: '', gender: '', age: '', job: '', profile: '' },
-    { id: 4, type: 'protagonist', name: '', gender: '', age: '', job: '', profile: '' },
-    { id: 5, type: 'supporter', name: '', gender: '', age: '', job: '', profile: '' },
-    { id: 6, type: 'antagonist', name: '', gender: '', age: '', job: '', profile: '' },
+    { id: 1, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' },
+    { id: 2, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' },
+    { id: 3, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' },
+    { id: 4, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' },
+    { id: 5, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' },
+    { id: 6, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' },
+    { id: 7, character_pk: null, role: '', name: '', sex: '', age: '', job: '', profile: '' }
   ])
   const [generationType, setGenerationType] = useState('default')
   const [keywordInput, setKeywordInput] = useState('')
@@ -66,44 +61,125 @@ const NovelBackgroundEditor = () => {
   const [results, setResults] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [uploadLoading, setUploadLoading] = useState(false)
-  const [isSaving, setIsSaving] = useState(false); // Save State
+  const [isSaving, setIsSaving] = useState(false) // Save State
+  const [loading, setLoading] = useState(true) // Add loading state
+  const [summary, setSummary] = useState('') // New state for summary
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false) // New state for summary generating
+  const [novelPk, setNovelPk] = useState(null)
+  const { novelId } = useParams();
+  const location = useLocation(); // useLocation 훅 사용
+  
+  const genres = ['판타지', '무협', '액션', '로맨스', '스릴러', '드라마', 'SF', '기타']
+  const navigate = useNavigate();
+  const [novelData, setNovelData] = useState(null); // 소설 데이터 상태 추가
+  
+  axios.defaults.withCredentials = true; 
+  // novelId가 변경될 때마다 실행되는 useEffect
+  useEffect(() => {
+      if (location.state && location.state.novelInfo) {
+          const data = location.state.novelInfo;
+          setNovelData(data);
+          setTitle(data.title || '');
+          setWorldView(data.worldview || '');
+          setBackground(data.synopsis || '');
+          setSelectedGenre(data.genres || []); 
+          setSummary(data.summary || '');
+          
+          // novel_pk로 캐릭터 데이터 가져오기
+          if (data.novel_pk) {
+            fetchCharacterData(data.novel_pk);
+          }
+          
+          setLoading(false);
+      } else if (novelId) {
+        const fetchNovelData = async () => {
+          setLoading(true);
+          try {
+            const response = await axios.get(`${BACKEND_URL}novel/${novelId}`);
+            const data = response.data;
+            setNovelData(data);
+            setTitle(data.title || '');
+            setWorldView(data.worldview || '');
+            setBackground(data.synopsis || '');
+            setSelectedGenre(data.genres || []); 
+            setSummary(data.summary || '');
+            
+            // novel_pk로 캐릭터 데이터 가져오기
+            if (data.novel_pk) {
+              await fetchCharacterData(data.novel_pk);
+            }
+            
+          } catch (error) {
+            console.error("Error fetching novel data:", error);
+          } finally {
+            setLoading(false);
+          }
+        };
+        fetchNovelData();
+      } else {
+          setLoading(false);
+          setTitle('');
+          setWorldView('');
+          setBackground('');
+          setSelectedGenre([]);
+          setSummary('');
+      }
+  }, [novelId, location.state]);
 
-  const genres = [
-    '판타지',
-    '무협',
-    '액션',
-    '로맨스',
-    '스릴러',
-    '드라마',
-    'SF',
-    '기타'
-  ]
+  // 캐릭터 데이터를 가져오는 함수
+  const fetchCharacterData = async (novel_pk) => {
+    try {
+      const response = await axios.get(`${BACKEND_URL}novel/character/${novel_pk}`);
+      if (response.data && Array.isArray(response.data)) {
+        // 서버에서 받은 데이터로 캐릭터 배열 업데이트
+        console.log(response.data)
+        const updatedCharacters = characters.map((char, index) => {
+          const serverChar = response.data[index];
+          if (serverChar) {
+            return {
+              ...char,
+              id: index + 1,
+              character_pk: serverChar.character_pk || null,
+              role: serverChar.role || '',
+              name: serverChar.name || '',
+              sex: serverChar.sex || '',
+              age: serverChar.age || '',
+              job: serverChar.job || '',
+              profile: serverChar.profile || ''
+            };
+          }
+          return char;
+        });
+        setCharacters(updatedCharacters);
+      }
+    } catch (error) {
+      console.error("Error fetching character data:", error);
+    }
+  };
 
-  const handleGenerate = () => {
-    setIsGenerating(true)
-    // TODO: AI 생성 로직 구현
-    setResults(Array(4).fill(null))
-  }
+    const handleGenreClick = (genre) => {
+      if (selectedGenre.includes(genre)) {
+        // 이미 선택된 장르인 경우, 제거
+        setSelectedGenre(selectedGenre.filter((g) => g !== genre));
+      } else {
+        // 선택되지 않은 장르인 경우, 추가
+        setSelectedGenre([...selectedGenre, genre]);
+      }
+    };
 
     const handleWorldviewGenerate = async () => {
         try {
-            const response = await fetch("http://127.0.0.1:8000/api/v1/ai/worldview", {
-                method: "POST",
+            const response = await axios.post(`${BACKEND_URL}ai/worldview`, {
+                genre: selectedGenre.join(" "),
+                title: title,
+            }, {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({
-                    genre: selectedGenre,
-                    title: title,
-                }),
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
 
-            const data = await response.json();
-            setWorldView(data.worldview);
+            setWorldView(response.data.worldview);
         } catch (error) {
             console.error("Error generating worldview:", error);
             // Handle error appropriately (e.g., display an error message to the user)
@@ -111,10 +187,9 @@ const NovelBackgroundEditor = () => {
     };
 
 
+
   const handleCharacterChange = (characterId) => (newCharacterData) => {
-    setCharacters((prev) =>
-      prev.map((char) => (char.id === characterId ? { ...char, ...newCharacterData } : char))
-    )
+    setCharacters((prev) => prev.map((char) => (char.id === characterId ? { ...char, ...newCharacterData } : char)))
   }
 
   const handleCharacterGenerate = (characterId) => () => {
@@ -127,9 +202,9 @@ const NovelBackgroundEditor = () => {
       ...prev,
       {
         id: prev.length + 1,
-        type: 'extra',
+        role: '',
         name: '',
-        gender: '',
+        sex: '',
         age: '',
         job: '',
         profile: '',
@@ -138,25 +213,28 @@ const NovelBackgroundEditor = () => {
   }
 
   // 파일 업로드 핸들러
-  const handleFileSelect = async (file) => {
-    setUploadLoading(true)
-    try {
-      // TODO: 실제 파일 업로드 로직 구현
-      console.log('Selected file:', file)
-      await new Promise((resolve) => setTimeout(resolve, 2000)) // 임시 딜레이
-    } catch (error) {
-      console.error('File upload failed:', error)
-    } finally {
-      setUploadLoading(false)
-    }
-  }
+  // const handleFileSelect = async (file) => {
+  //   setUploadLoading(true)
+  //   try {
+  //     // TODO: 실제 파일 업로드 로직 구현
+  //     console.log('Selected file:', file)
+  //     await new Promise((resolve) => setTimeout(resolve, 2000)) // 임시 딜레이
+  //   } catch (error) {
+  //     console.error('File upload failed:', error)
+  //   } finally {
+  //     setUploadLoading(false)
+  //   }
+  // }
 
-  const handleAddKeyword = () => {
-    if (keywordInput.trim()) {
-      setKeywords([...keywords, keywordInput.trim()])
-      setKeywordInput('')
-    }
-  }
+  const handleKeywordInputKeyDown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (keywordInput.trim()) {
+              setKeywords(prev => [...prev, keywordInput.trim()]);
+              setKeywordInput('');
+          }
+      }
+  };
 
   const handleDeleteKeyword = (keywordToDelete) => {
     setKeywords(keywords.filter((k) => k !== keywordToDelete))
@@ -164,65 +242,285 @@ const NovelBackgroundEditor = () => {
 
     const handleSynopsisGenerate = async () => {
         try {
-            const response = await fetch("http://127.0.0.1:8000/api/v1/ai/synopsis", {
-                method: "POST",
+            const response = await axios.post(`${BACKEND_URL}ai/synopsis`, {
+                genre: selectedGenre.join(" "),
+                title: title,
+                worldview: worldView, // Corrected variable name
+            }, {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({
-                    genre: selectedGenre,
-                    title: title,
-                    worldview: worldView, // Corrected variable name
-                }),
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            setBackground(data.synopsis);
+            setBackground(response.data.synopsis);
         } catch (error) {
             console.error("Error generating synopsis:", error);
         }
-    };
+      };
     // Save Function
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const response = await fetch("http://127.0.0.1:8000/api/v1/novel", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    title: title,
-                    worldview: worldView,
-                    synopsis: background,
-                    genres: [selectedGenre], // 장르를 리스트 형태로 전달
-                }),
-            });
+            const dataToSend = {
+                title: title,
+                worldview: worldView,
+                synopsis: background,
+                genre: selectedGenre,
+                summary: summary,
+            };
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            let response;
+            if (novelId) {
+                // novelId가 있을 경우 수정 (PUT)
+                response = await axios.put(
+                    `${BACKEND_URL}novel/${novelId}`,
+                    dataToSend,
+                    {
+                        withCredentials: true,
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+            } else {
+                // novelId가 없을 경우 저장 (POST)
+                response = await axios.post(
+                    `${BACKEND_URL}novel`,
+                    dataToSend,
+                    {
+                        withCredentials: true,
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+
+                if (response.status === 200) {
+                    console.log("Novel saved successfully");
+                    console.log("Response Data:", response.data); // Log the response
+                    console.log("Novel Pk value:", response.data.novel_pk);
+                    setNovelPk(response.data.novel_pk);
+                }
             }
-
-            const data = await response.json();
-            console.log("Novel saved successfully:", data); // 저장 성공 로그
-            // TODO: 저장 성공 알림 또는 UI 업데이트
+            // 성공 처리 (예: 사용자에게 알림)
+            if (response.status === 200) {
+                console.log(novelId ? "Novel updated successfully" : "Novel saved successfully");
+                alert(novelId ? "소설이 수정되었습니다." : "소설이 저장되었습니다.");
+            }
         } catch (error) {
-            console.error("Error saving novel:", error);
-            // TODO: 저장 실패 알림
+            console.error("Error saving/updating novel:", error);
+            if (error.response) {
+                console.error("Error details:", error.response.data);
+                alert("소설 저장/수정 중 오류가 발생했습니다."); // 사용자에게 알림
+            }
         } finally {
             setIsSaving(false);
         }
     };
+    const handleAICharacterGenerate = async () => {
+        setIsGenerating(true);
+        let endpoint = `${BACKEND_URL}ai/`;
+    
+        try {
+            const hasCharacterData = characters.some(char =>
+                char.name || char.gender || char.age || char.job || char.profile
+            );
+    
+            const requestData = {
+                genre: selectedGenre.join(" "),
+                title: title,
+                worldview: worldView,
+                synopsis: background,
+                characters: hasCharacterData ? characters : []
+            };
+    
+            endpoint += hasCharacterData ? "characters-new" : "characters";
+    
+            console.log("Request data:", requestData);
+    
+            const response = await axios.post(endpoint, requestData, {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+    
+            console.log("API Response:", response.data);
+    
+            if (response.data) {
+                let newCharactersJSON = null;
+                if (hasCharacterData) {
+                    newCharactersJSON = response.data.new_characters;
+                } else {
+                    newCharactersJSON = response.data.characters;
+                }
+    
+                let newCharacters = []; // 기본값으로 빈 배열 설정
+    
+                try {
+                    if (newCharactersJSON) {
+                        // JSON 파싱 시도
+                        const parsedData = JSON.parse(newCharactersJSON);
+    
+                        // 파싱된 데이터가 배열인지 확인
+                        if (Array.isArray(parsedData)) {
+                            newCharacters = parsedData;
+                        } else {
+                            // 배열이 아닌 경우, 로그를 남기고 빈 배열 사용
+                            console.warn("Parsed character data is not an array, using empty array instead");
+                        }
+                    } else {
+                        console.warn("Character data is null or undefined, using empty array instead");
+                    }
+                } catch (error) {
+                    // JSON 파싱 실패 시 로그를 남기고 빈 배열 사용
+                    console.error("Failed to parse character data:", error);
+                    console.error("Raw data:", newCharactersJSON);
+                    console.warn("Using empty array instead");
+                }
+    
+                const formattedCharacters = newCharacters.map((char, index) => {
+                    const formattedChar = {
+                        id: characters[index]?.id || index + 1,
+                        type: char.role || 'protagonist',
+                        name: char.name || '',
+                        sex: char.sex || '',
+                        age: char.age || '',
+                        job: char.job || '',
+                        profile: char.profile || ''
+                    };
+                    console.log(`Formatted character ${index}:`, formattedChar);
+                    return formattedChar;
+                });
+    
+                console.log("About to update characters with:", formattedCharacters);
 
+
+    
+                setCharacters(hasCharacterData ? [...characters, ...formattedCharacters] : formattedCharacters);
+    
+                setTimeout(() => {
+                    console.log("Characters state after update:", characters);
+                    if (characters !== formattedCharacters) {
+                        console.log("State update might not have been reflected immediately due to React's batching");
+                    }
+                }, 0);
+    
+            } else {
+                throw new Error("Invalid response format");
+            }
+    
+        } catch (error) {
+            console.error("Error in character generation:", error);
+            if (error.response) {
+                console.error("Server error response:", error.response.data);
+            }
+            alert("캐릭터 생성 중 오류가 발생했습니다. 다시 시도해 주세요.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleAISummaryGenerate = async () => {
+        setIsGeneratingSummary(true);
+        try {
+            const requestData = {
+                genre: selectedGenre.join(" "),
+                title: title,
+                worldview: worldView,
+                synopsis: background
+            };
+            const response = await axios.post(`${BACKEND_URL}ai/summary`, requestData, {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+            setSummary(response.data.summary);
+        } catch (error) {
+            console.error("Error generating summary:", error);
+            // Handle error (e.g., display an error message)
+        } finally {
+            setIsGeneratingSummary(false);
+        }
+    };
+    const handleFileUpload = async (file) => {
+        if (!file || !novelPk) {
+          alert("소설을 먼저 저장해주세요.");
+          return;
+        }
+    
+        setUploadLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+      
+            const response = await axios.post(
+                `${BACKEND_URL}save?user_novel=novel&pk=${novelPk}`,
+                formData,
+                {
+                    headers: {
+                        "Content-Type": "multipart/form-data",
+                    },
+                }
+            );
+    
+            if (response.status === 200) {
+                console.log("File uploaded successfully:", response.data);
+                alert("표지 이미지가 성공적으로 업로드되었습니다.");
+            }
+        } catch (error) {
+            console.error("File upload error:", error);
+            alert("표지 이미지 업로드에 실패했습니다.");
+            if (error.response) {
+              console.log("Server responded with:", error.response.status, error.response.data);
+            }
+
+        } finally {
+            setUploadLoading(false);
+        }
+    };
+    const handleGenerate = async () => {
+        setIsGenerating(true);
+        try {
+            const requestData = {
+                genre: selectedGenre,
+                style: stylePresets.find(style => style.id === selectedStyle)?.name || '',
+                title: title,
+                worldview: worldview,
+                keywords: keywords
+            };
+    
+            const response = await axios.post(
+                "http://localhost:8000/image/generate",
+                requestData,
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+    
+            if (response.status === 200) {
+                // 응답 데이터에 따라 결과 처리
+                setResults([response.data]); // 또는 적절한 데이터 처리
+            }
+        } catch (error) {
+            console.error("Image generation error:", error);
+            alert("이미지 생성에 실패했습니다.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+    
   return (
     <Box
       component="main"
       sx={{ flexGrow: 1, overflowX: 'hidden', overflowY: 'auto', height: '100vh' }}
     >
+         {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <CircularProgress />
+            </Box>
+        ) : (
       <Stack direction="column" spacing={2} sx={{ width: '100%', p: 3 }}>
         <Stack
           direction="row"
@@ -265,30 +563,30 @@ const NovelBackgroundEditor = () => {
             }}
           >
             {genres.map((genre) => (
-              <Button
-                key={genre}
-                variant={selectedGenre === genre ? 'contained' : 'outlined'}
-                onClick={() => setSelectedGenre(genre)}
-                sx={{
-                  color: selectedGenre === genre ? 'white' : 'grey.700',
-                  fontWeight: 600,
-                  backgroundColor: selectedGenre === genre ? '#FFA000' : 'transparent',
-                  whiteSpace: 'nowrap',
-                  borderRadius: '20px',
-                  minWidth: 'auto',
-                  width: 'fit-content',
-                  py: 1,
-                  px: 2,
-                  flex: '0 0 auto',
-                  '&:hover': {
-                    backgroundColor: selectedGenre === genre ? '#FFA000' : 'rgba(255, 160, 0, 0.1)',
-                  },
-                  borderColor: selectedGenre === genre ? '#FFA000' : 'grey.300',
-                }}
-              >
-                {genre}
-              </Button>
-            ))}
+    <Button
+        key={genre}
+        variant={selectedGenre.includes(genre) ? 'contained' : 'outlined'}
+        onClick={() => handleGenreClick(genre)}
+        sx={{
+          color: selectedGenre.includes(genre) ? 'white' : 'grey.700',
+          fontWeight: 600,
+          backgroundColor: selectedGenre.includes(genre) ? '#FFA000' : 'transparent',
+          whiteSpace: 'nowrap',
+          borderRadius: '20px',
+          minWidth: 'auto',
+          width: 'fit-content',
+          py: 1,
+          px: 2,
+          flex: '0 0 auto',
+          '&:hover': {
+            backgroundColor: selectedGenre.includes(genre) ? '#FFA000' : 'rgba(255, 160, 0, 0.1)',
+          },
+          borderColor: selectedGenre.includes(genre) ? '#FFA000' : 'grey.300',
+        }}
+      >
+        {genre}
+      </Button>
+    ))}
           </Stack>
         </Box>
 
@@ -387,120 +685,146 @@ const NovelBackgroundEditor = () => {
               },
             }}
           />
-          <Stack direction="row" spacing={1}>
-            <PrimaryButton
-              startIcon={<SaveIcon />}
-              backgroundColor="#111111"
-              hoverBackgroundColor="#404040"
-              sx={{ py: 0.5 }}
-              onClick={handleSave} // Save Function
-              disabled={isSaving}
-            >
-              {isSaving ? "저장 중..." : "저장"}
-            </PrimaryButton>
-            <PrimaryButton
-              startIcon={<DeleteIcon />}
-              backgroundColor="#D32F2F"
-              hoverBackgroundColor="#A82525"
-              sx={{ py: 0.5 }}
-            >
-              삭제
-            </PrimaryButton>
-          </Stack>
-        </Stack>
-        <Divider sx={{ my: 4 }} /> {/* 구분선 */}
-
-        {/* 캐릭터 입력 섹션 */}
-        <Stack direction="column" spacing={1}>
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <Typography variant="h3" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
-              등장인물 정보를 입력해주세요
-            </Typography>
+          {/* Summary Input Field */}
+          <Stack direction="column" spacing={1} sx={{ mb: 2 }}>
+              <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                  <Typography variant="h3" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                      한줄 요약
+                  </Typography>
+                  <PrimaryButton
+                      startIcon={<OfflineBoltIcon />}
+                      onClick={handleAISummaryGenerate}
+                      disabled={isGeneratingSummary}
+                      sx={{ py: 0.5 }}
+                  >
+                      {isGeneratingSummary ? "생성 중..." : "AI 생성"}
+                  </PrimaryButton>
+              </Stack>
+              <TextField
+                fullWidth
+                multiline
+                rows={2}
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                placeholder="작품의 한줄 요약을 입력해주세요. AI 생성 후 수정도 가능합니다."
+                variant="outlined"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                  },
+                }}
+              />
+            </Stack>
             <Stack direction="row" spacing={1}>
               <PrimaryButton
-                startIcon={<OfflineBoltIcon />}
-                onClick={handleGenerate}
-                sx={{ py: 0.5 }}
+                  startIcon={<SaveIcon />}
+                  backgroundColor="#111111"
+                  hoverBackgroundColor="#404040"
+                  sx={{ py: 0.5 }}
+                  onClick={handleSave}
+                  disabled={isSaving || (!novelId)}
               >
-                AI 생성
+                  {isSaving ? '저장 중...' : (novelId ? '수정' : '저장')}
               </PrimaryButton>
               <PrimaryButton
-                startIcon={<AddIcon />}
-                backgroundColor="#1c1c1c"
-                hoverBackgroundColor="#333333"
-                textColor="#ffffff"
+                startIcon={<DeleteIcon />}
+                backgroundColor="#D32F2F"
+                hoverBackgroundColor="#A82525"
                 sx={{ py: 0.5 }}
-                onClick={onAddCharacter}
               >
-                캐릭터 추가
+                삭제
               </PrimaryButton>
             </Stack>
           </Stack>
+          <Divider sx={{ my: 4 }} /> {/* 구분선 */}
+          {/* 캐릭터 입력 섹션 */}
+          <Stack direction="column" spacing={1}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography variant="h3" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                등장인물 정보를 입력해주세요
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                <PrimaryButton
+                  startIcon={<OfflineBoltIcon />}
+                  onClick={handleAICharacterGenerate}
+                  sx={{ py: 0.5 }}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? '생성 중...' : 'AI 생성'}
+                </PrimaryButton>
+                <PrimaryButton
+                  startIcon={<AddIcon />}
+                  backgroundColor="#1c1c1c"
+                  hoverBackgroundColor="#333333"
+                  textColor="#ffffff"
+                  sx={{ py: 0.5 }}
+                  onClick={onAddCharacter}
+                >
+                  캐릭터 추가
+                </PrimaryButton>
+              </Stack>
+            </Stack>
 
-          <Box
-            sx={{
-              overflowX: 'auto',
-              pb: 2,
-              '&::-webkit-scrollbar': {
-                height: '8px',
-              },
-              '&::-webkit-scrollbar-track': {
-                backgroundColor: '#f1f1f1',
-                borderRadius: '4px',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                backgroundColor: '#FFA000',
-                borderRadius: '4px',
-              },
-            }}
-          >
-            <Stack
-              direction="row"
-              spacing={2}
+            <Box
               sx={{
-                minWidth: 'min-content',
-                px: 1,
+                overflowX: 'auto',
+                pb: 2,
+                '&::-webkit-scrollbar': {
+                  height: '8px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  backgroundColor: '#f1f1f1',
+                  borderRadius: '4px',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  backgroundColor: '#FFA000',
+                  borderRadius: '4px',
+                },
               }}
             >
-              {characters.map((character) => (
-                <CharacterInput
-                  key={character.id}
-                  type={character.type}
-                  character={character}
-                  onChange={handleCharacterChange(character.id)}
-                  onGenerate={handleCharacterGenerate(character.id)}
-                />
-              ))}
-            </Stack>
-          </Box>
-        </Stack>
-
-        <Divider sx={{ my: 4 }} />
-
-        {/* 표지 생성 섹션 */}
-        <Stack direction="column" spacing={4}>
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <Typography variant="h1" sx={{ fontSize: '2rem', fontWeight: 950 }}>
-              소설 표지 생성
-            </Typography>
+              <Stack
+                direction="row"
+                spacing={2}
+                sx={{
+                  minWidth: 'min-content',
+                  px: 1,
+                }}
+              >
+                {characters.map((character) => (
+                  <CharacterInput
+                    key={character.id}
+                    type={character.type}
+                    character={character}
+                    onChange={handleCharacterChange(character.id)}
+                    onGenerate={handleCharacterGenerate(character.id)}
+                    novelPk={novelPk}
+                  />
+                ))}
+              </Stack>
+            </Box>
           </Stack>
-          <Divider />
+          <Divider sx={{ my: 4 }} />
+          {/* 표지 생성 섹션 */}
+          <Stack direction="column" spacing={4}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography variant="h1" sx={{ fontSize: '2rem', fontWeight: 950 }}>
+                소설 표지 생성
+              </Typography>
+            </Stack>
+            <Divider />
 
-          {/* 생성 타입 선택 */}
-          <Stack spacing={2}>
-            <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
-              표지 생성 타입
-            </Typography>
-            <Stack direction="row" spacing={2}>
-              <PrimaryButton
+            {/* 생성 타입 선택 */}
+            <Stack spacing={2}>
+              <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                표지 생성 타입
+              </Typography>
+              <Stack direction="row" spacing={2}>
+                {/* <PrimaryButton
                 startIcon={<AutoFixHighIcon />}
                 onClick={() => setGenerationType('default')}
                 variant={generationType === 'default' ? 'contained' : 'outlined'}
@@ -508,30 +832,30 @@ const NovelBackgroundEditor = () => {
                 textColor={generationType === 'default' ? 'white' : '#FFA000'}
               >
                 기본 이미지
-              </PrimaryButton>
-              <PrimaryButton
-                startIcon={<CloudUploadIcon />}
-                onClick={() => setGenerationType('upload')}
-                variant={generationType === 'upload' ? 'contained' : 'outlined'}
-                backgroundColor={generationType === 'upload' ? '#FFA000' : 'transparent'}
-                textColor={generationType === 'upload' ? 'white' : '#FFA000'}
-              >
-                파일 업로드
-              </PrimaryButton>
-              <PrimaryButton
-                startIcon={<AddIcon />}
-                onClick={() => setGenerationType('ai')}
-                variant={generationType === 'ai' ? 'contained' : 'outlined'}
-                backgroundColor={generationType === 'ai' ? '#FFA000' : 'transparent'}
-                textColor={generationType === 'ai' ? 'white' : '#FFA000'}
-              >
-                AI 표지 생성
-              </PrimaryButton>
+              </PrimaryButton> */}
+                <PrimaryButton
+                  startIcon={<CloudUploadIcon />}
+                  onClick={() => setGenerationType('upload')}
+                  variant={generationType === 'upload' ? 'contained' : 'outlined'}
+                  backgroundColor={generationType === 'upload' ? '#FFA000' : 'transparent'}
+                  textColor={generationType === 'white' ? 'white' : '#FFA000'}
+                >
+                  파일 업로드
+                </PrimaryButton>
+                <PrimaryButton
+                  startIcon={<AddIcon />}
+                  onClick={() => setGenerationType('ai')}
+                  variant={generationType === 'ai' ? 'contained' : 'outlined'}
+                  backgroundColor={generationType === 'ai' ? '#FFA000' : 'transparent'}
+                  textColor={generationType === 'ai' ? 'white' : '#FFA000'}
+                >
+                  AI 표지 생성
+                </PrimaryButton>
+              </Stack>
             </Stack>
-          </Stack>
 
           {generationType === 'upload' && (
-            <DropZone onFileSelect={handleFileSelect} accept="image/*" loading={uploadLoading} />
+            <DropZone onFileSelect={handleFileUpload} accept="image/*" loading={uploadLoading} />
           )}
 
           {generationType === 'ai' && (
@@ -542,16 +866,16 @@ const NovelBackgroundEditor = () => {
                   이미지 생성 키워드
                 </Typography>
                 <TextField
-                  fullWidth
-                  value={keywordInput}
-                  onChange={(e) => setKeywordInput(e.target.value)}
-                  onKeyPress={handleAddKeyword}
-                  placeholder="키워드를 입력하고 Enter를 눌러주세요 (쉼표로 구분)"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '8px',
-                    },
-                  }}
+                    fullWidth
+                    value={keywordInput}
+                    onChange={(e) => setKeywordInput(e.target.value)}
+                    onKeyDown={handleKeywordInputKeyDown}
+                    placeholder="키워드를 입력하고 Enter나 Space를 눌러주세요"
+                    sx={{
+                        '& .MuiOutlinedInput-root': {
+                            borderRadius: '8px',
+                        },
+                    }}
                 />
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                   {keywords.map((keyword, index) => (
@@ -571,111 +895,106 @@ const NovelBackgroundEditor = () => {
                 </Box>
               </Stack>
 
-              {/* 스타일 선택 */}
-              <Stack spacing={2}>
-                <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
-                  이미지 스타일 선택
-                </Typography>
-                <Grid
-                  container
-                  spacing={2}
-                  sx={{
-                    width: '100%',
-                    '& .MuiGrid-item': {
-                      padding: 0,
-                    },
-                  }}
-                >
-                  {stylePresets.map((style) => (
-                    <Grid item xs={12} sm={6} md={4} key={style.id}>
-                      <Paper
-                        sx={{
-                          p: 2,
-                          cursor: 'pointer',
-                          border: selectedStyle === style.id ? '2px solid #FFA000' : 'none',
-                          '&:hover': {
-                            backgroundColor: 'grey.100',
-                          },
-                        }}
-                        onClick={() => setSelectedStyle(style.id)}
-                      >
-                        <Typography variant="h6">{style.name}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {style.description}
-                        </Typography>
-                      </Paper>
+                {/* 스타일 선택 */}
+                <Stack spacing={2}>
+                  <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                    이미지 스타일 선택
+                  </Typography>
+                  <Grid
+                    container
+                    spacing={2}
+                    sx={{
+                      width: '100%',
+                      '& .MuiGrid-item': {
+                        padding: 0,
+                      },
+                    }}
+                  >
+                    {stylePresets.map((style) => (
+                      <Grid item xs={12} sm={6} md={4} key={style.id}>
+                        <Paper
+                          sx={{
+                            p: 2,
+                            cursor: 'pointer',
+                            border: selectedStyle === style.id ? '2px solid #FFA000' : 'none',
+                            '&:hover': {
+                              backgroundColor: 'grey.100',
+                            },
+                          }}
+                          onClick={() => setSelectedStyle(style.id)}
+                          >
+                            <Typography variant="h6">{style.name}</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {style.description}
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                      ))}
                     </Grid>
-                  ))}
-                </Grid>
-              </Stack>
-
-              {/* 생성 결과 */}
-              <Stack spacing={2}>
-                <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
-                  AI 생성 결과물
-                </Typography>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    overflowX: 'auto',
-                    pb: 2,
-                    gap: 2,
-                    '&::-webkit-scrollbar': {
-                      height: '8px',
-                    },
-                    '&::-webkit-scrollbar-track': {
-                      backgroundColor: '#f1f1f1',
-                      borderRadius: '4px',
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                      backgroundColor: '#FFA000',
-                      borderRadius: '4px',
-                    },
-                  }}
-                >
-                  {results.map((result, index) => (
+                  </Stack>
+  
+                  {/* 생성 결과 */}
+                  <Stack spacing={2}>
+                    <Typography variant="h2" sx={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                      AI 생성 결과물
+                    </Typography>
                     <Box
-                      key={index}
                       sx={{
-                        flex: '0 0 auto',
-                        width: '250px',
+                        display: 'flex',
+                        overflowX: 'auto',
+                        pb: 2,
+                        gap: 2,
+                        '&::-webkit-scrollbar': {
+                          height: '8px',
+                        },
+                        '&::-webkit-scrollbar-track': {
+                          backgroundColor: '#f1f1f1',
+                          borderRadius: '4px',
+                        },
+                        '&::-webkit-scrollbar-thumb': {
+                          backgroundColor: '#FFA000',
+                          borderRadius: '4px',
+                        },
                       }}
                     >
-                      <ResultSlot>
-                        {isGenerating ? (
-                          <Typography color="text.secondary">생성중...</Typography>
-                        ) : (
-                          <Typography color="text.secondary">결과 {index + 1}</Typography>
-                        )}
-                      </ResultSlot>
+                      {results.map((result, index) => (
+                        <Box
+                          key={index}
+                          sx={{
+                            flex: '0 0 auto',
+                            width: '250px',
+                          }}
+                        >
+                          <ResultSlot>
+                            {isGenerating ? (
+                              <Typography color="text.secondary">생성중...</Typography>
+                            ) : (
+                              <Typography color="text.secondary">결과 {index + 1}</Typography>
+                            )}
+                          </ResultSlot>
+                        </Box>
+                      ))}
                     </Box>
-                  ))}
-                </Box>
-              </Stack>
-
-              {/* 생성 버튼 */}
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                <PrimaryButton
-                  startIcon={
-                    isGenerating ? (
-                      <CircularProgress size={20} color="inherit" />
-                    ) : (
-                      <AutoFixHighIcon />
-                    )
-                  }
-                  onClick={handleGenerate}
-                  disabled={isGenerating || keywords.length === 0 || !selectedStyle}
-                  sx={{ minWidth: 200 }}
-                >
-                  {isGenerating ? '생성중...' : 'AI 표지 생성하기'}
-                </PrimaryButton>
-              </Box>
-            </>
-          )}
-        </Stack>
-      </Stack>
-    </Box>
-  )
-}
-
-export default NovelBackgroundEditor
+                  </Stack>
+  
+                  {/* 생성 버튼 */}
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                    <PrimaryButton
+                      startIcon={isGenerating ? <CircularProgress size={20} color="inherit" /> : <AutoFixHighIcon />}
+                      onClick={handleGenerate}
+                      disabled={isGenerating || keywords.length === 0 || !selectedStyle}
+                      sx={{ minWidth: 200 }}
+                    >
+                      {isGenerating ? '생성중...' : 'AI 표지 생성하기'}
+                    </PrimaryButton>
+                  </Box>
+                </>
+              )}
+            </Stack>
+          </Stack>
+        )}
+      </Box>
+    )
+  }
+  
+  export default NovelBackgroundEditor

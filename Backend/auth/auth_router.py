@@ -61,30 +61,9 @@ router = APIRouter(
 )
 
 
-@router.get("/me", description="현재 로그인 한 사용자 조회", response_model=dict)
-async def get_user_info(request: Request, db: Session = Depends(get_db)):
-    access_token = request.cookies.get("access_token")  # 쿠키에서 access_token 가져오기
-
-    if not access_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Access token is missing.")
-
-    try:
-        payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-
-        if email is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
-
-        user = user_crud.get_user_by_email(db, email)
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-        return {"user_pk": user.user_pk, "email": user.email}
-
-    except ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Access token expired. Please login again.")
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
+@router.get("/me", description="현재 로그인 한 사용자 조회")
+async def get_user_info(current_user: User = Depends(get_current_user)):
+    return {"user_pk": current_user.user_pk, "email": current_user.email, "nickname":current_user.nickname}
 
 
 # ======================================= 회원가입 로직 ======================================= 
@@ -160,7 +139,8 @@ async def signup(new_user: auth_schema.NewUserForm, db: Session = Depends(get_db
 
 # ======================================= 로그인 로직 ======================================= 
 
-# 로그인 할 때 받아줄 폼 : OAuth2PasswordRequestForm -> pip install python-multipart 필요
+from utils.auth_utils import set_auth_cookies, delete_auth_cookies
+
 @router.post("/login")
 async def login(response: Response, login_form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db), redis_client: Redis = Depends(get_redis)):
     """
@@ -193,64 +173,16 @@ async def login(response: Response, login_form: OAuth2PasswordRequestForm = Depe
     # Redis에 Refresh Token 저장 (만료 시간 설정)
     await redis_client.setex(f"refresh_token:{user.email}", int(refresh_token_expires.total_seconds()), refresh_token)
 
-    # 개발 환경용 쿠키 설정 (HTTP)
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=False,  # HTTP 사용시 False
-        samesite="lax",
-        max_age=int(access_token_expires.total_seconds()),
-        domain="localhost",  # 개발 환경용
-        path="/"
-    )
-    
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        secure=False,  # HTTP 사용시 False
-        samesite="lax",
-        max_age=int(refresh_token_expires.total_seconds()),
-        domain="localhost",  # 개발 환경용
-        path="/"
+    # 쿠키 설정을 위한 함수 호출
+    set_auth_cookies(
+        response=response,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        access_token_expires_delta=access_token_expires,
+        refresh_token_expires_delta=refresh_token_expires
     )
 
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
-
-
-@router.post("/refresh-token")
-async def refresh_token(response: Response, refresh_token: str = Header(...), redis_client: Redis = Depends(get_redis)):
-    """
-    Refresh Token을 사용하여 새로운 Access Token 발급
-    """
-    try:
-        # Refresh Token 검증
-        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-
-        if email is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
-
-        # Redis에서 Refresh Token 검증
-        stored_token = await redis_client.get(f"refresh_token:{email}")
-        if stored_token != refresh_token:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
-
-        # 새로운 Access Token 생성
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(data={"sub": email}, expires_delta=access_token_expires)
-
-        # 쿠키에 새로운 Access Token 저장
-        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="Lax", max_age=int(access_token_expires.total_seconds())
-                            ,path="/",  # 모든 경로에서 쿠키 사용
-                            domain="127.0.0.1" #개발환경에서는 localhost로 설정, 프로덕션에서는 실제 도메인
-                            )
-
-        return {"access_token": access_token, "token_type": "bearer"}
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
-
 
 # ======================================= 로그아웃 로직 ======================================= 
 
@@ -280,11 +212,9 @@ async def logout(request: Request, response: Response, db: Session = Depends(get
             # JWT 디코딩 실패해도 계속 진행
             pass
 
-    # 항상 쿠키는 삭제
-    response.delete_cookie(key="access_token", httponly=True)
-    response.delete_cookie(key="refresh_token", httponly=True)
+    delete_auth_cookies(response)
 
-    return {"message": "Successfully logged out"}
+    return {"message": "성공적으로 로그아웃 되었습니다."}
 
 # ======================================= 아이디 찾기 로직 =======================================
 

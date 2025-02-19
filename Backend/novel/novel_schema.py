@@ -31,10 +31,6 @@ class CharacterBase(BaseModel) :
     profile : str
 
 
-
-
-
-
 class GenreGetBase(BaseModel) : 
     genre_pk: int
     genre : str
@@ -44,6 +40,7 @@ class NovelShowBase(BaseModel) :
     title: str
     created_date : datetime  
     updated_date : datetime   # 이거 뭐로 해야 하냐? 
+    summary : Optional[str] = None
     novel_img : str 
     views : int
     likes : int
@@ -57,10 +54,23 @@ class NovelCreateBase(BaseModel):
     title: str
     worldview: str
     synopsis: str
+    summary : Optional[str] = None
     genres: List[str] = Field(description="List of genre names")
 
     class Config:
         from_attributes = True
+
+
+# class NovelShowBase(BaseModel) : 
+#     novel_pk : int
+#     title: str
+#     worldview: str
+#     synopsis: str
+#     summary : Optional[str] = None
+#     genres: List[str] = Field(description="List of genre names")
+
+#     class Config:
+#         from_attributes = True
 
 
 # 소설 기본 정보 (응답용)
@@ -80,6 +90,7 @@ class NovelBase(NovelCreateBase):
 # 소설 부분 업데이트 요청
 class NovelUpdateBase(BaseModel):
     title: Optional[str] = None
+    summary : Optional[str] = None
     worldview: Optional[str] = None
     synopsis: Optional[str] = None
     genre: Optional[List[str]] = None
@@ -204,6 +215,12 @@ class SynopsisRequest(BaseModel):
     title: str
     worldview: str
 
+class SummaryRequest(BaseModel):
+    genre: str
+    title: str
+    worldview: str
+    synopsis : str
+
 class CharacterModel(BaseModel):
     name: str
     sex: str
@@ -211,12 +228,12 @@ class CharacterModel(BaseModel):
     role: str
     job: str
     profile: str
-    특징: str
 
 class CharacterRequest(BaseModel):
     genre: str
     title: str
     worldview: str
+    summary : Optional[str] = None
     synopsis: str
     characters: List[CharacterModel] = []  # 기존 캐릭터가 있으면 함께 전달 가능
 
@@ -236,3 +253,20 @@ class ImageRequest(BaseModel):
     title: str
     worldview: str
     keywords: List[str]
+
+
+class EpisodeDetailResponse(BaseModel):
+    # Novel info
+    novel_title: str
+    # Episode info
+    ep_title: str
+    ep_content: str
+    created_date: datetime
+    updated_date: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NovelTitleResponse(BaseModel):
+    novel_title: str
