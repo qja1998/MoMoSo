@@ -212,3 +212,4 @@ zipp
 zstandard
 alembic
 google-api-python-client
+accelerate
