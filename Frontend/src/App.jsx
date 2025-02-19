@@ -22,7 +22,6 @@ import UserChangeInfo from '/src/pages/UserChangeInfo'
 import UserFindId from '/src/pages/UserFindId'
 import UserFindPassword from '/src/pages/UserFindPassword'
 import UserLogin from '/src/pages/UserLogin'
-import UserLoginSuccess from '/src/pages/UserLoginSuccess'
 import UserResetPassword from '/src/pages/UserResetPassword'
 import UserSignUp from '/src/pages/UserSignUp'
 import theme from '/src/styles/theme'
@@ -40,7 +39,6 @@ function App() {
               <Route path="/" element={<NovelList />} />
               <Route path="/auth">
                 <Route path="login" element={<UserLogin />} />
-                <Route path="login-success" element={<UserLoginSuccess />} />
                 <Route path="signup" element={<UserSignUp />} />
                 <Route path="find-id" element={<UserFindId />} />
                 <Route path="find-password" element={<UserFindPassword />} />
