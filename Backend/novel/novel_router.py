@@ -99,11 +99,11 @@ def get_character_info(novel_pk : int, db: Session = Depends(get_db)) :
 def save_character(novel_pk : int, character_info : novel_schema.CharacterBase, db: Session = Depends(get_db)) :
     return novel_crud.save_character(novel_pk, character_info ,db)
 
-@router.put("/api/v1/novel/character/{character_pk}")
+@router.put("/novel/character/{character_pk}")
 def update_character(character_pk : int, update_data: novel_schema.CharacterUpdateBase, db: Session = Depends(get_db)) : 
     return novel_crud.update_character(character_pk,update_data, db)
 
-@router.delete("/api/v1/novel/character/{character_pk}")
+@router.delete("/novel/character/{character_pk}")
 def delete_character(character_pk : int, db: Session = Depends(get_db)) : 
     return novel_crud.delete_character(character_pk, db )
 
@@ -116,13 +116,17 @@ def update_novel(novel_pk: int, update_data: novel_schema.NovelUpdateBase,db: Se
     return novel
 
 # 소설 생성
+
+"""
+
+여기 여기 
+
+"""
 @router.post("/novel", response_model=novel_schema.NovelShowBase)
 def create_novel(novel_info: novel_schema.NovelCreateBase, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    print(user.refresh_token)
     novel = novel_crud.create_novel(novel_info, user.user_pk, db)
     return novel
-
-
-
 
 @router.delete("/novel/{novel_pk}")
 def delete_novel(novel_pk: int, db: Session = Depends(get_db)):
