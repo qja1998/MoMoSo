@@ -30,4 +30,4 @@ COPY --from=build /app/dist ./dist
 RUN mkdir frontend_build
 RUN ls -la /app/dist || (echo "❌ dist/ 폴더 없음! COPY 실패" && exit 1)
 
-CMD ["cp", "-r", "/app/dist", "/app/frontend_build"]
+CMD ["cp", "-rf", "/app/dist", "/app/frontend_build"]

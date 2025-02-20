@@ -13,10 +13,10 @@ services:
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ./Frontend
-      dockerfile: Dockerfile.prod
-    # image: kwon0528/b106-frontend:release
+    # build:
+    #   context: ./Frontend
+    #   dockerfile: Dockerfile.prod
+    image: kwon0528/b106-frontend:release
     env_file:
       - .env
     container_name: prod-frontend
