@@ -9,6 +9,8 @@ from fastapi import File, UploadFile # 삭제 예정
 import os
 from dotenv import load_dotenv
 import httpx
+import random
+
 
 # AI 이미지 생성 
 from ai.gen_image import ImageGenerator
@@ -31,10 +33,14 @@ from fastapi.responses import Response
 import requests
 import os
 from io import BytesIO
+from fastapi.staticfiles import StaticFiles
+
 
 router = APIRouter(
     prefix='/api/v1',
 )
+router.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 @router.get("/main", response_model=novel_schema.MainPageResponse)
 def main_page(
@@ -131,7 +137,7 @@ def update_novel(novel_pk: int, update_data: novel_schema.NovelUpdateBase,db: Se
     return novel
 
 # 소설 생성
-@router.post("/novel", response_model=novel_schema.NovelShowBase)
+@router.post("/novel", response_model=novel_schema.NovelShowBaseCreate)
 def create_novel(novel_info: novel_schema.NovelCreateBase, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     novel = novel_crud.create_novel(novel_info, user.user_pk, db)
     return novel
@@ -404,22 +410,43 @@ JUPYTER_URL = os.environ["JUPYTER_URL"]
 @router.post("/image/generate")
 async def AI_img_generate(req: novel_schema.ImageRequest) :
     headers = {"Content-Type": "application/json"}
-    response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=req, headers=headers)
-    if response.status_code == 200:
-        print("✅ 이미지 생성 성공!")
-        img_data = BytesIO(response.content)
-        image = Image.open(img_data)
+    req_data = req.model_dump()
 
-        # 🖼️ 이미지 띄우기
-        # image.show()
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{JUPYTER_URL}/api/v1/editor/image_ai", json=req_data, headers=headers, timeout=180.0)
+            print(response)
 
-        # 💾 이미지 저장
-        img_name = f"{req['title']}.png"
-        save_path = os.path.join(os.getcwd(), "static", img_name)
-        image.save(save_path, format="PNG")
-        print("📸 이미지가 저장되었습니다.")
+            if response.status_code == 200:
+                print("✅ 이미지 생성 성공!")
+                img_data = BytesIO(response.content)
+                image = Image.open(img_data)
+
+                # 💾 이미지 저장
+                img_name = f"{random.randrange(1, 10000)}.png"
+                save_path = os.path.join(os.getcwd(), "static", img_name)
+                try : 
+                    image.save(save_path, format="PNG")
+                    print("📸 이미지가 저장되었습니다.")
+                    return {"img_name" : img_name}
+
+                except Exception as e: 
+                    print(e) 
+                
+            
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Could not connect to image service: {str(e)}"
+            )
         
-        return HTTPException(status_code=status.HTTP_201_CREATED)
+        else:
+            print(response.status)
+            raise HTTPException(
+                status_code=response.status_code,
+                detail="Image generation failed"
+            )
 
 
 @router.post("/api/v1/editor/image_ai")

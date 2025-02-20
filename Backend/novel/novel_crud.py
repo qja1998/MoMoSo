@@ -133,7 +133,7 @@ def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Ses
     ]
 
     # 스키마 객체 생성
-    novel_base = novel_schema.NovelShowBase( # NovelShowBase 스키마 사용
+    novel_base = novel_schema.NovelShowBaseCreate( # NovelShowBase 스키마 사용
         novel_pk=novel.novel_pk,
         title=novel.title,
         worldview=novel.worldview,
@@ -143,7 +143,7 @@ def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Ses
         views=novel.views,
         likes=novel.likes,
         is_completed=novel.is_completed,
-        genre=genre_names # GenreGetBase 리스트 할당
+        genres=genre_names # GenreGetBase 리스트 할당
     )
     
     return novel_base

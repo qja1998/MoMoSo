@@ -22,18 +22,23 @@ class MainPageResponse(BaseModel):
         from_attributes = True
 
 
-class CharacterBase(BaseModel) :
+class CharacterBase(BaseModel) : 
+    # novel_pk : int
     name : str
     role : str
-    age : int 
-    sex : bool
+    age : str 
+    sex : str
     job : str
     profile : str
+
 
 
 class GenreGetBase(BaseModel) : 
     genre_pk: int
     genre : str
+
+    class Config:
+        from_attributes = True
 
 class NovelShowBase(BaseModel) : 
     novel_pk : int
@@ -49,6 +54,23 @@ class NovelShowBase(BaseModel) :
     
     class Config:
         from_attributes = True
+
+class NovelShowBaseCreate(BaseModel) : 
+    novel_pk : int
+    title: str
+    created_date : Optional[datetime] = None  
+    updated_date : Optional[datetime] = None   # 이거 뭐로 해야 하냐? 
+    summary : Optional[str] = None
+    novel_img : str 
+    views : int
+    likes : int
+    is_completed : bool
+    genres: List[GenreGetBase] 
+    
+    class Config:
+        from_attributes = True
+
+
 
 class NovelCreateBase(BaseModel):
     title: str
@@ -168,8 +190,8 @@ class CharacterBase(BaseModel) :
     # novel_pk : int
     name : str
     role : str
-    age : int 
-    sex : bool
+    age : str 
+    sex : str
     job : str
     profile : str
 
@@ -181,26 +203,13 @@ class CharacterUpdateBase(BaseModel) :
     job: Optional[str] = None
     profile: Optional[str] = None
 
-    @field_validator("name","role","job","profile")
+    @field_validator("name","role", "age","sex","job","profile")
     @classmethod
     def validate_not_empty(cls, v):
         if v is None and v.strip():
             raise ValueError("이 필드는 비워둘 수 없습니다.")
         return v  # 값을 반환해야 함
     
-    @field_validator("age")
-    @classmethod
-    def validate_age(cls, v) :
-        if v < 0 : 
-            raise ValueError("나이는 0살 이하일 수 없습니다.")
-        return v
-    
-    @field_validator("sex")
-    @classmethod
-    def validate_sex(cls, v) :
-        if v > 2 or v < 0 : 
-            raise ValueError("성별은 3가지 옵션 중 하나로 선택해주십시오.")
-        return v
     
 
 
