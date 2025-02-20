@@ -203,7 +203,7 @@
 | 회원가입 | 로그인 |
 |:---:|:---:|
 | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
-| 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
+| 1. 이메일, 필명 중복 확인<br>2. twilio api 활용 휴대전화 인증 기능<br>3. 비밀번호 검증 로직 구현 | 1. JWT 기반 인증 시스템 구현<br>2. 구글 소셜 로그인을 사용한 회원가입 및 로그인 가능 |
 
 </div>
 
@@ -214,7 +214,7 @@
 | 랜딩 페이지 | 메인 페이지 |
 |:---:|:---:|
 | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
-| 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
+| 1. 로그인하지 않은 사용자 : 서비스 소개 페이지 | 1. 로그인한 사용자 : 좋아요를 많이 받은 인기작, 사용자가 최근 본 소설 확인 가능능 |
 
 </div>
 
@@ -225,7 +225,7 @@
 | 소설정보 페이지 | 소설작성 페이지 |
 |:---:|:---:|
 | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
-| 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
+| 1. 장르, 제목 작성<br>2. 세계관, 줄거리, 한줄요약, 등장인물, 표지 생성 AI 기능 사용 가능 | 1. AI 기반으로 소설 생성 가능 |
 
 </div>
 
@@ -236,7 +236,7 @@
 | 토론방 생성 | 그룹 토론 페이지 | 회의록 요약 |
 |:---:|:---:|:---:|
 | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
-| 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
+| 1. 전체 작품, 회차별 토론 생성 가능<br>2. 토론 일시, 주제, 최대 참여 인원 설정 | 1. 채팅, 음성 대화 가능<br>2. 음성은 STT 기술을 통해 텍스트로 전환<br>3. AI 기반 주제 추천, FactCheck 기능 사용 가능 | 1. 회의 결과를 자동으로 AI가 요약<br>2. 요약된 회의록은 작가에게 전달 |
 
 </div>
 
@@ -265,7 +265,7 @@
 
 | ERD | API 연동 규격서 |
 |:---:|:---:|
-| <img src="/uploads/5b9b66c0f28dea56d75738ed72205fec/image.png" style="max-width:450px; max-height:450px; object-fit: contain;"/> | <img src="/uploads/08f77bc4e6d7c095cdfbce9b114efdc0/API.png" style="max-width:450px; max-height:450px; object-fit: contain;"/> |
+| <img src="/uploads/5b9b66c0f28dea56d75738ed72205fec/image.png" style="max-width:450px; max-height:450px; object-fit: contain;"/> | <img src="/uploads/e544c741b83c59ca1117c21e797787e8/API.png" style="max-width:450px; max-height:450px; object-fit: contain;"/> |
 
 </div>
 
