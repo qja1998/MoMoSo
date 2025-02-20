@@ -4,7 +4,7 @@ import { OpenVidu as OpenViduNode } from 'openvidu-node-client'
 import RecordRTC from 'recordrtc'
 import { nanoid } from 'nanoid'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, createRef } from 'react'
 
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -246,11 +246,25 @@ export default function DiscussionRoom() {
     allParticipantsRef.current = allParticipants;
    },[allParticipants]);
 
+   useEffect(() => {
+    // 5초마다 구독자 오디오 상태 확인
+    const checkInterval = setInterval(() => {
+      // 구독자 측 간단 체크
+      subscribers.forEach((sub, idx) => {
+        console.log(`구독자 ${idx} 오디오 활성화 상태:`, sub.stream.audioActive);
+      });
+    }, 5000);
+    
+    return () => clearInterval(checkInterval);
+  }, [subscribers]);
+
   // AI 어시스턴트 관련 상태 추가
   const [factChecks, setFactChecks] = useState([])
   const [isGeneratingTopic, setIsGeneratingTopic] = useState(false)
 
   const vadRef = useRef(null)
+
+  const videoRefs = useRef(new Map());
 
   const participantsRef = useRef([]);
   useEffect(() =>{
@@ -575,7 +589,12 @@ export default function DiscussionRoom() {
         try {
           // 4-1. 세션의 현재 상태 업데이트
           await serverSideSession.fetch()
-
+          console.log('[Server Session] 활성 연결 수:', serverSideSession.activeConnections.length);
+          console.log('[Server Session] 활성 스트림 수:', 
+            serverSideSession.activeConnections.reduce((count, conn) => {
+              return count + conn.publishers.length;
+            }, 0)
+          );
           // 4-2. 현재 사용자의 기존 연결 찾기
           const userConnections = serverSideSession.activeConnections.filter((conn) => {
             try {
@@ -676,6 +695,14 @@ export default function DiscussionRoom() {
                 return;
               }
 
+              const existingParticipant = participants.find(p => 
+                p.connectionId === event.stream.connection.connectionId
+              );
+
+              if (existingParticipant) {
+                return;
+              }
+
               const subscriberOptions = {
                 insertMode: 'APPEND',
                 subscribeToAudio: true,
@@ -683,6 +710,11 @@ export default function DiscussionRoom() {
               };
           
               const subscriber = clientSideSession.subscribe(event.stream, undefined, subscriberOptions);
+
+              // 비디오 엘리먼트 생성 및 연결
+              const videoElement = document.createElement('video');
+              videoElement.style.display = 'none';
+              subscriber.addVideoElement(videoElement);
               
               // participants 배열 업데이트
               setParticipants(prev => {
@@ -764,6 +796,15 @@ export default function DiscussionRoom() {
                 newSpeakers.delete(connectionData.user_pk);
                 return Array.from(newSpeakers);
               });
+
+              // 비디오 엘리먼트 ref 정리
+              const container = videoRefs.current.get(event.stream.connection.connectionId)?.current;
+              if (container) {
+                while (container.firstChild) {
+                  container.removeChild(container.firstChild);
+                }
+              }
+              videoRefs.current.delete(event.stream.connection.connectionId);
             } catch (error) {
               console.error('Error handling stream destruction:', error);
             }
@@ -780,8 +821,22 @@ export default function DiscussionRoom() {
         console.log('[Step 8] 세션 연결 성공')
 
         // 9. 세션에 스트림 발행
-        await clientSideSession.publish(publisher)
-        console.log('[Step 9] 세션에 스트림 발행 성공')
+        try {
+          console.log('[Step 9-1] 세션 발행 시작', publisher.stream);
+          const publishResult = await clientSideSession.publish(publisher);
+          console.log('[Step 9-2] 세션 발행 성공', publishResult);
+          console.log('[Step 9-3] 오디오 트랙 상태:', 
+            publisher.stream.getMediaStream().getAudioTracks().map(track => ({
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+              id: track.id
+            }))
+          );
+        } catch (error) {
+          console.error('[Step 9] 세션에 스트림 발행 실패:', error);
+          throw error;
+        }
         
         // 10. 전체 데이터 확인
         console.log('[Step 10] 전체 데이터 확인', {
@@ -991,8 +1046,6 @@ export default function DiscussionRoom() {
   const handleTopicRecommendation = async () => {
     setIsGeneratingTopic(true)
     try {
-      // TODO: 토론 주제 추천 API 호출
-      // await new Promise((resolve) => setTimeout(resolve, 1000))
       const response = await sendProceedings();
       setSubject(response.subject)
     } catch (error) {
@@ -1001,6 +1054,40 @@ export default function DiscussionRoom() {
       setIsGeneratingTopic(false)
     }
   }
+
+  // 비디오 엘리먼트 생성 및 연결을 위한 useEffect 수정
+  useEffect(() => {
+    // 약간의 지연을 주어 DOM이 마운트된 후 실행되도록 함
+    const timer = setTimeout(() => {
+      participants.forEach(participant => {
+        const container = videoRefs.current.get(participant.connectionId)?.current;
+        
+        // container가 존재하고 비어있을 때만 videoElement 생성
+        if (container && !container.hasChildNodes() && participant.streamManager) {
+          try {
+            const videoElement = participant.streamManager.createVideoElement();
+            videoElement.style.display = 'none';
+            container.appendChild(videoElement);
+          } catch (error) {
+            console.error('Error creating video element:', error);
+          }
+        }
+      });
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      // cleanup
+      participants.forEach(participant => {
+        const container = videoRefs.current.get(participant.connectionId)?.current;
+        if (container) {
+          while (container.firstChild) {
+            container.removeChild(container.firstChild);
+          }
+        }
+      });
+    };
+  }, [participants]);
 
   return (
     <Grid
