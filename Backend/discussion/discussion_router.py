@@ -680,52 +680,50 @@ def create_discussion_factcheck(
     """
     토론 중 제기된 주장에 대한 팩트 체크 수행
     """
+    if not content:
+        raise HTTPException(status_code=400, detail="메시지 내용이 비어있습니다.")
+
+    # 2. Discussion 조회
     try:
+        discussion = (
+            db.query(Discussion)
+            .filter(Discussion.discussion_pk == discussion_pk)
+            .first()
+        )
+        if not discussion:
+            raise HTTPException(status_code=404, detail=f"Discussion not found: {discussion_pk}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Discussion 조회 실패: {str(e)}")
 
-        if not content:
-            raise HTTPException(status_code=400, detail="메시지 내용이 비어있습니다.")
+    # 3. Novel 조회
+    try:
+        novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+        if not novel:
+            raise HTTPException(status_code=404, detail=f"Novel not found: {discussion.novel_pk}")
+        print(f"Found novel: {novel.title}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Novel 조회 실패: {str(e)}")
 
-        # 2. Discussion 조회
-        try:
-            discussion = (
-                db.query(Discussion)
-                .filter(Discussion.discussion_pk == discussion_pk)
-                .first()
-            )
-            if not discussion:
-                raise HTTPException(status_code=404, detail=f"Discussion not found: {discussion_pk}")
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Discussion 조회 실패: {str(e)}")
+    # 4. 파일 경로 확인
+    txt_filename = f"{novel.title}_{discussion.session_id}.txt"
+    file_path = os.path.join(DOCUMENT_PATH, txt_filename)
+    print(f"Checking file path: {file_path}")
 
-        # 3. Novel 조회
-        try:
-            novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
-            if not novel:
-                raise HTTPException(status_code=404, detail=f"Novel not found: {discussion.novel_pk}")
-            print(f"Found novel: {novel.title}")
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Novel 조회 실패: {str(e)}")
+    if not os.path.exists(file_path):
+        raise HTTPException(
+            status_code=404,
+            detail=f"종료된 토론이므로 기능 사용이 불가합니다.: {file_path}"
+        )
 
-        # 4. 파일 경로 확인
-        txt_filename = f"{novel.title}_{discussion.session_id}.txt"
-        file_path = os.path.join(DOCUMENT_PATH, txt_filename)
-        print(f"Checking file path: {file_path}")
+    # 6. Gemini Assistant를 통한 주제 추천
+    try:
+        assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
+        factcheck = assistant.recommend_discussion_topic(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"주제 추천 생성 실패: {str(e)}")
 
-        if not os.path.exists(file_path):
-            raise HTTPException(
-                status_code=404,
-                detail=f"종료된 토론이므로 기능 사용이 불가합니다.: {file_path}"
-            )
-
-        # 6. Gemini Assistant를 통한 주제 추천
-        try:
-            assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
-            factcheck = assistant.recommend_discussion_topic(content)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"주제 추천 생성 실패: {str(e)}")
-
-        return {
-            "status": "success",
-            "message": "팩트 체크가 성공적으로 진행되었습니다.",
-            "factcheck": factcheck
-        }
+    return {
+        "status": "success",
+        "message": "팩트 체크가 성공적으로 진행되었습니다.",
+        "factcheck": factcheck
+    }
