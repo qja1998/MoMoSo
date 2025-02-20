@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import Diversity3Icon from '@mui/icons-material/Diversity3'
 import Edit from '@mui/icons-material/Edit'
+import EmojiObjectsIcon from '@mui/icons-material/EmojiObjects'
 import ExpandLess from '@mui/icons-material/ExpandLess'
 import ExpandMore from '@mui/icons-material/ExpandMore'
 import Home from '@mui/icons-material/Home'
@@ -43,8 +44,6 @@ const SidebarEdit = () => {
   const [novelMenuOpen, setNovelMenuOpen] = useState(false)
   const [discussionMenuOpen, setDiscussionMenuOpen] = useState(false)
   const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
-
-  const menuItems = [{ text: '홈', icon: <Home fontSize="large" />, path: '/' }]
 
   useEffect(() => {
     const fetchNovels = async () => {
@@ -88,7 +87,7 @@ const SidebarEdit = () => {
 
   const handleNavigate = (path) => {
     // 보호된 경로 체크
-    const protectedRoutes = ['/novel/edit', '/conference']
+    const protectedRoutes = ['/novel/edit', '/discussion']
     if (!isLoggedIn && protectedRoutes.includes(path)) {
       showLoginModal('/auth/login')
       return
@@ -271,37 +270,31 @@ const SidebarEdit = () => {
               <Edit fontSize="large" />
             </ListItemIcon>
             {open && (
-              <>
-                <ListItemText
-                  primary="작성중인 작품"
-                  sx={{
-                    flex: '1 1 auto',
-                    mr: 0,
-                  }}
-                  slotProps={{
-                    primary: {
-                      sx: {
-                        color: '#1E1E1E',
-                        fontFamily: '"Poppins", "Pretendard"',
-                        fontSize: '20px',
-                        fontWeight: 'bold',
-                        display: 'inline-flex',
-                        alignItems: 'center',
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{
+                  width: '100%',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Stack direction="row" spacing={3} alignItems="center">
+                  <ListItemText
+                    primary="작성중인 작품"
+                    slotProps={{
+                      primary: {
+                        sx: {
+                          color: '#1E1E1E',
+                          fontFamily: '"Poppins", "Pretendard"',
+                          fontSize: '20px',
+                          fontWeight: 'bold',
+                        },
                       },
-                    },
-                  }}
-                />
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  alignItems="center"
-                  sx={{
-                    ml: 0.5,
-                    minWidth: 'fit-content',
-                  }}
-                >
+                    }}
+                  />
                   <Badge
-                    badgeContent={novels.length}
+                    badgeContent={novels.length > 99 ? '99+' : novels.length}
                     color="primary"
                     sx={{
                       '& .MuiBadge-badge': {
@@ -310,9 +303,9 @@ const SidebarEdit = () => {
                       },
                     }}
                   />
-                  {novelMenuOpen ? <ExpandLess /> : <ExpandMore />}
                 </Stack>
-              </>
+                {novelMenuOpen ? <ExpandLess /> : <ExpandMore />}
+              </Stack>
             )}
           </ListItemButton>
         </ListItem>
@@ -380,13 +373,21 @@ const SidebarEdit = () => {
                 color: '#1E1E1E',
               }}
             >
-              <Diversity3Icon fontSize="large" />
+              <EmojiObjectsIcon fontSize="large" />
             </ListItemIcon>
             {open && (
-              <Stack direction="row" justifyContent="space-between">
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{
+                  width: '100%', // 전체 너비 사용
+                  justifyContent: 'space-between', // 양끝 정렬
+                }}
+              >
                 <Stack direction="row" spacing={3} alignItems="center">
                   <ListItemText
-                    primary="토론 아이디어"
+                    primary="집필 아이디어"
                     slotProps={{
                       primary: {
                         sx: {
@@ -394,8 +395,6 @@ const SidebarEdit = () => {
                           fontFamily: '"Poppins", "Pretendard"',
                           fontSize: '20px',
                           fontWeight: 'bold',
-                          display: 'inline-flex',
-                          alignItems: 'center',
                         },
                       },
                     }}

@@ -49,18 +49,6 @@ const Navbar = () => {
     logout()
   }
 
-  const handleProfileClick = () => {
-    // TODO: 프로필 페이지 이동 로직 구현
-    // - 현재 사용자 정보 확인
-    // - 프로필 페이지로 이동
-  }
-
-  const handleSettingsClick = () => {
-    // TODO: 설정 페이지 이동 로직 구현
-    // - 사용자 설정 페이지로 이동
-    // - 현재 설정 상태 로드
-  }
-
   const renderMenuItems = () => {
     if (loading) {
       return <MenuItem>로딩중...</MenuItem>
@@ -69,11 +57,11 @@ const Navbar = () => {
     if (isLoggedIn) {
       return (
         <>
-          <MenuItem component={Link} to="/auth/mypage" onClick={handleProfileClick}>
+          <MenuItem component={Link} to="/auth/mypage">
             <PersonIcon sx={{ mr: 1 }} />
             마이페이지
           </MenuItem>
-          <MenuItem component={Link} to="/auth/change-info" onClick={handleSettingsClick}>
+          <MenuItem component={Link} to="/auth/change-info">
             <ManageAccountsIcon sx={{ mr: 1 }} />
             회원정보 수정
           </MenuItem>
@@ -131,9 +119,9 @@ const Navbar = () => {
               onClick={() => setAnchorEl(null)}
             >
               <div>
-                <MenuItem onClick={() => handleProtectedNavigation('/novel/edit')}>AI소설 에디터</MenuItem>
-                <MenuItem onClick={() => handleProtectedNavigation('/discussion')}>그룹 토론</MenuItem>
                 <MenuItem onClick={() => navigate('/novel')}>소설 게시판</MenuItem>
+                <MenuItem onClick={() => handleProtectedNavigation('/discussion')}>그룹 토론</MenuItem>
+                <MenuItem onClick={() => handleProtectedNavigation('/novel/edit')}>AI소설 에디터</MenuItem>
               </div>
             </Menu>
           </IconButton>

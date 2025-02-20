@@ -13,7 +13,6 @@ import KeyboardDoubleArrowRight from '@mui/icons-material/KeyboardDoubleArrowRig
 import LoginIcon from '@mui/icons-material/Login'
 import LogoutIcon from '@mui/icons-material/Logout'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
-import MenuBook from '@mui/icons-material/MenuBook'
 import LocalLibraryIcon from '@mui/icons-material/LocalLibrary';
 import PersonIcon from '@mui/icons-material/Person'
 import Avatar from '@mui/material/Avatar'
@@ -29,7 +28,7 @@ import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import Stack from '@mui/material/Stack'
 
-const drawerWidth = 240
+const drawerWidth = 280
 
 const Sidebar = () => {
   const [open, setOpen] = useState(true)
@@ -39,9 +38,9 @@ const Sidebar = () => {
 
   const menuItems = [
     { text: '홈', icon: <Home fontSize="large" />, path: '/' },
-    { text: 'AI 소설 에디터', icon: <Edit fontSize="large" />, path: '/novel/edit/character' },
-    { text: '그룹 토론', icon: <Diversity3Icon fontSize="large" />, path: '/novel/edit/episode' },
-    { text: '소설 게시판', icon: <LocalLibraryIcon fontSize="large" />, path: '/novel/edit/background' },
+    { text: 'AI 소설 에디터', icon: <Edit fontSize="large" />, path: '/novel/edit/' },
+    { text: '그룹 토론', icon: <Diversity3Icon fontSize="large" />, path: '/discussion' },
+    { text: '소설 게시판', icon: <LocalLibraryIcon fontSize="large" />, path: '/novel' },
   ]
 
   const handleDrawerToggle = () => {
