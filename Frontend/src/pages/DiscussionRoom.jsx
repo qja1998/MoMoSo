@@ -245,6 +245,11 @@ export default function DiscussionRoom() {
 
   const vadRef = useRef(null)
 
+  const participantsRef = useRef([]);
+  useEffect(() =>{
+    participantsRef.current = participants;
+  },[participants]);
+
   // 오디오 데이터 전송
   const sendAudioData = async (blob) => {
     const formData = new FormData()
@@ -410,17 +415,21 @@ export default function DiscussionRoom() {
       }
     ];
 
+    // Extract participant names correctly
+    const participantNames = [
+      user?.nickname,
+      ...participantsRef.current
+        .filter(p => p.nickname && p.nickname !== user?.nickname)
+        .map(p => p.nickname)
+    ];
+
     const formData = new FormData();
     formData.append('room_name',discussionInfo?.session_id);
     formData.append('host_name',user?.nickname);
     formData.append('start_time',meetingStartTime.toISOString());
     formData.append('end_time',new Date().toISOString());
     formData.append('duration',((new Date() - meetingStartTime)/1000/60).toFixed(2));
-
-    formData.append('participants',JSON.stringify([
-      user?.nickname,
-      ...subscribers.map(sub => JSON.parse(sub.stream.connection.data).clientData)
-    ]));
+    formData.append('participants', JSON.stringify(participantNames));
 
     formData.append('messages',JSON.stringify(messagesToSave));
 
@@ -772,7 +781,7 @@ export default function DiscussionRoom() {
           console.error('나가기 처리 중 오류 발생:', error)
         }
       }
-      
+
       cleanup()
     }
   }, [discussionId, isLoggedIn, loading, navigate, user])
