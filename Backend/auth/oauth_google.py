@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Cookie
-from fastapi.responses import RedirectResponse, HTMLResponse # Import 추가
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from database import get_db
 from models import User, OAuthAccount
@@ -10,6 +10,8 @@ import uuid
 import os
 import requests
 from utils.auth_utils import set_auth_cookies
+from utils.redis_utils import get_redis
+from redis import Redis
 
 # JWT 설정
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -23,10 +25,8 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GOOGLE_TOKEN_URL = os.getenv("GOOGLE_TOKEN_URL")
 GOOGLE_USERINFO_URL = os.getenv("GOOGLE_USERINFO_URL")
 REDIRECT_URI = os.getenv("REDIRECT_URI")
-FRONTEND_REDIRECT_URI = os.getenv("FRONTEND_REDIRECT_URI") # 프론트엔드 URI
+FRONTEND_REDIRECT_URI = os.getenv("FRONTEND_REDIRECT_URI")
 
-from utils.redis_utils import get_redis # utils.redis_utils에서 get_redis 함수 import
-from redis import Redis
 
 router = APIRouter(
     prefix="/oauth",
