@@ -58,7 +58,6 @@ class GetNewDiscussion(BaseModel):
     class Config:
         from_attributes = True
 
-
 # 토론 생성
 class NewDiscussionForm(BaseModel):
     novel_pk: int
@@ -82,53 +81,6 @@ class NewDiscussionForm(BaseModel):
     class Config:
         from_attributes = True
 
-
-
-
 # 토론 요약본 조회
 class Note(BaseModel):
     summary: str
-
-
-# 소설 생성 AI 모델 응답용 스키마
-
-# 토론 요약본 생성
-class SummaryRequest(BaseModel):
-    discussion_pk: int
-    content: dict = {
-        "id": str,
-        "room_name": str,
-        "host_name": str,
-        "start_time": str,
-        "end_time": str,
-        "duration": int,
-        "participants": list,
-        "messages": list
-    }
-
-class MeetingMinutesRequest(BaseModel):
-    discussion_pk: int
-    room_name: str
-    host_name: str
-    start_time: str
-    end_time: str
-    duration: float
-    participants: List[Any]  # 또는 더 구체적인 타입 지정 가능
-    messages: List[Any] 
-
-class FactCheckRequest(BaseModel):
-    discussion_pk: int
-    content: str
-
-class SubjectRequest(BaseModel):
-    discussion_pk: int
-    content: dict = {
-        "id": str,
-        "room_name": str,
-        "host_name": str,
-        "start_time": str,
-        "end_time": str,
-        "duration": int,
-        "participants": list,
-        "messages": list
-    }

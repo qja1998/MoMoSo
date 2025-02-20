@@ -43,8 +43,9 @@ import Typography from '@mui/material/Typography'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
+import CardMedia from '@mui/material/CardMedia'
 
-import coverPlaceholder from '../assets/placeholder/cover-image-placeholder.png'
+import placeholderImage from '/placeholder/cover-image-placeholder.png'
 import { useNovel } from '../contexts/NovelContext'
 import { useAuth } from '../hooks/useAuth'
 
@@ -233,6 +234,10 @@ const NovelEpisodeList = () => {
   // novelData가 준비되지 않았을 때의 로딩 상태 확인
   const isLoading = !novelData?.novel_info?.[0]
 
+  const handleImageError = (event) => {
+    event.target.src = placeholderImage
+  }
+
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
       <Paper
@@ -260,13 +265,8 @@ const NovelEpisodeList = () => {
             }}
           />
         ) : (
-          <Box
+          <CardMedia
             component="img"
-            src={novelData.novel_info[0]?.novel_img || coverPlaceholder}
-            alt="소설 표지"
-            onError={(e) => {
-              e.target.src = coverPlaceholder
-            }}
             sx={{
               width: { xs: '100%', sm: 200 },
               height: { xs: 'auto', sm: 267 },
@@ -276,6 +276,9 @@ const NovelEpisodeList = () => {
               border: '1px solid #e0e0e0',
               flex: { xs: 'none', md: 2 },
             }}
+            image={novelData.novel_info[0]?.novel_img || placeholderImage}
+            alt="소설 표지"
+            onError={handleImageError}
           />
         )}
 

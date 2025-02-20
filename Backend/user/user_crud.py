@@ -1,14 +1,12 @@
-from sqlalchemy.orm import Session
 from fastapi import HTTPException, UploadFile
+from sqlalchemy.sql import func
+from sqlalchemy.orm import joinedload, Session
+from passlib.context import CryptContext
 
 import models
 from models import User, Novel, Comment, CoComment, Episode, user_comment_like_table
-from sqlalchemy.sql import func
-from sqlalchemy.orm import joinedload
 
-from passlib.context import CryptContext
 from . import user_schema
-from auth import auth_schema
 from typing import Optional
 import requests
 
@@ -21,7 +19,6 @@ def get_users(db: Session):
     :return: User 리스트
     """
     return db.query(User).options(joinedload(User.oauth_accounts)).all()
-
 
 def get_user(db: Session, user_id: int):
     """
@@ -155,7 +152,6 @@ def get_user_profile(db: Session, user: User):
         novels_written=novels_written_with_details,  # 변경된 부분
     )
 
-
 def get_user_by_email(db: Session, email: str):
     """
     데이터베이스에서 이메일로 특정 사용자 조회
@@ -204,21 +200,19 @@ def update_user(db: Session, user: User, updated_user: user_schema.UpdateUserFor
     if updated_user.phone and updated_user.phone != user.phone:
         user.phone = updated_user.phone
 
-    # 유저 이미지 수정
-    if updated_user.user_img and file:
-        #여기에 파일 받아야지.
-        data = {
-            "user_novel" : "user",
-            "pk" : user.user_pk, 
-        }
-        response = requests.post("http://127.0.0.1:8000/api/v1/image/generate", data=data,files=file)
-        
+    # # 유저 이미지 수정
+    # if updated_user.user_img and file:
+    #     #여기에 파일 받아야지.
+    #     data = {
+    #         "user_novel" : "user",
+    #         "pk" : user.user_pk, 
+    #     }
+    #     response = requests.post("http://127.0.0.1:8000/api/v1/image/generate", data=data,files=file)
     
     # 데이터베이스 업데이트
     db.commit()
     db.refresh(user)
     return user
-
 
 def delete_user(db: Session, user: models.User):
     """
@@ -261,4 +255,3 @@ def save_recent_novel(db: Session, user_pk: int, novel_pk: int):
 
     db.commit()
     return {"message": "Recent novel updated successfully"}
-
