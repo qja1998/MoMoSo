@@ -1,5 +1,5 @@
 from pydantic import BaseModel, FutureDatetime, field_validator
-from typing import List, Optional, Annotated
+from typing import List, Optional, Annotated, Any
 from datetime import datetime
 from fastapi import HTTPException, status
 from pydantic_core.core_schema import ValidationInfo
@@ -103,6 +103,16 @@ class SummaryRequest(BaseModel):
         "participants": list,
         "messages": list
     }
+
+class MeetingMinutesRequest(BaseModel):
+    discussion_pk: int
+    room_name: str
+    host_name: str
+    start_time: str
+    end_time: str
+    duration: float
+    participants: List[Any]  # 또는 더 구체적인 타입 지정 가능
+    messages: List[Any] 
 
 class FactCheckRequest(BaseModel):
     discussion_pk: int
