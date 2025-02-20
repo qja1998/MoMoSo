@@ -13,10 +13,14 @@ class UserRecentNovel(BaseModel):
     class Config:
         from_attributes = True
 
+class NovelInfo(BaseModel):
+    title: str
+    pk: int
+
 class MainPageResponse(BaseModel):
     user: UserRecentNovel
-    recent_best: Optional[str]  # 최근 인기 소설
-    month_best: Optional[str]  # 한 달 동안 인기 소설
+    recent_best: Optional[NovelInfo] = None
+    month_best: Optional[NovelInfo] = None
 
     class Config:
         from_attributes = True
@@ -198,15 +202,15 @@ class CharacterBase(BaseModel) :
 class CharacterUpdateBase(BaseModel) :
     name: Optional[str] = None
     role: Optional[str] = None
-    age: Optional[int] = None
-    sex: Optional[bool] = None
+    age: Optional[str] = None  # int -> str
+    sex: Optional[str] = None  # bool -> str
     job: Optional[str] = None
     profile: Optional[str] = None
 
     @field_validator("name","role", "age","sex","job","profile")
     @classmethod
     def validate_not_empty(cls, v):
-        if v is None and v.strip():
+        if v is None or not v.strip():
             raise ValueError("이 필드는 비워둘 수 없습니다.")
         return v  # 값을 반환해야 함
     

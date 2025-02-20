@@ -10,8 +10,6 @@ import { Box, Card, Divider, Stack, TextField } from '@mui/material'
 
 import { PrimaryButton } from '../common/buttons'
 
-// Import axios
-
 const CHARACTER_TYPES = {
   protagonist: '주인공',
   supporter: '조력자',
@@ -19,9 +17,9 @@ const CHARACTER_TYPES = {
   extra: '기타 인물',
 }
 
-const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
-  // Add novelPk prop
+const CharacterInput = ({ type, character, onChange, onGenerate, onDelete, novelPk, backendUrl }) => {
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleChange = (field) => (event) => {
     onChange({ ...character, [field]: event.target.value })
@@ -32,20 +30,31 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
     try {
       const characterData = {
         name: character.name,
-        role: character.type, // Assuming 'type' maps to 'role'
-        age: parseInt(character.age, 10), // Convert age to integer
-        sex: character.gender === 'male', // Convert gender to boolean
+        role: character.type,
+        age: character.age.toString(),
+        sex: character.gender.toString(),
         job: character.job,
         profile: character.profile,
       }
 
-      console.log('Sending character data:', characterData) // Check the transformed data
+      console.log('Sending character data:', characterData)
 
-      const response = await axios.post(`http://127.0.0.1:8000/api/v1/novel/character/${novelPk}`, characterData, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
+      let response
+      if (character.character_pk) {
+        response = await axios.put(`${backendUrl}novel/character/${character.character_pk}`, characterData, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          withCredentials: true,
+        })
+      } else {
+        response = await axios.post(`${backendUrl}novel/character/${novelPk}`, characterData, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          withCredentials: true,
+        })
+      }
 
       if (response.status === 200) {
         console.log('Character saved successfully:', response.data)
@@ -62,6 +71,19 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
     }
   }
 
+  const handleDeleteClick = async () => {
+    if (window.confirm('이 캐릭터를 삭제하시겠습니까?')) {
+      setIsDeleting(true)
+      try {
+        await onDelete(character.id, character.character_pk)
+      } catch (error) {
+        console.error('Error in delete handler:', error)
+      } finally {
+        setIsDeleting(false)
+      }
+    }
+  }
+
   return (
     <Card
       sx={{
@@ -75,15 +97,20 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
     >
       <Stack direction="row" spacing={2} alignItems="center">
         <TextField
-          label="캐릭터 유형"
+          label="캐릭터 유형(조력자, 적대자 등)"
           value={type}
           onChange={handleChange('type')}
-          placeholder={'주인공, 조력자, 적대자 등'}
           fullWidth
           size="small"
           sx={{
             '& .MuiOutlinedInput-root': {
               borderRadius: '8px',
+            },
+          }}
+          slotProps={{
+            inputLabel: {
+              shrink: true,
+              sx: { fontWeight: 'bold' },
             },
           }}
         />
@@ -102,6 +129,12 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
                 borderRadius: '8px',
               },
             }}
+            slotProps={{
+              inputLabel: {
+                shrink: true,
+                sx: { fontWeight: 'bold' },
+              },
+            }}
           />
           <TextField
             label="성별"
@@ -112,6 +145,12 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: '8px',
+              },
+            }}
+            slotProps={{
+              inputLabel: {
+                shrink: true,
+                sx: { fontWeight: 'bold' },
               },
             }}
           />
@@ -128,6 +167,12 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
                 borderRadius: '8px',
               },
             }}
+            slotProps={{
+              inputLabel: {
+                shrink: true,
+                sx: { fontWeight: 'bold' },
+              },
+            }}
           />
           <TextField
             label="직업"
@@ -138,6 +183,12 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: '8px',
+              },
+            }}
+            slotProps={{
+              inputLabel: {
+                shrink: true,
+                sx: { fontWeight: 'bold' },
               },
             }}
           />
@@ -155,25 +206,22 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
               borderRadius: '8px',
             },
           }}
+          slotProps={{
+            inputLabel: {
+              shrink: true,
+              sx: { fontWeight: 'bold' },
+            },
+          }}
         />
       </Stack>
       <Divider sx={{ my: 2 }} />
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'flex-end' }}>
         <PrimaryButton
-          startIcon={<RefreshIcon />}
-          backgroundColor="#1c1c1c"
-          hoverBackgroundColor="#444444"
-          onClick={onGenerate}
-          sx={{ py: 0.5 }}
-        >
-          재생성
-        </PrimaryButton>
-        <PrimaryButton
           startIcon={<SaveIcon />}
           backgroundColor="#111111"
           hoverBackgroundColor="#404040"
           sx={{ py: 0.5 }}
-          onClick={handleSaveClick} // Call the save function
+          onClick={handleSaveClick}
           disabled={isSaving}
         >
           {isSaving ? '저장 중...' : '저장'}
@@ -183,8 +231,10 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
           backgroundColor="#D32F2F"
           hoverBackgroundColor="#A82525"
           sx={{ py: 0.5 }}
+          onClick={handleDeleteClick}
+          disabled={isDeleting}
         >
-          삭제
+          {isDeleting ? '삭제 중...' : '삭제'}
         </PrimaryButton>
       </Stack>
     </Card>
@@ -194,6 +244,8 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
 CharacterInput.propTypes = {
   type: PropTypes.string.isRequired,
   character: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    character_pk: PropTypes.number,
     name: PropTypes.string.isRequired,
     gender: PropTypes.string.isRequired,
     age: PropTypes.string.isRequired,
@@ -202,7 +254,9 @@ CharacterInput.propTypes = {
   }).isRequired,
   onChange: PropTypes.func.isRequired,
   onGenerate: PropTypes.func.isRequired,
-  novelPk: PropTypes.any, // Add novelPk prop
+  onDelete: PropTypes.func.isRequired,
+  novelPk: PropTypes.any,
+  backendUrl: PropTypes.string.isRequired,
 }
 
 export default CharacterInput

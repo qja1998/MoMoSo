@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import uuid4
+import os
 
 from models import Discussion, Novel, User, Episode, user_discussion_table
 from . import discussion_schema
@@ -39,7 +40,8 @@ def get_discussions(db: Session) -> List[Discussion]:
             "topic": discussion.topic,
             "start_time": discussion.start_time,
             "end_time": discussion.end_time,
-            "participants": [{"user_pk": user.user_pk, "name": user.name, "nickname": user.nickname} for user in participants]
+            "participants": [{"user_pk": user.user_pk, "name": user.name, "nickname": user.nickname} for user in participants],
+            "is_active": discussion.is_active
         })
 
     return discussion_list
@@ -79,7 +81,8 @@ def get_discussion(db: Session, discussion_pk: int):
         "topic": discussion.topic,
         "start_time": discussion.start_time,
         "end_time": discussion.end_time,
-        "participants": [{"user_pk": user.user_pk, "name": user.name, "nickname": user.nickname} for user in participants]
+        "participants": [{"user_pk": user.user_pk, "name": user.name, "nickname": user.nickname} for user in participants],
+        "is_active": discussion.is_active
     }
 
 
@@ -122,7 +125,7 @@ def generate_session_id():
     return str(uuid4())
 
 
-def create_discussion(db: Session, discussion: discussion_schema.NewDiscussionForm, current_user: User) -> Discussion:
+def create_discussion_db(db: Session, discussion: discussion_schema.NewDiscussionForm, current_user: User) -> Discussion:
     """
     새로운 토론 방 생성
     """
@@ -162,6 +165,60 @@ def create_discussion(db: Session, discussion: discussion_schema.NewDiscussionFo
     db.refresh(new_discussion)
 
     return new_discussion
+
+DOCUMENT_PATH = "./document_path"  # txt 파일 저장 디렉토리
+
+def create_novel_txt_file(discussion_pk: int, db: Session) -> dict:
+    """
+    AI 기능을 위해 토론 시작 시, 소설 폴더에 소설 내용을 담은 txt 파일을 생성하는 기능
+    """
+    # 소설 및 토론 정보 조회
+    discussion = (
+        db.query(Discussion).filter(Discussion.discussion_pk == discussion_pk).first()
+    )
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
+
+    # 소설의 모든 에피소드 조회 (생성 날짜순 정렬)
+    episodes = (
+        db.query(Episode)
+        .filter(Episode.novel_pk == novel.novel_pk)
+        .order_by(Episode.created_date)
+        .all()
+    )
+
+    if not episodes:
+        raise HTTPException(status_code=400, detail="No episodes found for this novel")
+
+    # txt 파일 제목 설정 (토론 세션 ID + 소설 제목)
+    txt_title = f"{novel.title}_{discussion.session_id}.txt"
+
+    # 파일 저장 경로 설정
+    os.makedirs(DOCUMENT_PATH, exist_ok=True)  # 폴더가 없으면 생성
+    file_path = os.path.join(DOCUMENT_PATH, txt_title)
+
+    # 소설 내용 구성
+    content = f" 소설 제목: {novel.title}\n\n"
+
+    for idx, episode in enumerate(episodes):
+        content += f"\n\n {idx + 1}화 에피소드 : {episode.ep_title}\n\n{episode.ep_content}\n\n"
+
+    # 파일 생성 및 저장
+    try:
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"파일 저장 실패: {str(e)}")
+
+    return {
+        "file_name": txt_title,
+        "document_path": os.path.abspath(file_path),  # 절대 경로 반환
+    }
 
 
 def add_participant(db: Session, discussion_pk: int, user_pk: int):

@@ -1,16 +1,16 @@
 from sqlalchemy.orm import Session, joinedload
-from fastapi import HTTPException, status, Request
+from fastapi import HTTPException, status, Request, Response
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from . import novel_schema
 from models import Novel, Episode, Comment, CoComment, Character, Genre, novel_genre_table, user_like_table, User, user_recent_novel_table
 from user.user_schema import RecentNovel
-from typing import Optional
+from typing import Optional, Dict, Any
 
 # from sqlalchemy import select
 from datetime import datetime, timedelta
 from collections import Counter
-import os 
+import os
 from dotenv import load_dotenv
 from fastapi import File, UploadFile 
 import httpx
@@ -182,63 +182,93 @@ def update_novel(novel_pk: int, update_data: novel_schema.NovelUpdateBase, db: S
     return novel  # Return the updated novel
 
 #소설 삭제(장르 중계 테이블도 삭제해줘야 함.)
-def delete_novel(novel_pk: int, db: Session):
+def delete_novel(novel_pk: int, user: User, db: Session):
     novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+    
+    if not novel:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Novel not found"
+        )
+    
+    if novel.user_pk != user.user_pk:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this novel"
+        )
+    
     db.delete(novel)
     db.commit()
-    return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-def like_novel(novel_pk: int, user_pk: int, db: Session):
+
+
+async def like_novel(novel_pk: int, user_pk: int, db: Session):
     novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
     if not novel:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="소설을 찾을 수 없습니다.")
-
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="소설을 찾을 수 없습니다."
+        )
+    
     user = db.query(User).filter(User.user_pk == user_pk).first()
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="사용자를 찾을 수 없습니다.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="사용자를 찾을 수 없습니다."
+        )
 
-    if user in novel.liked_users:
-        novel.liked_users.remove(user)
-        novel.likes -= 1
-    else:
-        novel.liked_users.append(user)
-        novel.likes += 1
-
-    db.commit()
-    db.refresh(novel)  # 갱신된 소설 객체를 DB에서 다시 로드
-    return novel
+    try:
+        if user in novel.liked_users:
+            novel.liked_users.remove(user)
+            novel.likes -= 1
+        else:
+            novel.liked_users.append(user)
+            novel.likes += 1
+        
+        db.commit()
+        db.refresh(novel)
+        
+        return {
+            "status": "success",
+            "liked": user in novel.liked_users,
+            "total_likes": novel.likes
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="좋아요 처리 중 오류가 발생했습니다."
+        )
 
 # 메인 화면 추천 서비스 
 
 # 실시간 인기
 
-def recent_hit(days: int, db: Session) -> Optional[str]: 
+def recent_hit(days: int, db: Session) -> Optional[Dict[str, Any]]:
     """
-    최근 N일 동안 가장 많이 좋아요를 받은 소설 1개의 제목 반환
+    최근 N일 동안 가장 많이 좋아요를 받은 소설 정보 반환
     """
     today = datetime.now()
-    day_2_back = today - timedelta(days=days)
+    day_n_back = today - timedelta(days=days)
 
-    # 좋아요 데이터를 필터링
-    recent_hit = db.query(user_like_table.c.liked_date).filter(user_like_table.c.liked_date >= day_2_back).all()
-    
-    if not recent_hit: 
-        return None
+    hit_novel = (
+        db.query(Novel)
+        .join(user_like_table)
+        .filter(user_like_table.c.liked_date >= day_n_back)
+        .group_by(Novel.novel_pk)
+        .order_by(func.count(user_like_table.c.user_pk).desc())
+        .first()
+    )
 
-    novel_pks = [like[0] for like in recent_hit]  # 좋아요 받은 novel_pk 리스트 추출
-
-    # 가장 많이 좋아요 받은 novel_pk 찾기
-    most_common_novel_pk = Counter(novel_pks).most_common(1)  # 최상위 1개만 가져오기
-
-    if not most_common_novel_pk:
-        return None
-
-    most_popular_novel_pk = most_common_novel_pk[0][0]
-
-    # novel_pk에 해당하는 소설 제목 반환
-    hit_novel = db.query(Novel.title).filter(Novel.novel_pk == most_popular_novel_pk).first()
-
-    return hit_novel.title if hit_novel else None
+    if hit_novel:
+        return {
+            "title": hit_novel.title,
+            "pk": hit_novel.novel_pk
+        }
+    return None
     
 
 #추천 작품
@@ -302,13 +332,36 @@ def change_episode(novel_pk: int, update_data: novel_schema.EpisodeUpdateBase, e
 
 
 # 에피소드 삭제
-def delete_episode(novel_pk: int, episode_pk : int, db: Session) :
+def delete_episode(novel_pk: int, episode_pk: int, current_user: User, db: Session):
+    # 에피소드 존재 여부 확인
     episode = db.query(Episode).filter(Episode.ep_pk == episode_pk).first()
-    if not episode : 
-        return HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    if not episode:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Episode not found"
+        )
+    
+    # 소설 존재 여부 및 작성자 확인
+    novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+    if not novel:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Novel not found"
+        )
+    
+    # 현재 유저가 소설의 작성자인지 확인
+    if novel.user_pk != current_user.user_pk:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this episode"
+        )
+    
+    # 에피소드 삭제
     db.delete(episode)
     db.commit()
-    return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
 
 # 특정 에피소드의 모든 댓글 조회
 def get_all_ep_comment(novel_pk: int, ep_pk: int, db: Session):

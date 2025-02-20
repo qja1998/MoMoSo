@@ -4,7 +4,7 @@ import { OpenVidu as OpenViduNode } from 'openvidu-node-client'
 import RecordRTC from 'recordrtc'
 import { nanoid } from 'nanoid'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, createRef } from 'react'
 
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -28,6 +28,7 @@ import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { useAuth } from '../hooks/useAuth'
+import placeholderImage from '/placeholder/cover-image-placeholder.png'
 
 // 경로 상수
 const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
@@ -223,21 +224,53 @@ export default function DiscussionRoom() {
   const [publisher, setPublisher] = useState(null) // 로컬 스트림(자신의 비디오/오디오)
   const [participants, setParticipants] = useState([]) // 나를 포함한 참가자들의 스트림 객체 배열
   const [subscribers, setSubscribers] = useState([]) // 나를 포함한 참가자들의 구독자 객체 배열
-
+  const [allParticipants,setAllParticipants] = useState([]) // 전체 사용자를 기록하기 위한 배열
+  const [subject_test, setSubject] = useState(['주제 추천 버튼을 눌러주세요'])
   // participants 변경 감지를 위한 useEffect
   useEffect(() => {
     console.log('[Participants 변경]', participants)
   }, [participants])
 
+
   // 채팅 관련 상태 추가
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
+  const [meetingStartTime] = useState(new Date());
+  const messagesRef = useRef([]);
+  const allParticipantsRef = useRef([]);
+  useEffect(()=>{
+    messagesRef.current = messages;
+  },[messages]);
+
+   // allPriticipanst 변경 감지를 위한 useEffect
+   useEffect(()=>{
+    allParticipantsRef.current = allParticipants;
+   },[allParticipants]);
+
+   useEffect(() => {
+    // 5초마다 구독자 오디오 상태 확인
+    const checkInterval = setInterval(() => {
+      // 구독자 측 간단 체크
+      subscribers.forEach((sub, idx) => {
+        console.log(`구독자 ${idx} 오디오 활성화 상태:`, sub.stream.audioActive);
+      });
+    }, 5000);
+    
+    return () => clearInterval(checkInterval);
+  }, [subscribers]);
 
   // AI 어시스턴트 관련 상태 추가
   const [factChecks, setFactChecks] = useState([])
   const [isGeneratingTopic, setIsGeneratingTopic] = useState(false)
 
   const vadRef = useRef(null)
+
+  const videoRefs = useRef(new Map());
+
+  const participantsRef = useRef([]);
+  useEffect(() =>{
+    participantsRef.current = participants;
+  },[participants]);
 
   // 오디오 데이터 전송
   const sendAudioData = async (blob) => {
@@ -377,6 +410,117 @@ export default function DiscussionRoom() {
     };
   }, [subscribers]);
 
+  const createProceedings = (async() => {
+    // 메시지가 없을 경우 기본 메시지 생성
+    if (participantsRef.current.length===0 && messagesRef.current.length > 0){
+      const formattedMessages = messagesRef.current.map(msg => {
+        // 타임스탬프를 한국 시간 형식으로 변환
+        const formattedTime = new Date(msg.timestamp).toLocaleTimeString('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+        
+        // 원하는 형태로 객체 구성
+        return {
+          type: msg.type,
+          user: msg.sender.nickname,
+          text: msg.content,
+          timestamp: formattedTime
+        };
+      });
+
+      const messagesToSave = formattedMessages
+      // Extract participant names correctly
+      const participantNames = [
+        user?.nickname,
+        ...allParticipantsRef.current
+          .filter(p => p.nickname && p.nickname !== user?.nickname)
+          .map(p => p.nickname)
+      ];
+  
+      const formData = new FormData();
+      formData.append('discussion_pk',discussionId)
+      formData.append('room_name',discussionInfo?.session_id);
+      formData.append('host_name',user?.nickname);
+      formData.append('start_time',meetingStartTime.toISOString());
+      formData.append('end_time',new Date().toISOString());
+      formData.append('duration',((new Date() - meetingStartTime)/1000/60).toFixed(2));
+      formData.append('participants', JSON.stringify(participantNames));
+  
+      formData.append('messages',JSON.stringify(messagesToSave));
+  
+      try {
+        const response = await axios.post(`${BACKEND_URL}/api/v1/discussion/meeting-minutes`, formData,{
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        console.log('회의록 저장 성공:',response.data);
+        return response.data;
+      } catch (error) {
+        console.error('회의록 저장 실패: ',error);
+        throw error;
+      }
+    }
+  });
+
+  const sendProceedings = (async() => {
+      const formattedMessages = messagesRef.current.map(msg => {
+        // 타임스탬프를 한국 시간 형식으로 변환
+        const formattedTime = new Date(msg.timestamp).toLocaleTimeString('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+        
+        // 원하는 형태로 객체 구성
+        return {
+          type: msg.type,
+          user: msg.sender.nickname,
+          text: msg.content,
+          timestamp: formattedTime
+        };
+      });
+      const messagesToSave = formattedMessages.length > 0 ? formattedMessages :[
+        {
+          type: 'system',
+          text: '회의 중 메시지 없음',
+          timestamp: new Date().toLocaleDateString()
+        }
+      ];
+  
+      // Extract participant names correctly
+      const participantNames = [
+        user?.nickname,
+        ...allParticipantsRef.current
+          .filter(p => p.nickname && p.nickname !== user?.nickname)
+          .map(p => p.nickname)
+      ];
+  
+      const formData = new FormData();
+      formData.append('discussion_pk',discussionId)
+      formData.append('room_name',discussionInfo?.session_id);
+      formData.append('host_name',user?.nickname);
+      formData.append('start_time',meetingStartTime.toISOString());
+      formData.append('end_time',new Date().toISOString());
+      formData.append('duration',((new Date() - meetingStartTime)/1000/60).toFixed(2));
+      formData.append('participants', JSON.stringify(participantNames));
+  
+      formData.append('messages',JSON.stringify(messagesToSave));
+  
+      try {
+        const response = await axios.post(`${BACKEND_URL}/api/v1/discussion/subject`, formData,{
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        console.log('회의록 전송 성공:',response.data);
+        return response.data;
+      } catch (error) {
+        console.error('회의록 전송 실패: ',error);
+        throw error;
+      }
+  });
+
   // 토론방 초기화 로직
   useEffect(() => {
     let openViduNode = null
@@ -446,7 +590,12 @@ export default function DiscussionRoom() {
         try {
           // 4-1. 세션의 현재 상태 업데이트
           await serverSideSession.fetch()
-
+          console.log('[Server Session] 활성 연결 수:', serverSideSession.activeConnections.length);
+          console.log('[Server Session] 활성 스트림 수:', 
+            serverSideSession.activeConnections.reduce((count, conn) => {
+              return count + conn.publishers.length;
+            }, 0)
+          );
           // 4-2. 현재 사용자의 기존 연결 찾기
           const userConnections = serverSideSession.activeConnections.filter((conn) => {
             try {
@@ -547,6 +696,14 @@ export default function DiscussionRoom() {
                 return;
               }
 
+              const existingParticipant = participants.find(p => 
+                p.connectionId === event.stream.connection.connectionId
+              );
+
+              if (existingParticipant) {
+                return;
+              }
+
               const subscriberOptions = {
                 insertMode: 'APPEND',
                 subscribeToAudio: true,
@@ -554,6 +711,11 @@ export default function DiscussionRoom() {
               };
           
               const subscriber = clientSideSession.subscribe(event.stream, undefined, subscriberOptions);
+
+              // 비디오 엘리먼트 생성 및 연결
+              const videoElement = document.createElement('video');
+              videoElement.style.display = 'none';
+              subscriber.addVideoElement(videoElement);
               
               // participants 배열 업데이트
               setParticipants(prev => {
@@ -568,6 +730,21 @@ export default function DiscussionRoom() {
                   nickname: connectionData.nickname,
                   streamManager: subscriber
                 }];
+                
+              });
+              setAllParticipants(prev => {
+                // 이미 존재하는 참가자 확인
+                if (prev.some(p => p.user_pk === connectionData.user_pk)) {
+                  return prev;
+                }
+
+                return [...prev, {
+                  connectionId: event.stream.connection.connectionId,
+                  user_pk: connectionData.user_pk,
+                  nickname: connectionData.nickname,
+                  streamManager: subscriber
+                }];
+                
               });
 
               // VAD 이벤트 핸들러 설정
@@ -620,6 +797,15 @@ export default function DiscussionRoom() {
                 newSpeakers.delete(connectionData.user_pk);
                 return Array.from(newSpeakers);
               });
+
+              // 비디오 엘리먼트 ref 정리
+              const container = videoRefs.current.get(event.stream.connection.connectionId)?.current;
+              if (container) {
+                while (container.firstChild) {
+                  container.removeChild(container.firstChild);
+                }
+              }
+              videoRefs.current.delete(event.stream.connection.connectionId);
             } catch (error) {
               console.error('Error handling stream destruction:', error);
             }
@@ -634,13 +820,24 @@ export default function DiscussionRoom() {
         // 8. 세션 연결
         await clientSideSession.connect(connection.token)
         console.log('[Step 8] 세션 연결 성공')
-        // 스트림 발행 전 상태 확인
-        const audioTracks = publisher.stream?.getMediaStream()?.getAudioTracks() || [];
-        console.log('Pre-publish audio tracks:', audioTracks);
 
         // 9. 세션에 스트림 발행
-        await clientSideSession.publish(publisher)
-        console.log('[Step 9] 세션에 스트림 발행 성공')
+        try {
+          console.log('[Step 9-1] 세션 발행 시작', publisher.stream);
+          const publishResult = await clientSideSession.publish(publisher);
+          console.log('[Step 9-2] 세션 발행 성공', publishResult);
+          console.log('[Step 9-3] 오디오 트랙 상태:', 
+            publisher.stream.getMediaStream().getAudioTracks().map(track => ({
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+              id: track.id
+            }))
+          );
+        } catch (error) {
+          console.error('[Step 9] 세션에 스트림 발행 실패:', error);
+          throw error;
+        }
         
         // 10. 전체 데이터 확인
         console.log('[Step 10] 전체 데이터 확인', {
@@ -659,7 +856,7 @@ export default function DiscussionRoom() {
         // Handle other errors appropriately
       }
     }
-
+    
     initializeDiscussionRoom()
     // Cleanup 함수
     return () => {
@@ -667,6 +864,9 @@ export default function DiscussionRoom() {
 
       const cleanup = async () => {
         try {
+          // 회의록 생성 먼저 진행
+          const proceedingsResult = await createProceedings();
+
           if (publisher) {
             // 오디오 트랙 정리
             if (publisher.stream?.getMediaStream()) {
@@ -676,14 +876,12 @@ export default function DiscussionRoom() {
 
             // Publisher 이벤트 리스너 제거
             publisher.off('*')
-            console.log(clientSideSession)
             // 세션에서 Publisher 제거
             if (clientSideSession) {
               await clientSideSession.unpublish(publisher)
             }
           }
 
-          console.log(clientSideSession)
           // 세션 연결 해제
           if (clientSideSession) {
             clientSideSession.off('*')
@@ -826,15 +1024,20 @@ export default function DiscussionRoom() {
 
   // 팩트 체크 핸들러
   const handleFactCheck = async (message) => {
+    const formData = new FormData();
+    formData.append('discussion_pk',discussionId)
+    formData.append('content',message.content)
     try {
-      // TODO: 팩트 체크 API 호출
-      const response = {
-        timestamp: new Date().toISOString(),
-        message: message.content,
-        result:
-          '31화에서 리나의 사랑 이야기에 대한 관심이 명시적으로 언급됩니다. 페이지 245, "리나는 늘 실패한 사랑 이야기에 관심이 많았다"라는 구절이 있습니다.',
-      }
-      setFactChecks((prev) => [...prev, response])
+      const fact_res = await axios.post(`${BACKEND_URL}/api/v1/discussion/fact-check`, formData,{
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+        const test_resp = {
+          timestamp : new Date().toISOString(),
+          message : message.content,
+          result: fact_res.data.factcheck
+        }
+        setFactChecks((prev) => [...prev, test_resp])
     } catch (error) {
       console.error('Failed to check fact:', error)
     }
@@ -844,14 +1047,52 @@ export default function DiscussionRoom() {
   const handleTopicRecommendation = async () => {
     setIsGeneratingTopic(true)
     try {
-      // TODO: 토론 주제 추천 API 호출
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await sendProceedings();
+      setSubject(response.subject)
     } catch (error) {
       console.error('Failed to generate topic:', error)
     } finally {
       setIsGeneratingTopic(false)
     }
   }
+
+  const handleImageError = (event) => {
+    event.target.src = placeholderImage
+  }
+
+  // 비디오 엘리먼트 생성 및 연결을 위한 useEffect 수정
+  useEffect(() => {
+    // 약간의 지연을 주어 DOM이 마운트된 후 실행되도록 함
+    const timer = setTimeout(() => {
+      participants.forEach(participant => {
+        const container = videoRefs.current.get(participant.connectionId)?.current;
+        
+        // container가 존재하고 비어있을 때만 videoElement 생성
+        if (container && !container.hasChildNodes() && participant.streamManager) {
+          try {
+            const videoElement = participant.streamManager.createVideoElement();
+            videoElement.style.display = 'none';
+            container.appendChild(videoElement);
+          } catch (error) {
+            console.error('Error creating video element:', error);
+          }
+        }
+      });
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      // cleanup
+      participants.forEach(participant => {
+        const container = videoRefs.current.get(participant.connectionId)?.current;
+        if (container) {
+          while (container.firstChild) {
+            container.removeChild(container.firstChild);
+          }
+        }
+      });
+    };
+  }, [participants]);
 
   return (
     <Grid
@@ -1260,10 +1501,16 @@ export default function DiscussionRoom() {
                     bgcolor: '#EEEEEE',
                     borderRadius: 1,
                     minHeight: 80,
+                    maxHeight: 200, //토론 주제 추천 스크롤
+                    overflow: 'auto',
                   }}
                 >
-                  <Typography variant="body2" color="text.secondary">
-                    카리나가 사용하는 타임 폴더의 기원과 목적에 대한 추측과 아이디어에 대해 토론해보세요.
+                  <Typography 
+                  variant="body2"
+                   color="text.secondary"
+                   sx={{ whiteSpace: 'pre-line'}}
+                   >
+                    {subject_test}
                   </Typography>
                 </Stack>
               </Stack>
@@ -1293,7 +1540,12 @@ export default function DiscussionRoom() {
                       <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                         &ldquo;{check.message}&rdquo;
                       </Typography>
-                      <Typography variant="body2">{check.result}</Typography>
+                      <Typography 
+                      variant="body2"
+                      sx={{ whiteSpace: 'pre-line'}}
+                      >
+                        {check.result}
+                        </Typography>
                     </Stack>
                   ))}
                 </Stack>

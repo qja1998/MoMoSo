@@ -24,7 +24,9 @@ import UserFindPassword from '/src/pages/UserFindPassword'
 import UserLogin from '/src/pages/UserLogin'
 import UserResetPassword from '/src/pages/UserResetPassword'
 import UserSignUp from '/src/pages/UserSignUp'
+import UserMypage from '/src/pages/UserMypage'
 import theme from '/src/styles/theme'
+import MainPage from './pages/MainPage'
 
 function App() {
   return (
@@ -37,7 +39,7 @@ function App() {
               {/* Navbar Layout */}
               <Route element={<NavbarLayout />}>
                 {/* Auth routes */}
-                <Route path="/" element={<NovelList />} />
+                <Route path="/" element={<MainPage />} />
                 <Route path="/auth">
                   <Route path="login" element={<UserLogin />} />
                   <Route path="signup" element={<UserSignUp />} />
@@ -45,6 +47,7 @@ function App() {
                   <Route path="find-password" element={<UserFindPassword />} />
                   <Route path="reset-password" element={<UserResetPassword />} />
                   <Route path="change-info" element={<UserChangeInfo />} />
+                  <Route path="mypage" element={<UserMypage />} />
                 </Route>
 
                 <Route path="/novel">
