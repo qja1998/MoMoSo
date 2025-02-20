@@ -44,47 +44,33 @@
 <table>
   <tr>
     <td align="center">
-      <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="150"/><br>
-      🎉 전제후(팀장)
+      <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="150"/>
     </td>
     <td align="center">
-      <img src="/uploads/db5edf5adf21aa5c1a182439139a6936/권기범.png" width="150"/><br>
-      🌟 권기범
+      <img src="/uploads/db5edf5adf21aa5c1a182439139a6936/권기범.png" width="150"/>
     </td>
     <td align="center">
-      <img src="/uploads/7be088a72bb329d2a2370e24f18a940c/김의찬.png" width="150"/><br>
-      🚀 김의찬
+      <img src="/uploads/7be088a72bb329d2a2370e24f18a940c/김의찬.png" width="150"/>
     </td>
     <td align="center">
-      <img src="/uploads/ced62e92587854fce8696b8799faf392/김윤하.png" width="150"/><br>
-      💡 김윤하
+      <img src="/uploads/ced62e92587854fce8696b8799faf392/김윤하.png" width="150"/>
     </td>
     <td align="center">
-      <img src="/uploads/c96b88c3f3e7efc2d269844166c52909/이지은.png" width="150"/><br>
-      🎯 이지은
+      <img src="/uploads/c96b88c3f3e7efc2d269844166c52909/이지은.png" width="150"/>
     </td>
     <td align="center">
-      <img src="/uploads/0f5b6c8a382b213991c95b2326a99cc6/조현준.png" width="150"/><br>
-      🌈 조현준
+      <img src="/uploads/0f5b6c8a382b213991c95b2326a99cc6/조현준.png" width="150"/>
     </td>
   </tr>
   <tr>
-    <td align="left"><strong>PM, AI</strong></td>
-    <td align="left"><strong>DevOps, AI</strong></td>
-    <td align="left"><strong>통신, BE</strong></td>
-    <td align="left"><strong>BE, FE</strong></td>
-    <td align="left"><strong>BE, FE</strong></td>
-    <td align="left"><strong>FE</strong></td>
+    <td align="center"><strong>전제후</strong><br><strong>PM, AI</strong></td>
+    <td align="center"><strong>권기범</strong><br><strong>DevOps, AI</strong></td>
+    <td align="center"><strong>김의찬</strong><br><strong>통신, BE</strong></td>
+    <td align="center"><strong>김윤하</strong><br><strong>BE, FE</strong></td>
+    <td align="center"><strong>이지은</strong><br><strong>BE, FE</strong></td>
+    <td align="center"><strong>조현준</strong><br><strong>FE</strong></td>
   </tr>
 </table>
-
-
-<div align="center">
-
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="150"/> <br> 🎉 전제후(팀장) <br> **PM, AI** | <img src="/uploads/db5edf5adf21aa5c1a182439139a6936/권기범.png" width="150"/> <br> 🌟 권기범 <br> **DevOps, AI** | <img src="/uploads/7be088a72bb329d2a2370e24f18a940c/김의찬.png" width="150"/> <br> 🚀 김의찬 <br> **통신, BE** | <img src="/uploads/ced62e92587854fce8696b8799faf392/김윤하.png" width="150"/> <br> 💡 김윤하 <br> **BE, FE** | <img src="/uploads/c96b88c3f3e7efc2d269844166c52909/이지은.png" width="150"/> <br> 🎯 이지은 <br> **BE, FE** | <img src="/uploads/0f5b6c8a382b213991c95b2326a99cc6/조현준.png" width="150"/> <br> 🌈 조현준 <br> **FE** |
-|:------------------------------------------------------------------:|:------------------------------------------------------------------:|:------------------------------------------------------------------:|:--------------------------------------------------------------------:|:--------------------------------------------------------------------:|:--------------------------------------------------------------------:|
-
-</div>
 
 - **전제후 (팀장/PM/AI)**  
   - 프로젝트 총괄
@@ -193,12 +179,33 @@
 ### **회원가입, 로그인**  
 
 <div align="center">
-
-| 회원가입 | 로그인 |
-|:---:|:---:|
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
-| 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
-
+  <table>
+    <thead>
+      <tr>
+        <th align="center">회원가입</th>
+        <th align="center">로그인</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td align="center">
+          <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/>
+        </td>
+        <td align="center">
+          <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/>
+        </td>
+      </tr>
+      <tr>
+        <td align="left">
+          1. 초대 코드를 이용한 로그인<br>
+          2. 계정에 등록되어 있는 멀티 프로필 선택 가능
+        </td>
+        <td align="left">
+          1. 소셜 로그인을 사용한 로그인 가능
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 
 ### **메인 페이지**
