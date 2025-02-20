@@ -121,7 +121,7 @@ def set_auth_cookies(
         refresh_token_expires_delta (timedelta): Refresh token 만료 시간
         is_development (bool): 개발 환경 여부 (기본값: True)
     """
-    domain = "localhost" if is_development else None
+    domain = "localhost" if is_development else "momoso106.duckdns.org"
     
     # Access Token 쿠키 설정
     response.set_cookie(
@@ -160,14 +160,18 @@ def delete_auth_cookies(response: Response, is_development: bool = True):
     response.delete_cookie(
         key="access_token",
         httponly=True,
+        secure=not is_development,  # 배포 환경에서는 True
         domain=domain,
-        path="/"
+        path="/",
+        samesite="lax"
     )
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
+        secure=not is_development,  # 배포 환경에서는 True
         domain=domain,
-        path="/"
+        path="/",
+        samesite="lax"
     )
 
 # ================================== 로그인 여부 확인 ===============================================
@@ -207,7 +211,7 @@ async def get_refresh_token(request: Request) -> str:
 
 
 async def validate_token_and_get_user(
-    access_token: str,
+    access_token: Optional[str],
     refresh_token: Optional[str],
     response: Optional[Response],
     db: Session,
@@ -216,10 +220,11 @@ async def validate_token_and_get_user(
 ) -> Optional[User]:
     """
     토큰을 검증하고 사용자 정보를 반환하는 중앙화된 함수
-
+    access token이 없고 refresh token만 있는 경우 자동으로 access token을 재발급
+    
     Args:
-        access_token (str): Access token
-        refresh_token (Optional[str]): Refresh token (optional)
+        access_token (Optional[str]): Access token (없을 수 있음)
+        refresh_token (Optional[str]): Refresh token
         response (Optional[Response]): FastAPI response object for setting cookies
         db (Session): Database session
         redis_client (Redis): Redis client
@@ -228,12 +233,65 @@ async def validate_token_and_get_user(
     Returns:
         Optional[User]: 검증된 사용자 객체 또는 None (allow_unauthorized=True인 경우)
     """
+    # access token이 없고 refresh token이 있는 경우
+    if not access_token and refresh_token:
+        try:
+            # Refresh Token 검증
+            payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+            email = payload.get("sub")
+
+            if email is None:
+                if allow_unauthorized:
+                    return None
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid refresh token"
+                )
+
+            # Redis에 저장된 refresh token과 비교
+            stored_token = await redis_client.get(f"refresh_token:{email}")
+            if isinstance(stored_token, bytes):
+                stored_token = stored_token.decode('utf-8')
+
+            if stored_token != refresh_token:
+                if allow_unauthorized:
+                    return None
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid or expired refresh token"
+                )
+
+            # 새로운 Access Token 발급
+            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            access_token = create_access_token(
+                data={"sub": email},
+                expires_delta=access_token_expires
+            )
+
+            # 새 Access Token을 쿠키에 저장
+            if response:
+                set_auth_cookies(
+                    response=response,
+                    access_token=access_token,
+                    refresh_token=refresh_token,
+                    access_token_expires_delta=access_token_expires,
+                    refresh_token_expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+                )
+        except JWTError:
+            if allow_unauthorized:
+                return None
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token"
+            )
+
+    # access token이 없고 refresh token도 없는 경우
     if not access_token:
         if allow_unauthorized:
             return None
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Access token is missing."
+            detail="Access token is missing"
         )
 
     try:
@@ -308,7 +366,7 @@ async def validate_token_and_get_user(
                 set_auth_cookies(
                     response=response,
                     access_token=new_access_token,
-                    refresh_token=refresh_token,  # refresh token은 그대로 유지
+                    refresh_token=refresh_token,
                     access_token_expires_delta=access_token_expires,
                     refresh_token_expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
                 )
@@ -357,6 +415,8 @@ async def get_current_user(
         allow_unauthorized=False
     )
     return user
+
+
 
 async def get_optional_user(
     request: Request,

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr, ValidationError, field_validator, ValidationInfo
+from pydantic import BaseModel, Field, EmailStr, field_validator, ValidationInfo
 from fastapi import HTTPException
 from typing import Optional
 from datetime import datetime

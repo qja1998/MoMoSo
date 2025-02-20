@@ -4,6 +4,7 @@ meeting_minutes/
 # Edit at https://www.toptal.com/developers/gitignore?templates=pycharm,vs,django,vuejs
 
 *.png
+!cover-image-placeholder.png
 
 ### Django ###
 *.log
@@ -660,3 +661,5 @@ momoso-450108-0d3ffb86c6ef.json
 *.rdb
 
 # End of https://www.toptal.com/developers/gitignore/api/redis
+
+Backend/audio_uploads/

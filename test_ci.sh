@@ -25,19 +25,19 @@ docker run --rm \
 
     # 3️⃣ Backend 빌드 및 푸시
     echo "🏗  Building Backend..."
-    docker build -t kwon0528/b106-backend:develop -f Backend/Dockerfile.dev ./Backend
-    docker push kwon0528/b106-backend:develop
+    docker build -t kwon0528/b106-backend:release -f Backend/Dockerfile.prod ./Backend
+    docker push kwon0528/b106-backend:release
 
     # 4️⃣ Frontend 빌드 및 푸시
     echo "🎨 Building Frontend..."
-    docker build -t kwon0528/b106-frontend:develop -f Frontend/Dockerfile.dev ./Frontend
-    docker push kwon0528/b106-frontend:develop
+    docker build -t kwon0528/b106-frontend:release -f Frontend/Dockerfile.prod ./Frontend
+    docker push kwon0528/b106-frontend:release
 
 
     # 1️⃣ Docker 컨테이너 실행
     echo "🧪 Running Tests..."
-    BACKEND_CONTAINER_ID=$(docker run -d kwon0528/b106-backend:develop)
-    FRONTEND_CONTAINER_ID=$(docker run -d kwon0528/b106-frontend:develop)
+    BACKEND_CONTAINER_ID=$(docker run -d kwon0528/b106-backend:release)
+    FRONTEND_CONTAINER_ID=$(docker run -d kwon0528/b106-frontend:release)
 
     # 2️⃣ 컨테이너 로그 출력 (비동기 실행)
     echo "🔍 Checking Backend logs..."

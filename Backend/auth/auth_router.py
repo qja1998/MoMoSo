@@ -1,36 +1,32 @@
-from fastapi import Depends, Header, HTTPException, status, APIRouter, Response, BackgroundTasks, Request
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
-from sqlalchemy.orm import Session
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
-from jose import JWTError, jwt
-from jose.exceptions import ExpiredSignatureError
-
-from datetime import datetime, timedelta, timezone
+import os
+from datetime import timedelta
 from typing import Optional
 
-from . import auth_crud, auth_schema
-from models import User
+from dotenv import load_dotenv
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status, BackgroundTasks
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, HTTPBearer
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
+from jose import JWTError, jwt
+from redis import Redis
+from sqlalchemy.orm import Session
+
 from database import get_db
+from models import User
+from . import auth_crud, auth_schema
 from user import user_crud
 from utils.auth_utils import (
-    send_sms,
-    verify_code,
-    generate_verification_code,
-    save_verification_code,
-    get_current_user,
     create_access_token,
     create_refresh_token,
+    delete_auth_cookies,
+    generate_verification_code,
+    get_current_user,
     get_optional_user,
+    save_verification_code,
+    send_sms,
+    set_auth_cookies,
+    verify_code,
 )
-from utils.redis_utils import get_redis # utils.redis_utils에서 get_redis 함수 import
-from redis import Redis
-
-from dotenv import load_dotenv
-import os
-import logging
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from utils.redis_utils import get_redis
 
 load_dotenv()
 
@@ -55,7 +51,6 @@ conf = ConnectionConfig(
     USE_CREDENTIALS=True
 )
 
-
 router = APIRouter(
     prefix='/api/v1/auth',
 )
@@ -63,15 +58,12 @@ router = APIRouter(
 
 @router.get("/me", description="현재 로그인 한 사용자 조회")
 async def get_user_info(current_user: User = Depends(get_current_user)):
-    return {"user_pk": current_user.user_pk, "email": current_user.email, "nickname":current_user.nickname}
+    return {"user_pk": current_user.user_pk, "email": current_user.email, "nickname":current_user.nickname, "is_oauth_user": current_user.is_oauth_user}
 
 
-# ======================================= 회원가입 로직 ======================================= 
 async def check_verified(phone: str, redis_client: Redis):
     try:
         verified = await redis_client.get(f"verified:{phone}")
-        logger.info(f"Redis check raw value for {phone}: {verified}")
-        logger.info(f"Redis check value type for {phone}: {type(verified)}")
         
         if not verified:
             raise HTTPException(status_code=400, detail="Phone number not verified")
@@ -79,10 +71,8 @@ async def check_verified(phone: str, redis_client: Redis):
         # 안전하게 타입 체크 후 처리
         if isinstance(verified, bytes):
             verified_str = verified.decode('utf-8').lower()
-            logger.info(f"Decoded value for {phone}: {verified_str}")
         else:
             verified_str = str(verified).lower()
-            logger.info(f"String value for {phone}: {verified_str}")
             
         if verified_str != "true":
             raise HTTPException(status_code=400, detail="Invalid verification status")
@@ -90,7 +80,6 @@ async def check_verified(phone: str, redis_client: Redis):
         return True
         
     except Exception as e:
-        logger.error(f"Redis error: {str(e)}")
         raise HTTPException(status_code=500, detail="Error checking verification status")
 
 @router.post("/signup")
@@ -133,13 +122,7 @@ async def signup(new_user: auth_schema.NewUserForm, db: Session = Depends(get_db
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.error(f"Error in signup: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ======================================= 로그인 로직 ======================================= 
-
-from utils.auth_utils import set_auth_cookies, delete_auth_cookies
 
 @router.post("/login")
 async def login(response: Response, login_form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db), redis_client: Redis = Depends(get_redis)):
@@ -184,9 +167,6 @@ async def login(response: Response, login_form: OAuth2PasswordRequestForm = Depe
 
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
-# ======================================= 로그아웃 로직 ======================================= 
-
-# Bearer 인증 설정
 security = HTTPBearer()
 
 @router.post("/logout")
@@ -216,14 +196,11 @@ async def logout(request: Request, response: Response, db: Session = Depends(get
 
     return {"message": "성공적으로 로그아웃 되었습니다."}
 
-# ======================================= 아이디 찾기 로직 =======================================
-
 @router.post("/find-id")
 async def find_id(request: auth_schema.FindIdRequest, db: Session = Depends(get_db), redis_client: Redis = Depends(get_redis)):
     try:
         # Redis 값 로깅
         verified_value = await redis_client.get(f"verified:{request.phone}")
-        logger.info(f"Redis value for phone {request.phone}: {verified_value}")
 
         await check_verified(request.phone, redis_client)
 
@@ -239,10 +216,7 @@ async def find_id(request: auth_schema.FindIdRequest, db: Session = Depends(get_
         raise e
     except Exception as e:
         # 기타 예외는 로깅하고 500 에러 반환
-        logger.error(f"Error in find_id: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
-
-# ======================================= sms 인증 로직 ==============================================
 
 @router.post("/send-sms")
 def send_sms_endpoint(phone: str):
@@ -255,9 +229,6 @@ async def verify_code_endpoint(phone: str, code: str, redis_client: Redis = Depe
 @router.get("/check-sms-verified")
 async def check_verified_endpoint(phone: str, redis_client: Redis = Depends(get_redis)):
     return {"verified": check_verified(phone, redis_client)}
-
-
-# ======================================= 이메일 인증 로직 ==========================================
 
 @router.post("/send-verification-email")
 async def send_verification_email_endpoint(background_tasks: BackgroundTasks, email_info: auth_schema.EmailVerificationRequestSchema, redis_client: Redis = Depends(get_redis)):
@@ -431,5 +402,4 @@ async def verify_user_password(
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.error(f"Error in verify password: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -1,5 +1,5 @@
 
-from fastapi import Depends, HTTPException, APIRouter, status
+from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from models import User, Novel
@@ -28,9 +28,12 @@ def get_users(db:Session=Depends(get_db)):
 def get_user(current_user: User = Depends(get_current_user)):
     return current_user
 
-@router.get('/detail/{user_id}', description="개별 사용자 상세 조회(마이 페이지 데이터 출력용)" , response_model=user_schema.UserDetail)
-def get_profile(user_id:int, db:Session=Depends(get_db)):
-    return user_crud.get_user_profile(db, user_id=user_id)
+@router.get('/detail', description="현재 로그인된 사용자 상세 조회(마이 페이지 데이터 출력용)", response_model=user_schema.UserDetail)
+def get_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return user_crud.get_user_profile(db, user=current_user)
 
 
 @router.put('/', description="현재 사용자 정보 수정", response_model=user_schema.User)
@@ -38,13 +41,16 @@ async def update_user(
     updated_user: user_schema.UpdateUserForm,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    redis_client: Redis = Depends(get_redis)  # Redis 클라이언트 의존성 주입
+    redis_client: Redis = Depends(get_redis)
 ):
-    # 전화번호 변경 시 인증 여부 확인
-    if updated_user.phone and updated_user.phone != current_user.phone:
-        await check_verified(updated_user.phone, redis_client)
+    
+    if updated_user.phone:
+        if not current_user.phone or updated_user.phone != current_user.phone:
+            try:
+                await check_verified(updated_user.phone, redis_client)
+            except Exception as e:
+                raise
 
-    # 현재 사용자 정보 수정
     updated_user = user_crud.update_user(db, current_user, updated_user)
     return updated_user
 
@@ -52,7 +58,7 @@ async def update_user(
 @router.delete('/{user_id}', description='사용자 계정 삭제')
 def delete_user(
     user_id: int,
-    credentials: user_schema.DeleteUserForm,  # 이메일과 비밀번호 포함
+    credentials: user_schema.DeleteUserForm,
     db: Session = Depends(get_db)
 ):
     # 사용자 조회
@@ -80,7 +86,6 @@ async def get_novels_written(current_user: User = Depends(get_current_user), db:
     사용자가 작성한 소설 목록을 가져옴
     """
     novels_written = db.query(Novel).filter(Novel.user_pk == current_user.user_pk).all()
-
     return novels_written
 
 
@@ -116,4 +121,3 @@ async def save_recent_novel(
     로그인한 사용자가 조회한 소설을 최근 본 소설 목록에 저장
     """
     return user_crud.save_recent_novel(db, current_user.user_pk, novel_pk)
-

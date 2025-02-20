@@ -1,5 +1,5 @@
 from pydantic import BaseModel, FutureDatetime, field_validator
-from typing import List, Optional, Annotated
+from typing import List, Optional, Annotated, Any
 from datetime import datetime
 from fastapi import HTTPException, status
 from pydantic_core.core_schema import ValidationInfo
@@ -39,6 +39,7 @@ class Discussion(BaseModel):
     start_time: datetime
     end_time: Optional[datetime] = None
     participants: List[DiscussionUser]
+    is_active: bool
 
     class Config:
         from_attributes = True
@@ -52,10 +53,10 @@ class GetNewDiscussion(BaseModel):
     topic: str
     start_time: datetime
     max_participants: int
+    is_active: bool
 
     class Config:
         from_attributes = True
-
 
 # 토론 생성
 class NewDiscussionForm(BaseModel):
@@ -80,43 +81,6 @@ class NewDiscussionForm(BaseModel):
     class Config:
         from_attributes = True
 
-
-
-
 # 토론 요약본 조회
 class Note(BaseModel):
     summary: str
-
-
-# 소설 생성 AI 모델 응답용 스키마
-
-# 토론 요약본 생성
-class SummaryRequest(BaseModel):
-    discussion_pk: int
-    content: dict = {
-        "id": str,
-        "room_name": str,
-        "host_name": str,
-        "start_time": str,
-        "end_time": str,
-        "duration": int,
-        "participants": list,
-        "messages": list
-    }
-
-class FactCheckRequest(BaseModel):
-    discussion_pk: int
-    content: str
-
-class SubjectRequest(BaseModel):
-    discussion_pk: int
-    content: dict = {
-        "id": str,
-        "room_name": str,
-        "host_name": str,
-        "start_time": str,
-        "end_time": str,
-        "duration": int,
-        "participants": list,
-        "messages": list
-    }

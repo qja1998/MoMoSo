@@ -1,12 +1,10 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-
 from models import User
 from .auth_schema import NewUserForm
-
 from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__default_rounds=12)
 
 def hash_password(password: str):
     """
