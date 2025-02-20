@@ -288,7 +288,7 @@ const UserChangeInfo = () => {
               <InfoItem>
                 <Typography sx={{ width: '60px', flexShrink: 0, fontWeight: 'bold' }}>연락처</Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
-                  <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Box sx={{ display: 'flex', gap: 0 }}>
                     <TextField
                       id="phone"
                       name="phone"
@@ -304,20 +304,29 @@ const UserChangeInfo = () => {
                         inputMode: 'numeric',
                         pattern: '[0-9]*',
                       }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '4px 0 0 4px',
+                        },
+                      }}
                     />
                     <PrimaryButton
+                      backgroundColor="#FFA000"
+                      hoverBackgroundColor="#FF8F00"
                       onClick={handleVerificationCodeSend}
                       disabled={isPhoneVerified || isSendingCode || !profileData.phone}
                       sx={{
-                        px: 2,
+                        height: '56px',
+                        borderRadius: '0 4px 4px 0',
                         whiteSpace: 'nowrap',
-                        flexShrink: 0,
+                        boxShadow: 'none',
+                        width: '160px'
                       }}
                     >
                       {isSendingCode ? '전송중...' : '인증번호 전송'}
                     </PrimaryButton>
                   </Box>
-                  <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Box sx={{ display: 'flex', gap: 0 }}>
                     <TextField
                       id="verificationCode"
                       name="verificationCode"
@@ -329,14 +338,23 @@ const UserChangeInfo = () => {
                       disabled={isPhoneVerified}
                       error={!!verificationCodeError}
                       helperText={verificationCodeError}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '4px 0 0 4px',
+                        },
+                      }}
                     />
                     <PrimaryButton
+                      backgroundColor="#FFA000"
+                      hoverBackgroundColor="#FF8F00"
                       onClick={handleVerificationCodeCheck}
                       disabled={isPhoneVerified || isVerifyingCode || !verificationCode}
                       sx={{
-                        px: 2,
+                        height: '56px',
+                        borderRadius: '0 4px 4px 0',
                         whiteSpace: 'nowrap',
-                        flexShrink: 0,
+                        boxShadow: 'none',
+                        width: '160px'
                       }}
                     >
                       {isVerifyingCode ? '확인중...' : '인증번호 확인'}
