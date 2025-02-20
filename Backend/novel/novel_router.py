@@ -130,9 +130,13 @@ def delete_novel(novel_pk: int, db: Session = Depends(get_db)):
 
 
 #소설 좋아요 
-@router.put("/novel/{novel_pk}/{user_pk}")
-def like_novel(novel_pk: int, user_pk: int, db: Session = Depends(get_db)):
-    return novel_crud.like_novel(novel_pk,user_pk, db)
+@router.put("/novel/{novel_pk}/like")
+async def like_novel(
+    novel_pk: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await novel_crud.like_novel(novel_pk, current_user.user_pk, db)
 
 # 에피소드 CRUD
 

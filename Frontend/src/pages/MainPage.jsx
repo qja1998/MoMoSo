@@ -17,9 +17,9 @@ import { useInView } from 'react-intersection-observer';
 import { useAuth } from "../hooks/useAuth";
 import axios from 'axios';
 
-import main1 from '../../public/image/main1.png'
-import main2 from '../../public/image/main2.png'
-import main from '../../public/image/main.png'
+import main1 from '/image/main1.png'
+import main2 from '/image/main2.png'
+import main from '/image/main.png'
 
 // Styled components
 const GradientBackground = styled(Box)({
