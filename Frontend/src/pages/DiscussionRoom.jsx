@@ -457,6 +457,66 @@ export default function DiscussionRoom() {
     }
   });
 
+  const sendProceedings = (async() => {
+    console.log('확인2')
+    // 메시지가 없을 경우 기본 메시지 생성
+    // if (participantsRef.current.length===0){
+      const formattedMessages = messagesRef.current.map(msg => {
+        // 타임스탬프를 한국 시간 형식으로 변환
+        const formattedTime = new Date(msg.timestamp).toLocaleTimeString('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+        
+        // 원하는 형태로 객체 구성
+        return {
+          type: msg.type,
+          user: msg.sender.nickname,
+          text: msg.content,
+          timestamp: formattedTime
+        };
+      });
+      const messagesToSave = formattedMessages.length > 0 ? formattedMessages :[
+        {
+          type: 'system',
+          text: '회의 중 메시지 없음',
+          timestamp: new Date().toLocaleDateString()
+        }
+      ];
+  
+      // Extract participant names correctly
+      const participantNames = [
+        user?.nickname,
+        ...allParticipantsRef.current
+          .filter(p => p.nickname && p.nickname !== user?.nickname)
+          .map(p => p.nickname)
+      ];
+  
+      const formData = new FormData();
+      formData.append('discussion_pk',discussionId)
+      formData.append('room_name',discussionInfo?.session_id);
+      formData.append('host_name',user?.nickname);
+      formData.append('start_time',meetingStartTime.toISOString());
+      formData.append('end_time',new Date().toISOString());
+      formData.append('duration',((new Date() - meetingStartTime)/1000/60).toFixed(2));
+      formData.append('participants', JSON.stringify(participantNames));
+  
+      formData.append('messages',JSON.stringify(messagesToSave));
+  
+      try {
+        const response = await axios.post(`${BACKEND_URL}/api/v1/discussion/subject`, formData,{
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        console.log('회의록 전송 성공:',response.data);
+        return response.data;
+      } catch (error) {
+        console.error('회의록 전송 실패: ',error);
+        throw error;
+      }
+  });
+
   // 토론방 초기화 로직
   useEffect(() => {
     let openViduNode = null
@@ -944,10 +1004,13 @@ export default function DiscussionRoom() {
 
   // 토론 주제 추천 핸들러
   const handleTopicRecommendation = async () => {
+    console.log('확인1')
     setIsGeneratingTopic(true)
     try {
       // TODO: 토론 주제 추천 API 호출
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // await new Promise((resolve) => setTimeout(resolve, 1000))
+      response = await sendProceedings();
+      console.log(response)
     } catch (error) {
       console.error('Failed to generate topic:', error)
     } finally {
