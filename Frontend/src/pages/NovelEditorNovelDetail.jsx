@@ -7,14 +7,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import AddIcon from '@mui/icons-material/Add'
+import DeleteIcon from '@mui/icons-material/Delete'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import VisibilityIcon from '@mui/icons-material/Visibility'
-import DeleteIcon from '@mui/icons-material/Delete';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
 import {
   Box,
   Button,
@@ -29,9 +24,15 @@ import {
   TableRow,
   Typography,
 } from '@mui/material'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
+import DialogTitle from '@mui/material/DialogTitle'
 
-import { useAuth } from '../hooks/useAuth'
 import coverPlaceholder from '../assets/placeholder/cover-image-placeholder.png'
+import placeholderImage from '/placeholder/cover-image-placeholder.png'
+import { useAuth } from '../hooks/useAuth'
 
 const NovelInfo = styled(Paper)({
   padding: '24px',
@@ -58,35 +59,35 @@ const NovelEditorNovelDetail = () => {
   const [novelData, setNovelData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [openDeleteModal, setOpenDeleteModal] = useState(false);
-  const [openDeleteCompleteModal, setOpenDeleteCompleteModal] = useState(false);
+  const [openDeleteModal, setOpenDeleteModal] = useState(false)
+  const [openDeleteCompleteModal, setOpenDeleteCompleteModal] = useState(false)
 
-       // 삭제 관련 핸들러 함수들 추가
-       const handleDeleteClick = () => {
-        setOpenDeleteModal(true);
-      };
-    
-      const handleDeleteCancel = () => {
-        setOpenDeleteModal(false);
-      };
-    
-      const handleDeleteConfirm = async () => {
-        try {
-          await axios.delete(`${BACKEND_URL}/api/v1/novel/${novelId}`, {
-            withCredentials: true,
-          });
-          setOpenDeleteModal(false);
-          setOpenDeleteCompleteModal(true);
-        } catch (error) {
-          console.error('Failed to delete novel:', error);
-          alert('소설 삭제에 실패했습니다.');
-        }
-      };
-    
-      const handleDeleteCompleteClose = () => {
-        setOpenDeleteCompleteModal(false);
-        navigate('/novel/edit');
-      };
+  // 삭제 관련 핸들러 함수들 추가
+  const handleDeleteClick = () => {
+    setOpenDeleteModal(true)
+  }
+
+  const handleDeleteCancel = () => {
+    setOpenDeleteModal(false)
+  }
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await axios.delete(`${BACKEND_URL}/api/v1/novel/${novelId}`, {
+        withCredentials: true,
+      })
+      setOpenDeleteModal(false)
+      setOpenDeleteCompleteModal(true)
+    } catch (error) {
+      console.error('Failed to delete novel:', error)
+      alert('소설 삭제에 실패했습니다.')
+    }
+  }
+
+  const handleDeleteCompleteClose = () => {
+    setOpenDeleteCompleteModal(false)
+    navigate('/novel/edit')
+  }
 
   // Check login status
   useEffect(() => {
@@ -103,13 +104,11 @@ const NovelEditorNovelDetail = () => {
   }, [novelData])
 
   const episodes = useMemo(() => {
-    if (!novelData?.episode) return [];
-    
+    if (!novelData?.episode) return []
+
     // created_date를 기준으로 오름차순 정렬
-    return [...novelData.episode].sort((a, b) => 
-      new Date(a.created_date) - new Date(b.created_date)
-    );
-  }, [novelData]);
+    return [...novelData.episode].sort((a, b) => new Date(a.created_date) - new Date(b.created_date))
+  }, [novelData])
 
   // 총 조회수/좋아요 계산
   const { totalViews, totalLikes } = useMemo(() => {
@@ -150,6 +149,10 @@ const NovelEditorNovelDetail = () => {
     navigate(`/novel/edit/episode/${novelId}/${ep_pk}`)
   }
 
+  const handleImageError = (event) => {
+    event.target.src = placeholderImage
+  }
+
   if (loading) {
     return (
       <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -165,7 +168,6 @@ const NovelEditorNovelDetail = () => {
       </Container>
     )
   }
-
 
   return (
     <Container maxWidth="xl" sx={{ py: 4, m: '2rem 6rem' }}>
@@ -186,15 +188,15 @@ const NovelEditorNovelDetail = () => {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => {
-              const novelInfo = novelData.novel_info[0];
+              const novelInfo = novelData.novel_info[0]
               navigate(`/novel/edit/background/${novelId}`, {
-                state: { 
+                state: {
                   novelInfo: {
                     ...novelInfo,
-                    genres: novelInfo.genres.map(g => g.genre)
-                  }
-                }
-              });
+                    genres: novelInfo.genres.map((g) => g.genre),
+                  },
+                },
+              })
             }}
             sx={{
               backgroundColor: '#FFA000',
@@ -223,13 +225,12 @@ const NovelEditorNovelDetail = () => {
         </Stack>
       </Box>
 
-
       {/* Novel Info */}
       <NovelInfo>
         {/* Cover Section */}
         <Box
           component="img"
-          src={novelData?.novel_info?.[0]?.novel_img || coverPlaceholder}
+          src={novelData?.novel_info?.[0]?.novel_img || placeholderImage}
           alt="소설 표지"
           sx={{
             width: 200,
@@ -239,6 +240,7 @@ const NovelEditorNovelDetail = () => {
             border: '1px solid #e0e0e0',
             flex: 2,
           }}
+          onError={handleImageError}
         />
 
         {/* Novel Info Section */}
@@ -316,7 +318,7 @@ const NovelEditorNovelDetail = () => {
           </TableBody>
         </Table>
       </TableContainer>
-    
+
       <Dialog
         open={openDeleteModal}
         onClose={handleDeleteCancel}
@@ -345,9 +347,7 @@ const NovelEditorNovelDetail = () => {
       >
         <DialogTitle id="delete-complete-dialog-title">삭제 완료</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            소설이 삭제되었습니다.
-          </DialogContentText>
+          <DialogContentText>소설이 삭제되었습니다.</DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCompleteClose} autoFocus>
@@ -356,7 +356,6 @@ const NovelEditorNovelDetail = () => {
         </DialogActions>
       </Dialog>
     </Container>
-
   )
 }
 
