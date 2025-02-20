@@ -13,6 +13,7 @@ before_script:
   - docker info
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
+  - echo $TAG
   - mkdir -p ~/.ssh
   - echo "🔑 Set ENV"
 
@@ -46,6 +47,8 @@ before_script:
 
   - echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" >> .env
   - echo "GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET" >> .env
+  - echo "GOOGLE_TOKEN_URL=$GOOGLE_TOKEN_URL" >> .env
+  - echo "GOOGLE_USERINFO_URL=$GOOGLE_USERINFO_URL" >> .env
 
   - echo "KAKAO_CLIENT_ID=$KAKAO_CLIENT_ID" >> .env
   - echo "KAKAO_CLIENT_SECRET=$KAKAO_CLIENT_SECRET" >> .env
@@ -64,6 +67,13 @@ before_script:
 
   - echo "REDIS_HOST=$REDIS_HOST" >> .env
   - echo "REDIS_PORT=$REDIS_PORT" >> .env
+
+  - echo "JUPYTER_URL=$JUPYTER_URL" >> .env
+
+  - echo "ENVIRONMENT=$ENVIRONMENT" >> .env
+  - echo "FRONTEND_REDIRECT_URI=$FRONTEND_REDIRECT_URI" >> .env
+  - echo "REDIRECT_URI=$REDIRECT_URI" >> .env
+
 
 build_backend:
   stage: build

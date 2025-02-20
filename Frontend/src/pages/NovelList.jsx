@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { debounce } from 'lodash'
 
-import { useCallback, useEffect, useState, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useNavigate } from 'react-router-dom'
 
@@ -23,7 +23,7 @@ import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 
-import coverPlaceholder from '/placeholder/cover-image-placeholder.png'
+import coverPlaceholder from '../assets/placeholder/cover-image-placeholder.png'
 
 const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
 
@@ -46,15 +46,15 @@ const NovelList = () => {
     const fetchNovels = async () => {
       setLoading(true)
       try {
-        const response = await axios.get('/api/v1/novels')
+        const response = await axios.get(`${BACKEND_URL}/api/v1/novels`)
         setNovels(response.data)
-        
+
         // 모든 소설의 장르를 추출하고 중복 제거
         const allGenres = response.data.flatMap((novel) => novel.genre)
-        const uniqueGenres = Array.from(
-          new Map(allGenres.map((g) => [g.genre_pk, g])).values()
-        ).sort((a, b) => a.genre.localeCompare(b.genre, 'ko'))
-        
+        const uniqueGenres = Array.from(new Map(allGenres.map((g) => [g.genre_pk, g])).values()).sort((a, b) =>
+          a.genre.localeCompare(b.genre, 'ko')
+        )
+
         setGenres(uniqueGenres)
       } catch (err) {
         setError(err.message)
@@ -72,11 +72,14 @@ const NovelList = () => {
     []
   )
 
-  const handleSearchChange = useCallback((event) => {
-    const value = event.target.value
-    setSearchInputValue(value)
-    debouncedSearch(value)
-  }, [debouncedSearch])
+  const handleSearchChange = useCallback(
+    (event) => {
+      const value = event.target.value
+      setSearchInputValue(value)
+      debouncedSearch(value)
+    },
+    [debouncedSearch]
+  )
 
   const handleSortChange = useCallback((event) => {
     setSortBy(event.target.value)
@@ -140,10 +143,10 @@ const NovelList = () => {
           value={searchInputValue}
           onChange={handleSearchChange}
           sx={{
-            '& .MuiOutlinedInput-root': { 
-              borderRadius: '4px', 
-              backgroundColor: '#ffffff' 
-            }
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '4px',
+              backgroundColor: '#ffffff',
+            },
           }}
           slotProps={{
             input: {
@@ -152,7 +155,7 @@ const NovelList = () => {
                   <SearchIcon />
                 </InputAdornment>
               ),
-            }
+            },
           }}
         />
         <FormControl sx={{ minWidth: 120 }}>
@@ -203,7 +206,7 @@ const NovelList = () => {
                 <CardMedia
                   component="img"
                   sx={{ aspectRatio: '3/4', objectFit: 'cover' }}
-                  image={novel.coverImage || coverPlaceholder}
+                  image={novel.novel_img?.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? novel.novel_img : coverPlaceholder}
                   alt={novel.title}
                 />
                 <CardContent>
@@ -224,7 +227,7 @@ const NovelList = () => {
                       mb: 2,
                     }}
                   >
-                    {novel.description}
+                    {novel.summary}
                   </Typography>
                   <Stack direction="row" spacing={2}>
                     <Stack direction="row" spacing={0.5} alignItems="center">

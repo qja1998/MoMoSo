@@ -25,7 +25,7 @@ import {
 } from '@mui/material'
 
 import { useAuth } from '../hooks/useAuth'
-import coverPlaceholder from '/placeholder/cover-image-placeholder.png'
+import coverPlaceholder from '../assets/placeholder/cover-image-placeholder.png'
 
 const NovelInfo = styled(Paper)({
   padding: '24px',
@@ -109,6 +109,7 @@ const NovelEditorNovelDetail = () => {
   const handleEpisodeClick = (ep_pk) => {
     navigate(`/novel/edit/episode/${novelId}/${ep_pk}`)
   }
+  
 
   if (loading) {
     return (
@@ -143,7 +144,18 @@ const NovelEditorNovelDetail = () => {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => navigate('/novel/edit/background')}
+          onClick={() => {
+            const novelInfo = novelData.novel_info[0];
+            navigate(`/novel/edit/background/${novelId}`, {
+              state: { 
+                novelInfo: {
+                  ...novelInfo,
+                  // genres 배열에서 genre 이름만 추출
+                  genres: novelInfo.genres.map(g => g.genre)
+                }
+              }
+            })
+          }}
           sx={{
             backgroundColor: '#FFA000',
             color: 'white',

@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, UploadFile
 
 import models
-from models import User, Novel, Comment, CoComment
+from models import User, Novel, Comment, CoComment, Episode, user_comment_like_table
 from sqlalchemy.sql import func
 from sqlalchemy.orm import joinedload
 
@@ -32,32 +32,127 @@ def get_user(db: Session, user_id: int):
     """
     return db.get(User, user_id)
 
-def get_user_profile(db: Session, user_id: int):
+def get_user_profile(db: Session, user: User):
     """
-    데이터베이스에서 특정 사용자 프로필 정보 조회
-    :param db: SQLAlchemy 세션
+    데이터베이스에서 현재 로그인된 사용자 프로필 정보 조회
+    :param db: SQLAlchemy 세션 
+    :param user: 현재 로그인된 사용자 객체
     """
-    user = db.get(User, user_id)
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not Found")
+    # 작성한 소설 조회
+    novels_written = db.query(Novel).filter(Novel.user_pk == user.user_pk).all()
+
+    # 작성한 댓글 정보 조회 - Novel과 Episode 정보 포함
+    comments = (
+        db.query(Comment, Novel.title.label('novel_title'), Episode.ep_title)
+        .join(Novel, Comment.novel_pk == Novel.novel_pk)
+        .join(Episode, Comment.ep_pk == Episode.ep_pk)
+        .filter(Comment.user_pk == user.user_pk)
+        .all()
+    )
     
-    novels_written  = db.query(Novel).filter(Novel.user_pk == user_id).all()
-    comments = db.query(Comment).filter(Comment.user_pk == user_id).all()
-    cocomments = db.query(CoComment).filter(CoComment.user_pk == user_id).all()
-    recent_novels = user.recent_novels
+    # 댓글 정보를 dictionary로 변환
+    comments_with_details = []
+    for comment, novel_title, ep_title in comments:
+        comment_dict = {
+            'comment_pk': comment.comment_pk,
+            'novel_pk': comment.novel_pk,
+            'ep_pk': comment.ep_pk,
+            'content': comment.content,
+            'created_date': comment.created_date,
+            'likes': comment.likes,
+            'cocomment_cnt': comment.cocomment_cnt,
+            'novel_title': novel_title,
+            'ep_title': ep_title
+        }
+        comments_with_details.append(comment_dict)
+
+    # 대댓글 정보 조회 - 원본 댓글의 Novel과 Episode 정보 포함
+    cocomments = (
+        db.query(
+            CoComment,
+            Novel.title.label('novel_title'),
+            Episode.ep_title,
+            Comment.novel_pk,
+            Comment.ep_pk
+        )
+        .join(Comment, CoComment.comment_pk == Comment.comment_pk)
+        .join(Novel, Comment.novel_pk == Novel.novel_pk)
+        .join(Episode, Comment.ep_pk == Episode.ep_pk)
+        .filter(CoComment.user_pk == user.user_pk)
+        .all()
+    )
+
+    # 대댓글 정보를 dictionary로 변환
+    cocomments_with_details = []
+    for cocomment, novel_title, ep_title, novel_pk, ep_pk in cocomments:
+        cocomment_dict = {
+            'cocomment_pk': cocomment.cocomment_pk,
+            'comment_pk': cocomment.comment_pk,
+            'content': cocomment.content,
+            'created_date': cocomment.created_date,
+            'likes': cocomment.likes,
+            'novel_title': novel_title,
+            'ep_title': ep_title,
+            'novel_pk': novel_pk,
+            'ep_pk': ep_pk
+        }
+        cocomments_with_details.append(cocomment_dict)
+
+    # 좋아요한 댓글 정보도 조회
+    liked_comments = (
+        db.query(Comment, Novel.title.label('novel_title'), Episode.ep_title)
+        .join(Novel, Comment.novel_pk == Novel.novel_pk)
+        .join(Episode, Comment.ep_pk == Episode.ep_pk)
+        .join(user_comment_like_table, Comment.comment_pk == user_comment_like_table.c.comment_pk)
+        .filter(user_comment_like_table.c.user_pk == user.user_pk)
+        .all()
+    )
+
+    liked_comments_with_details = []
+    for comment, novel_title, ep_title in liked_comments:
+        comment_dict = {
+            'comment_pk': comment.comment_pk,
+            'novel_pk': comment.novel_pk,
+            'ep_pk': comment.ep_pk,
+            'content': comment.content,
+            'created_date': comment.created_date,
+            'likes': comment.likes,
+            'cocomment_cnt': comment.cocomment_cnt,
+            'novel_title': novel_title,
+            'ep_title': ep_title
+        }
+        liked_comments_with_details.append(comment_dict)
+
+    # 작성한 소설 정보와 함께 장르 정보 조회
+    novels_written_with_details = []
+    for novel in novels_written:
+        novel_dict = {
+            'novel_pk': novel.novel_pk,
+            'title': novel.title,
+            'synopsis': novel.synopsis,
+            'novel_img': novel.novel_img,
+            'created_date': novel.created_date,
+            'updated_date': novel.updated_date,
+            'likes': novel.likes,
+            'views': novel.views,
+            'num_episode': novel.num_episode,
+            'is_completed': novel.is_completed,
+            'genres': novel.genre_names  # Novel 모델의 @property 메서드 사용
+        }
+        novels_written_with_details.append(novel_dict)
 
     return user_schema.UserDetail(
         user_pk=user.user_pk,
         name=user.name,
         nickname=user.nickname,
         user_img=user.user_img,
-        recent_novels=recent_novels,
+        recent_novels=user.recent_novels,
         liked_novels=user.liked_novels,
-        liked_comments=user.liked_comments,
+        liked_comments=liked_comments_with_details,
         liked_cocomments=user.liked_cocomments,
-        comments=comments,
-        cocomments=cocomments,
-        novels_written=novels_written or [],
+        comments=comments_with_details,
+        cocomments=cocomments_with_details,
+        novels_written=novels_written_with_details,  # 변경된 부분
     )
 
 

@@ -41,7 +41,7 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
 
       console.log('Sending character data:', characterData) // Check the transformed data
 
-      const response = await axios.post(`http://127.0.0.1:8000/api/v1/novel/character/${novelPk}`, characterData, {
+      const response = await axios.post(`${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/novel/character/${novelPk}`, characterData, {
         headers: {
           'Content-Type': 'application/json',
         },

@@ -1,17 +1,19 @@
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException, status, Request
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from . import novel_schema
 from models import Novel, Episode, Comment, CoComment, Character, Genre, novel_genre_table, user_like_table, User, user_recent_novel_table
 from user.user_schema import RecentNovel
-from typing import Optional
+from typing import Optional, Dict, Any
 
 # from sqlalchemy import select
 from datetime import datetime, timedelta
 from collections import Counter
-import os 
+import os
 from dotenv import load_dotenv
+from fastapi import File, UploadFile 
+import httpx
 
 # .env 파일 로드
 load_dotenv()
@@ -70,6 +72,7 @@ def get_all_novel(db: Session):
         novel_schema.NovelShowBase(
             novel_pk=novel.novel_pk,
             title=novel.title,
+            summary = novel.summary, 
             created_date=novel.created_date,
             updated_date=novel.updated_date,
             novel_img=novel.novel_img,
@@ -86,8 +89,14 @@ def get_all_novel(db: Session):
 
 
 # 소설 검색 (pk 기반, 테스트 용도라 추후 삭제)
-def search_novel(novel_pk: str, db: Session):
-    return db.query(Novel).filter(Novel.novel_pk == novel_pk).all()
+def search_novel(novel_pk: int, db: Session):
+    # return db.query(Novel).filter(Novel.novel_pk == novel_pk).all()
+    return (
+        db.query(Novel)
+        .options(joinedload(Novel.genres))  # Novel과 Genre를 join
+        .filter(Novel.novel_pk == novel_pk)
+        .all()
+    )
 
 
 def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Session):
@@ -117,21 +126,26 @@ def create_novel(novel_info: novel_schema.NovelCreateBase, user_pk: int, db: Ses
     db.refresh(novel)
 
     # novel.genres를 문자열 리스트로 변환
-    genre_names = [genre.genre for genre in novel.genres]
+    # genre_names = [genre.genre for genre in novel.genres]
+    genre_names = [
+        novel_schema.GenreGetBase(genre_pk=genre.genre_pk, genre=genre.genre)
+        for genre in novel.genres
+    ]
 
     # 스키마 객체 생성
-    novel_base = novel_schema.NovelBase(
+    novel_base = novel_schema.NovelShowBase( # NovelShowBase 스키마 사용
         novel_pk=novel.novel_pk,
         title=novel.title,
         worldview=novel.worldview,
         synopsis=novel.synopsis,
         summary=novel.summary,
-        num_episode=novel.num_episode,
-        likes=novel.likes,
+        novel_img=novel.novel_img, # 추가 (기본 이미지 URL 설정)
         views=novel.views,
+        likes=novel.likes,
         is_completed=novel.is_completed,
-        genres=genre_names  # 변환된 문자열 리스트 할당
+        genre=genre_names # GenreGetBase 리스트 할당
     )
+    
     return novel_base
 
 # 소설 부분 업데이트. 이건 전체 저장 용도로 쓰면 될듯.
@@ -198,33 +212,28 @@ def like_novel(novel_pk: int, user_pk: int, db: Session):
 
 # 실시간 인기
 
-def recent_hit(days: int, db: Session) -> Optional[str]: 
+def recent_hit(days: int, db: Session) -> Optional[Dict[str, Any]]:
     """
-    최근 N일 동안 가장 많이 좋아요를 받은 소설 1개의 제목 반환
+    최근 N일 동안 가장 많이 좋아요를 받은 소설 정보 반환
     """
     today = datetime.now()
-    day_2_back = today - timedelta(days=days)
+    day_n_back = today - timedelta(days=days)
 
-    # 좋아요 데이터를 필터링
-    recent_hit = db.query(user_like_table.c.liked_date).filter(user_like_table.c.liked_date >= day_2_back).all()
-    
-    if not recent_hit: 
-        return None
+    hit_novel = (
+        db.query(Novel)
+        .join(user_like_table)
+        .filter(user_like_table.c.liked_date >= day_n_back)
+        .group_by(Novel.novel_pk)
+        .order_by(func.count(user_like_table.c.user_pk).desc())
+        .first()
+    )
 
-    novel_pks = [like[0] for like in recent_hit]  # 좋아요 받은 novel_pk 리스트 추출
-
-    # 가장 많이 좋아요 받은 novel_pk 찾기
-    most_common_novel_pk = Counter(novel_pks).most_common(1)  # 최상위 1개만 가져오기
-
-    if not most_common_novel_pk:
-        return None
-
-    most_popular_novel_pk = most_common_novel_pk[0][0]
-
-    # novel_pk에 해당하는 소설 제목 반환
-    hit_novel = db.query(Novel.title).filter(Novel.novel_pk == most_popular_novel_pk).first()
-
-    return hit_novel.title if hit_novel else None
+    if hit_novel:
+        return {
+            "title": hit_novel.title,
+            "pk": hit_novel.novel_pk
+        }
+    return None
     
 
 #추천 작품
@@ -298,11 +307,11 @@ def delete_episode(novel_pk: int, episode_pk : int, db: Session) :
 
 # 특정 에피소드의 모든 댓글 조회
 def get_all_ep_comment(novel_pk: int, ep_pk: int, db: Session):
-    return db.query(Comment).filter(Comment.ep_pk == ep_pk).all()
+    return db.query(Comment).filter(Comment.ep_pk == ep_pk).options(joinedload(Comment.user)).all()
 
 # 특정 소설의 모든 댓글 조회
 def get_novel_comment(novel_pk: int, db: Session):
-    return db.query(Comment).filter(Comment.novel_pk == novel_pk).all()
+    return db.query(Comment).filter(Comment.novel_pk == novel_pk).options(joinedload(Comment.user)).all()
 
 # 댓글 작성
 def create_comment(comment_info: novel_schema.CommentBase, novel_pk: int, ep_pk: int, user_pk: int, db: Session):
@@ -319,8 +328,11 @@ def create_comment(comment_info: novel_schema.CommentBase, novel_pk: int, ep_pk:
     return comment
 
 # 댓글 수정
-def update_comment(content: str, comment_pk: int, db: Session):
-    comment = db.query(Comment).filter(Comment.comment_pk == comment_pk).first()
+def update_comment(content: str, comment_pk: int, user_pk: int, db: Session):
+    comment = db.query(Comment).filter(
+        Comment.comment_pk == comment_pk,
+        Comment.user_pk == user_pk  # 작성자 확인
+    ).first()
     if not comment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="댓글을 찾을 수 없습니다.")
     
@@ -330,8 +342,11 @@ def update_comment(content: str, comment_pk: int, db: Session):
     return comment
 
 # 댓글 삭제
-def delete_comment(comment_pk: int, db: Session):
-    comment = db.query(Comment).filter(Comment.comment_pk == comment_pk).first()
+def delete_comment(comment_pk: int, user_pk: int, db: Session):
+    comment = db.query(Comment).filter(
+        Comment.comment_pk == comment_pk,
+        Comment.user_pk == user_pk  # 작성자 확인
+    ).first()
     if not comment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="댓글을 찾을 수 없습니다.")
     
@@ -482,23 +497,23 @@ def delete_character(character_pk : int, db: Session) :
         db.commit()
         return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
 
-
+"""
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 # 표지 저장
 def save_cover(user_or_nov : str, pk : int, image_path : str, drive_folder_id : str, db: Session) : 
     # image_path = os.path.join(os.getcwd(), "static", file_name+".jpg")
     """
-    이미지를 Google Drive에 업로드합니다.
+    # 이미지를 Google Drive에 업로드합니다.
 
-    Args:
-        image_path (str): 업로드할 이미지 파일 경로.
-        drive_folder_id (str): 이미지를 저장할 Google Drive 폴더 ID.
+    # Args:
+    #     image_path (str): 업로드할 이미지 파일 경로.
+    #     drive_folder_id (str): 이미지를 저장할 Google Drive 폴더 ID.
 
-    Returns:
-        dict: 업로드 성공 시 파일 ID를 포함한 결과 반환.
-        None: 업로드 실패 시 None 반환.
-    """
+    # Returns:
+    #     dict: 업로드 성공 시 파일 ID를 포함한 결과 반환.
+    #     None: 업로드 실패 시 None 반환.
+"""
     json_key_path = os.path.join(os.getcwd(), "momoso-450108-0d3ffb86c6ef.json")
 
     # JSON 파일 존재 여부 확인
@@ -575,7 +590,11 @@ def delete_image(file_id : str, drive_folder_id : str):
     except Exception as e:
         print(f"파일 삭제 중 오류 발생: {e}")
 
-from fastapi import File, UploadFile
+
+"""
+
+
+
 #로컬에서 파일 업로드 하는 기능
 
 async def image_upload(file: UploadFile = File(...)) : 
@@ -609,7 +628,34 @@ def get_previous_chapters(db: Session, novel_pk: int) -> str:
     )
     return "\n\n---\n\n".join([ep.ep_content for ep in episodes]) if episodes else ""
 
+IMGUR_CLIENT_ID = os.environ.get("IMGUR_CLIENT_ID")
 
+
+async def upload_to_imgur(image: UploadFile):
+    """Imgur에 이미지를 업로드하고 링크를 반환합니다."""
+    try:
+        imgur_url = "https://api.imgur.com/3/image"
+        headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
+        files = {"image": (image.filename, await image.read(), image.content_type)}
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(imgur_url, headers=headers, files=files)
+
+        response.raise_for_status()
+        data = response.json()
+
+        if data["success"]:
+            return data["data"]["link"]
+        else:
+            raise HTTPException(status_code=500, detail=data["data"]["error"])
+
+    except httpx.HTTPStatusError as e:
+        print(f"Imgur API error: {e}")
+        raise HTTPException(status_code=500, detail="Imgur API 오류")
+    except Exception as e:
+        print(f"Upload failed: {e}")
+        raise HTTPException(status_code=500, detail="이미지 업로드 실패")
+    
 def get_episode_detail(novel_pk: int, ep_pk: int, db: Session):
     """
     Get detailed information about a specific episode of a novel

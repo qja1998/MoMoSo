@@ -13,10 +13,14 @@ class UserRecentNovel(BaseModel):
     class Config:
         from_attributes = True
 
+class NovelInfo(BaseModel):
+    title: str
+    pk: int
+
 class MainPageResponse(BaseModel):
     user: UserRecentNovel
-    recent_best: Optional[str]  # 최근 인기 소설
-    month_best: Optional[str]  # 한 달 동안 인기 소설
+    recent_best: Optional[NovelInfo] = None
+    month_best: Optional[NovelInfo] = None
 
     class Config:
         from_attributes = True
@@ -61,16 +65,16 @@ class NovelCreateBase(BaseModel):
         from_attributes = True
 
 
-class NovelShowBase(BaseModel) : 
-    novel_pk : int
-    title: str
-    worldview: str
-    synopsis: str
-    summary : Optional[str] = None
-    genres: List[str] = Field(description="List of genre names")
+# class NovelShowBase(BaseModel) : 
+#     novel_pk : int
+#     title: str
+#     worldview: str
+#     synopsis: str
+#     summary : Optional[str] = None
+#     genres: List[str] = Field(description="List of genre names")
 
-    class Config:
-        from_attributes = True
+#     class Config:
+#         from_attributes = True
 
 
 # 소설 기본 정보 (응답용)

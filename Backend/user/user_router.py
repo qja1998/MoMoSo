@@ -28,9 +28,12 @@ def get_users(db:Session=Depends(get_db)):
 def get_user(current_user: User = Depends(get_current_user)):
     return current_user
 
-@router.get('/detail/{user_id}', description="개별 사용자 상세 조회(마이 페이지 데이터 출력용)" , response_model=user_schema.UserDetail)
-def get_profile(user_id:int, db:Session=Depends(get_db)):
-    return user_crud.get_user_profile(db, user_id=user_id)
+@router.get('/detail', description="현재 로그인된 사용자 상세 조회(마이 페이지 데이터 출력용)", response_model=user_schema.UserDetail)
+def get_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return user_crud.get_user_profile(db, user=current_user)
 
 
 @router.put('/', description="현재 사용자 정보 수정", response_model=user_schema.User)
