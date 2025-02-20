@@ -2,9 +2,10 @@ import axios from 'axios'
 
 import { useEffect, useRef, useState } from 'react'
 
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 
 import OfflineBoltIcon from '@mui/icons-material/OfflineBolt'
+import DeleteIcon from '@mui/icons-material/Delete'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
@@ -12,17 +13,28 @@ import Input from '@mui/material/Input'
 import Paper from '@mui/material/Paper'
 import TextareaAutosize from '@mui/material/TextareaAutosize'
 import Typography from '@mui/material/Typography'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
+import DialogTitle from '@mui/material/DialogTitle'
 
 import { PrimaryButton } from '../components/common/buttons'
+import { useAuth } from '../hooks/useAuth'
 
 function NovelEditorEpisode() {
   const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
   const { novelId, episodeId } = useParams()
+  const navigate = useNavigate()
+  const { user } = useAuth()
+
   const [isFocused, setIsFocused] = useState(false)
   const [novelTitle, setNovelTitle] = useState('')
   const [episodeTitle, setEpisodeTitle] = useState('')
   const [episodeContent, setEpisodeContent] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [openDeleteModal, setOpenDeleteModal] = useState(false)
+  const [openDeleteSuccessModal, setOpenDeleteSuccessModal] = useState(false)
   const [novelInfo, setNovelInfo] = useState({
     title: '',
     genre: '',
@@ -206,6 +218,43 @@ function NovelEditorEpisode() {
     }
   }
 
+  const handleDeleteModalOpen = () => {
+    setOpenDeleteModal(true)
+  }
+
+  const handleDeleteModalClose = () => {
+    setOpenDeleteModal(false)
+  }
+
+  const handleDeleteSuccessModalClose = () => {
+    setOpenDeleteSuccessModal(false)
+    navigate(`/novel/edit/episodelist/${novelId}`)
+  }
+
+  const handleDeleteEpisode = async () => {
+    try {
+      await axios.delete(`${BACKEND_URL}/api/v1/novel/${novelId}/${episodeId}`, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      handleDeleteModalClose()
+      setOpenDeleteSuccessModal(true)
+    } catch (error) {
+      console.error('Failed to delete episode:', error)
+      if (error.response?.status === 404) {
+        alert('에피소드를 찾을 수 없습니다.')
+      } else if (error.response?.status === 403) {
+        alert('에피소드를 삭제할 권한이 없습니다.')
+      } else {
+        alert('에피소드 삭제에 실패했습니다.')
+      }
+    }
+  }
+
+
   return (
     <Box
       sx={{
@@ -295,12 +344,20 @@ function NovelEditorEpisode() {
           />
         )}
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+<Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, width: '100%', mt: 2 }}>
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={handleDeleteModalOpen}
+            sx={{ backgroundColor: '#ff1744' }}
+          >
+            삭제하기
+          </Button>
           <Button
             variant="contained"
             onClick={handleSave}
             sx={{
-              mt: 2,
               backgroundColor: '#FFA000',
               color: 'white',
               '&:hover': {
@@ -312,6 +369,46 @@ function NovelEditorEpisode() {
           </Button>
         </Box>
       </Paper>
+    {/* 삭제 확인 모달 */}
+    <Dialog
+        open={openDeleteModal}
+        onClose={handleDeleteModalClose}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">에피소드 삭제</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            에피소드를 삭제하면 관련 정보가 모두 삭제됩니다. 정말 삭제하시겠습니까?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteModalClose}>취소하기</Button>
+          <Button onClick={handleDeleteEpisode} color="error" autoFocus>
+            삭제하기
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 삭제 완료 모달 */}
+      <Dialog
+        open={openDeleteSuccessModal}
+        onClose={handleDeleteSuccessModalClose}
+        aria-labelledby="delete-success-dialog-title"
+        aria-describedby="delete-success-dialog-description"
+      >
+        <DialogTitle id="delete-success-dialog-title">삭제 완료</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-success-dialog-description">
+            에피소드가 삭제되었습니다.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteSuccessModalClose} autoFocus>
+            확인
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

@@ -71,7 +71,7 @@ const NovelEditor = () => {
             },
           }}
         >
-          새로운 소설 생성하기
+          새로운 소설 생성
         </Button>
       </Box>
 

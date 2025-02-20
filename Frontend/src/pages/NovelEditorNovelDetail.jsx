@@ -9,6 +9,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import AddIcon from '@mui/icons-material/Add'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+import DeleteIcon from '@mui/icons-material/Delete';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
 import {
   Box,
   Button,
@@ -52,6 +58,35 @@ const NovelEditorNovelDetail = () => {
   const [novelData, setNovelData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [openDeleteModal, setOpenDeleteModal] = useState(false);
+  const [openDeleteCompleteModal, setOpenDeleteCompleteModal] = useState(false);
+
+       // 삭제 관련 핸들러 함수들 추가
+       const handleDeleteClick = () => {
+        setOpenDeleteModal(true);
+      };
+    
+      const handleDeleteCancel = () => {
+        setOpenDeleteModal(false);
+      };
+    
+      const handleDeleteConfirm = async () => {
+        try {
+          await axios.delete(`${BACKEND_URL}/api/v1/novel/${novelId}`, {
+            withCredentials: true,
+          });
+          setOpenDeleteModal(false);
+          setOpenDeleteCompleteModal(true);
+        } catch (error) {
+          console.error('Failed to delete novel:', error);
+          alert('소설 삭제에 실패했습니다.');
+        }
+      };
+    
+      const handleDeleteCompleteClose = () => {
+        setOpenDeleteCompleteModal(false);
+        navigate('/novel/edit');
+      };
 
   // Check login status
   useEffect(() => {
@@ -68,8 +103,13 @@ const NovelEditorNovelDetail = () => {
   }, [novelData])
 
   const episodes = useMemo(() => {
-    return novelData?.episode || []
-  }, [novelData])
+    if (!novelData?.episode) return [];
+    
+    // created_date를 기준으로 오름차순 정렬
+    return [...novelData.episode].sort((a, b) => 
+      new Date(a.created_date) - new Date(b.created_date)
+    );
+  }, [novelData]);
 
   // 총 조회수/좋아요 계산
   const { totalViews, totalLikes } = useMemo(() => {
@@ -109,7 +149,6 @@ const NovelEditorNovelDetail = () => {
   const handleEpisodeClick = (ep_pk) => {
     navigate(`/novel/edit/episode/${novelId}/${ep_pk}`)
   }
-  
 
   if (loading) {
     return (
@@ -127,6 +166,7 @@ const NovelEditorNovelDetail = () => {
     )
   }
 
+
   return (
     <Container maxWidth="xl" sx={{ py: 4, m: '2rem 6rem' }}>
       {/* Header with Create Button */}
@@ -139,34 +179,50 @@ const NovelEditorNovelDetail = () => {
         }}
       >
         <Typography variant="h4" component="h1" fontWeight="bold">
-          에피소드 편집하기
+          에피소드 편집
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => {
-            const novelInfo = novelData.novel_info[0];
-            navigate(`/novel/edit/background/${novelId}`, {
-              state: { 
-                novelInfo: {
-                  ...novelInfo,
-                  // genres 배열에서 genre 이름만 추출
-                  genres: novelInfo.genres.map(g => g.genre)
+        <Stack direction="row" spacing={2}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              const novelInfo = novelData.novel_info[0];
+              navigate(`/novel/edit/background/${novelId}`, {
+                state: { 
+                  novelInfo: {
+                    ...novelInfo,
+                    genres: novelInfo.genres.map(g => g.genre)
+                  }
                 }
-              }
-            })
-          }}
-          sx={{
-            backgroundColor: '#FFA000',
-            color: 'white',
-            '&:hover': {
-              backgroundColor: '#FF8F00',
-            },
-          }}
-        >
-          소설 기본 정보 변경하기
-        </Button>
+              });
+            }}
+            sx={{
+              backgroundColor: '#FFA000',
+              color: 'white',
+              '&:hover': {
+                backgroundColor: '#FF8F00',
+              },
+            }}
+          >
+            기본 정보 변경
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<DeleteIcon />}
+            onClick={handleDeleteClick}
+            sx={{
+              backgroundColor: '#d32f2f',
+              color: 'white',
+              '&:hover': {
+                backgroundColor: '#b71c1c',
+              },
+            }}
+          >
+            소설 삭제하기
+          </Button>
+        </Stack>
       </Box>
+
 
       {/* Novel Info */}
       <NovelInfo>
@@ -224,7 +280,7 @@ const NovelEditorNovelDetail = () => {
             },
           }}
         >
-          새 에피소드 작성하기
+          새로운 에피소드 작성
         </Button>
       </Box>
 
@@ -240,7 +296,7 @@ const NovelEditorNovelDetail = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {episodes.map((episode) => (
+            {episodes.map((episode, index) => (
               <TableRow
                 key={episode.ep_pk}
                 sx={{
@@ -251,7 +307,7 @@ const NovelEditorNovelDetail = () => {
                 }}
                 onClick={() => handleEpisodeClick(episode.ep_pk)}
               >
-                <TableCell>{episode.ep_pk}</TableCell>
+                <TableCell>{index + 1}</TableCell>
                 <TableCell>{episode.ep_title}</TableCell>
                 <TableCell align="right">{episode.views?.toLocaleString() || '0'}</TableCell>
                 <TableCell align="right">{dayjs(episode.created_date).format('YYYY.MM.DD')}</TableCell>
@@ -260,7 +316,47 @@ const NovelEditorNovelDetail = () => {
           </TableBody>
         </Table>
       </TableContainer>
+    
+      <Dialog
+        open={openDeleteModal}
+        onClose={handleDeleteCancel}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">소설 삭제 확인</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            소설을 삭제하면 관련 정보가 모두 삭제됩니다. 정말 삭제하시겠습니까?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>취소하기</Button>
+          <Button onClick={handleDeleteConfirm} color="error" autoFocus>
+            삭제하기
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 삭제 완료 모달 */}
+      <Dialog
+        open={openDeleteCompleteModal}
+        onClose={handleDeleteCompleteClose}
+        aria-labelledby="delete-complete-dialog-title"
+      >
+        <DialogTitle id="delete-complete-dialog-title">삭제 완료</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            소설이 삭제되었습니다.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCompleteClose} autoFocus>
+            확인
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
+
   )
 }
 
