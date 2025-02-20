@@ -41,9 +41,47 @@
 
 ### ✅ **멤버 소개**
 ---
+<table>
+  <tr>
+    <td align="center">
+      <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="150"/><br>
+      🎉 전제후(팀장)
+    </td>
+    <td align="center">
+      <img src="/uploads/db5edf5adf21aa5c1a182439139a6936/권기범.png" width="150"/><br>
+      🌟 권기범
+    </td>
+    <td align="center">
+      <img src="/uploads/7be088a72bb329d2a2370e24f18a940c/김의찬.png" width="150"/><br>
+      🚀 김의찬
+    </td>
+    <td align="center">
+      <img src="/uploads/ced62e92587854fce8696b8799faf392/김윤하.png" width="150"/><br>
+      💡 김윤하
+    </td>
+    <td align="center">
+      <img src="/uploads/c96b88c3f3e7efc2d269844166c52909/이지은.png" width="150"/><br>
+      🎯 이지은
+    </td>
+    <td align="center">
+      <img src="/uploads/0f5b6c8a382b213991c95b2326a99cc6/조현준.png" width="150"/><br>
+      🌈 조현준
+    </td>
+  </tr>
+  <tr>
+    <td align="left"><strong>PM, AI</strong></td>
+    <td align="left"><strong>DevOps, AI</strong></td>
+    <td align="left"><strong>통신, BE</strong></td>
+    <td align="left"><strong>BE, FE</strong></td>
+    <td align="left"><strong>BE, FE</strong></td>
+    <td align="left"><strong>FE</strong></td>
+  </tr>
+</table>
+
+
 <div align="center">
 
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="100"/> <br> 🎉 전제후(팀장) <br> **PM, AI** | <img src="/uploads/db5edf5adf21aa5c1a182439139a6936/권기범.png" width="100"/> <br> 🌟 권기범 <br> **DevOps, AI** | <img src="/uploads/7be088a72bb329d2a2370e24f18a940c/김의찬.png" width="100"/> <br> 🚀 김의찬 <br> **통신, BE** | <img src="/uploads/ced62e92587854fce8696b8799faf392/김윤하.png" width="100"/> <br> 💡 김윤하 <br> **BE, FE** | <img src="/uploads/c96b88c3f3e7efc2d269844166c52909/이지은.png" width="100"/> <br> 🎯 이지은 <br> **BE, FE** | <img src="/uploads/0f5b6c8a382b213991c95b2326a99cc6/조현준.png" width="100"/> <br> 🌈 조현준 <br> **FE** |
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="150"/> <br> 🎉 전제후(팀장) <br> **PM, AI** | <img src="/uploads/db5edf5adf21aa5c1a182439139a6936/권기범.png" width="150"/> <br> 🌟 권기범 <br> **DevOps, AI** | <img src="/uploads/7be088a72bb329d2a2370e24f18a940c/김의찬.png" width="150"/> <br> 🚀 김의찬 <br> **통신, BE** | <img src="/uploads/ced62e92587854fce8696b8799faf392/김윤하.png" width="150"/> <br> 💡 김윤하 <br> **BE, FE** | <img src="/uploads/c96b88c3f3e7efc2d269844166c52909/이지은.png" width="150"/> <br> 🎯 이지은 <br> **BE, FE** | <img src="/uploads/0f5b6c8a382b213991c95b2326a99cc6/조현준.png" width="150"/> <br> 🌈 조현준 <br> **FE** |
 |:------------------------------------------------------------------:|:------------------------------------------------------------------:|:------------------------------------------------------------------:|:--------------------------------------------------------------------:|:--------------------------------------------------------------------:|:--------------------------------------------------------------------:|
 
 </div>
@@ -148,7 +186,7 @@
 
 ### ✅ **아키텍처 다이어그램** 
 --- 
-  ![서비스 아키텍처](/uploads/c035b51521f8de6d581b2740c976d8a7/시스템_아키텍처.png)
+  ![서비스 아키텍처](/uploads/2c2cc4efe07b95d6ec3ae8118bdfb14d/시스템_아키텍처.png)
 
 ## 2️⃣ 주요 기능
 
@@ -158,7 +196,7 @@
 
 | 회원가입 | 로그인 |
 |:---:|:---:|
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="https://예시_이미지_경로/parent_login.png" width="300"/> |
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
 | 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
 
 </div>
@@ -169,7 +207,7 @@
 
 | 랜딩 페이지 | 메인 페이지 |
 |:---:|:---:|
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
 | 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
 
 </div>
@@ -180,7 +218,7 @@
 
 | 소설정보 페이지 | 소설작성 페이지 |
 |:---:|:---:|
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
 | 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
 
 </div>
@@ -202,7 +240,7 @@
 
 | 전체 소설 페이지 | 상세보기 페이지 |
 |:---:|:---:|
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
 | 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
 
 </div>
@@ -213,7 +251,7 @@
 
 | 기획서 | 기능명세서 |
 |:---:|:---:|
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
 
 </div>
 
@@ -221,7 +259,7 @@
 
 | ERD | API 연동 규격서 |
 |:---:|:---:|
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
 
 </div>
 
@@ -229,7 +267,7 @@
 
 | 플로우 차트 | 화면 설계(목업) |
 |:---:|:---:|
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
 
 </div>
 
@@ -237,6 +275,6 @@
 
 | 포팅 매뉴얼 |
 |:---:|
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="900"/> |
 
 </div>
