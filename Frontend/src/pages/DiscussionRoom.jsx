@@ -223,21 +223,29 @@ export default function DiscussionRoom() {
   const [publisher, setPublisher] = useState(null) // 로컬 스트림(자신의 비디오/오디오)
   const [participants, setParticipants] = useState([]) // 나를 포함한 참가자들의 스트림 객체 배열
   const [subscribers, setSubscribers] = useState([]) // 나를 포함한 참가자들의 구독자 객체 배열
+  const [allParticipants,setAllParticipants] = useState([]) // 전체 사용자를 기록하기 위한 배열
 
   // participants 변경 감지를 위한 useEffect
   useEffect(() => {
     console.log('[Participants 변경]', participants)
   }, [participants])
 
+
   // 채팅 관련 상태 추가
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [meetingStartTime] = useState(new Date());
   const messagesRef = useRef([]);
+  const allParticipantsRef = useRef([]);
 
   useEffect(()=>{
     messagesRef.current = messages;
   },[messages]);
+
+   // allPriticipanst 변경 감지를 위한 useEffect
+   useEffect(()=>{
+    allParticipantsRef.current = allParticipants;
+   },[allParticipants]);
 
   // AI 어시스턴트 관련 상태 추가
   const [factChecks, setFactChecks] = useState([])
@@ -390,58 +398,62 @@ export default function DiscussionRoom() {
 
   const createProceedings = (async() => {
     // 메시지가 없을 경우 기본 메시지 생성
-    const formattedMessages = messagesRef.current.map(msg => {
-      // 타임스탬프를 한국 시간 형식으로 변환
-      const formattedTime = new Date(msg.timestamp).toLocaleTimeString('ko-KR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
+    console.log('adasdasdasdadasd',participantsRef.current.length)
+    if (participantsRef.current.length===0){
+      const formattedMessages = messagesRef.current.map(msg => {
+        // 타임스탬프를 한국 시간 형식으로 변환
+        const formattedTime = new Date(msg.timestamp).toLocaleTimeString('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+        
+        // 원하는 형태로 객체 구성
+        return {
+          type: msg.type,
+          user: msg.sender.nickname,
+          text: msg.content,
+          timestamp: formattedTime
+        };
       });
-      
-      // 원하는 형태로 객체 구성
-      return {
-        type: msg.type,
-        user: msg.sender.nickname,
-        text: msg.content,
-        timestamp: formattedTime
-      };
-    });
-    const messagesToSave = formattedMessages.length > 0 ? formattedMessages :[
-      {
-        type: 'system',
-        text: '회의 중 메시지 없음',
-        timestamp: new Date().toLocaleDateString()
+      const messagesToSave = formattedMessages.length > 0 ? formattedMessages :[
+        {
+          type: 'system',
+          text: '회의 중 메시지 없음',
+          timestamp: new Date().toLocaleDateString()
+        }
+      ];
+  
+      // Extract participant names correctly
+      const participantNames = [
+        user?.nickname,
+        ...allParticipantsRef.current
+          .filter(p => p.nickname && p.nickname !== user?.nickname)
+          .map(p => p.nickname)
+      ];
+  
+      const formData = new FormData();
+      formData.append('discussion_pk',discussionId)
+      formData.append('room_name',discussionInfo?.session_id);
+      formData.append('host_name',user?.nickname);
+      formData.append('start_time',meetingStartTime.toISOString());
+      formData.append('end_time',new Date().toISOString());
+      formData.append('duration',((new Date() - meetingStartTime)/1000/60).toFixed(2));
+      formData.append('participants', JSON.stringify(participantNames));
+  
+      formData.append('messages',JSON.stringify(messagesToSave));
+  
+      try {
+        const response = await axios.post(`${BACKEND_URL}/api/v1/discussion/meeting-minutes`, formData,{
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        console.log('회의록 저장 성공:',response.data);
+        return response.data;
+      } catch (error) {
+        console.error('회의록 저장 실패: ',error);
+        throw error;
       }
-    ];
-
-    // Extract participant names correctly
-    const participantNames = [
-      user?.nickname,
-      ...participantsRef.current
-        .filter(p => p.nickname && p.nickname !== user?.nickname)
-        .map(p => p.nickname)
-    ];
-
-    const formData = new FormData();
-    formData.append('room_name',discussionInfo?.session_id);
-    formData.append('host_name',user?.nickname);
-    formData.append('start_time',meetingStartTime.toISOString());
-    formData.append('end_time',new Date().toISOString());
-    formData.append('duration',((new Date() - meetingStartTime)/1000/60).toFixed(2));
-    formData.append('participants', JSON.stringify(participantNames));
-
-    formData.append('messages',JSON.stringify(messagesToSave));
-
-    try {
-      const response = await axios.post(`${BACKEND_URL}/api/v1/discussion/meeting-minutes`, formData,{
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      console.log('회의록 저장 성공:',response.data);
-      return response.data;
-    } catch (error) {
-      console.error('회의록 저장 실패: ',error);
-      throw error;
     }
   });
 
@@ -636,6 +648,21 @@ export default function DiscussionRoom() {
                   nickname: connectionData.nickname,
                   streamManager: subscriber
                 }];
+                
+              });
+              setAllParticipants(prev => {
+                // 이미 존재하는 참가자 확인
+                if (prev.some(p => p.user_pk === connectionData.user_pk)) {
+                  return prev;
+                }
+
+                return [...prev, {
+                  connectionId: event.stream.connection.connectionId,
+                  user_pk: connectionData.user_pk,
+                  nickname: connectionData.nickname,
+                  streamManager: subscriber
+                }];
+                
               });
 
               // VAD 이벤트 핸들러 설정
