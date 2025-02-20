@@ -66,8 +66,13 @@ def create_discussion(
 ):
     """
     새로운 토론 방 생성 (로그인한 사용자만 가능)
+    토론방 생성 후 자동으로 소설 txt 파일도 생성
     """
-    new_discussion = discussion_crud.create_discussion(db, discussion, current_user)
+    # 1. 토론방 생성
+    new_discussion = discussion_crud.create_discussion_db(db, discussion, current_user)
+    
+    # 2. txt 파일 생성
+    discussion_crud.create_novel_txt_file(new_discussion.discussion_pk, db)
 
     return new_discussion
 
@@ -137,59 +142,59 @@ def get_assistant(document_path: str = None):
 DOCUMENT_PATH = "./document_path"  # txt 파일 저장 디렉토리
 
 
-@router.post("/create-txt", description="토론 시작 시, 소설 txt 파일 생성")
-def create_txt_file(discussion_pk: int, db: Session = Depends(get_db)):
-    """
-    AI 기능을 위해 토론 시작 시, 소설 폴더에 소설 내용을 담은 txt 파일을 생성하는 기능
-    """
+# @router.post("/create-txt", description="토론 시작 시, 소설 txt 파일 생성")
+# def create_txt_file(discussion_pk: int, db: Session = Depends(get_db)):
+#     """
+#     AI 기능을 위해 토론 시작 시, 소설 폴더에 소설 내용을 담은 txt 파일을 생성하는 기능
+#     """
 
-    # 소설 및 토론 정보 조회
-    discussion = (
-        db.query(Discussion).filter(Discussion.discussion_pk == discussion_pk).first()
-    )
-    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+#     # 소설 및 토론 정보 조회
+#     discussion = (
+#         db.query(Discussion).filter(Discussion.discussion_pk == discussion_pk).first()
+#     )
+#     novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
 
-    if not novel:
-        raise HTTPException(status_code=404, detail="Novel not found")
+#     if not novel:
+#         raise HTTPException(status_code=404, detail="Novel not found")
 
-    if not discussion:
-        raise HTTPException(status_code=404, detail="Discussion not found")
+#     if not discussion:
+#         raise HTTPException(status_code=404, detail="Discussion not found")
 
-    # 소설의 모든 에피소드 조회 (생성 날짜순 정렬)
-    episodes = (
-        db.query(Episode)
-        .filter(Episode.novel_pk == novel.novel_pk)
-        .order_by(Episode.created_date)
-        .all()
-    )
+#     # 소설의 모든 에피소드 조회 (생성 날짜순 정렬)
+#     episodes = (
+#         db.query(Episode)
+#         .filter(Episode.novel_pk == novel.novel_pk)
+#         .order_by(Episode.created_date)
+#         .all()
+#     )
 
-    if not episodes:
-        raise HTTPException(status_code=400, detail="No episodes found for this novel")
+#     if not episodes:
+#         raise HTTPException(status_code=400, detail="No episodes found for this novel")
 
-    # txt 파일 제목 설정 (토론 세션 ID + 소설 제목)
-    txt_title = f"{novel.title}_{discussion.session_id}.txt"
+#     # txt 파일 제목 설정 (토론 세션 ID + 소설 제목)
+#     txt_title = f"{novel.title}_{discussion.session_id}.txt"
 
-    # 파일 저장 경로 설정
-    os.makedirs(DOCUMENT_PATH, exist_ok=True)  # 폴더가 없으면 생성
-    file_path = os.path.join(DOCUMENT_PATH, txt_title)
+#     # 파일 저장 경로 설정
+#     os.makedirs(DOCUMENT_PATH, exist_ok=True)  # 폴더가 없으면 생성
+#     file_path = os.path.join(DOCUMENT_PATH, txt_title)
 
-    # 소설 내용 구성
-    content = f" 소설 제목: {novel.title}\n\n"
+#     # 소설 내용 구성
+#     content = f" 소설 제목: {novel.title}\n\n"
 
-    for idx, episode in enumerate(episodes):
-        content += f"\n\n {idx + 1}화 에피소드 : {episode.ep_title}\n\n{episode.ep_content}\n\n"
+#     for idx, episode in enumerate(episodes):
+#         content += f"\n\n {idx + 1}화 에피소드 : {episode.ep_title}\n\n{episode.ep_content}\n\n"
 
-    # 파일 생성 및 저장
-    try:
-        with open(file_path, "w", encoding="utf-8") as file:
-            file.write(content)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"파일 저장 실패: {str(e)}")
+#     # 파일 생성 및 저장
+#     try:
+#         with open(file_path, "w", encoding="utf-8") as file:
+#             file.write(content)
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"파일 저장 실패: {str(e)}")
 
-    return {
-        "file_name": txt_title,
-        "document_path": os.path.abspath(file_path),  # 절대 경로 반환
-    }
+#     return {
+#         "file_name": txt_title,
+#         "document_path": os.path.abspath(file_path),  # 절대 경로 반환
+#     }
 
 
 @router.post("/delete-txt", description="토론 종료 시, 소설 txt 파일 삭제")
@@ -449,7 +454,7 @@ async def create_meeting_minutes(
         if not os.path.exists(txt_file_path):
             raise HTTPException(
                 status_code=404,
-                detail="TXT file not found. Please start the discussion first.",
+                detail="종료된 토론이므로 기능 사용이 불가합니다.",
             )
 
         # Gemini Assistant를 통한 요약 생성
@@ -619,7 +624,7 @@ def create_discussion_subject(
         if not os.path.exists(file_path):
             raise HTTPException(
                 status_code=404,
-                detail=f"File not found at path: {file_path}"
+                detail=f"종료된 토론이므로 기능 사용이 불가합니다.: {file_path}"
             )
 
         # 5. 데이터 구성
@@ -667,38 +672,60 @@ def create_discussion_subject(
 
 @router.post("/fact-check", description="토론 팩트 체크")
 def create_discussion_factcheck(
-    request: FactCheckRequest, db: Session = Depends(get_db)
+    discussion_pk: int = Form(...),
+    content: str = Form(...),
+    db: Session = Depends(get_db)
 ):
+    
     """
     토론 중 제기된 주장에 대한 팩트 체크 수행
     """
-    # 소설 및 토론 정보 조회
-    discussion = (
-        db.query(Discussion)
-        .filter(Discussion.discussion_pk == request.discussion_pk)
-        .first()
-    )
-    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
-
-    if not novel:
-        raise HTTPException(status_code=404, detail="Novel not found")
-    if not discussion:
-        raise HTTPException(status_code=404, detail="Discussion not found")
-
-    # 사용자 요청에 따른 file_path 생성
-    txt_filename = f"{novel.title}_{discussion.session_id}.txt"
-    file_path = os.path.join(DOCUMENT_PATH, txt_filename)
-
-    if not os.path.exists(file_path):
-        raise HTTPException(
-            status_code=404,
-            detail="TXT file not found. Please start the discussion first.",
-        )
-
-    assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
-
     try:
-        factcheck = assistant.fact_check(request.content)
-        return {"factcheck": factcheck}
-    except Exception as e:  # 어떤 에러가 발생할지 모르므로 Exception으로 처리
-        raise HTTPException(status_code=500, detail=str(e))
+
+        if not content:
+            raise HTTPException(status_code=400, detail="메시지 내용이 비어있습니다.")
+
+        # 2. Discussion 조회
+        try:
+            discussion = (
+                db.query(Discussion)
+                .filter(Discussion.discussion_pk == discussion_pk)
+                .first()
+            )
+            if not discussion:
+                raise HTTPException(status_code=404, detail=f"Discussion not found: {discussion_pk}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Discussion 조회 실패: {str(e)}")
+
+        # 3. Novel 조회
+        try:
+            novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+            if not novel:
+                raise HTTPException(status_code=404, detail=f"Novel not found: {discussion.novel_pk}")
+            print(f"Found novel: {novel.title}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Novel 조회 실패: {str(e)}")
+
+        # 4. 파일 경로 확인
+        txt_filename = f"{novel.title}_{discussion.session_id}.txt"
+        file_path = os.path.join(DOCUMENT_PATH, txt_filename)
+        print(f"Checking file path: {file_path}")
+
+        if not os.path.exists(file_path):
+            raise HTTPException(
+                status_code=404,
+                detail=f"종료된 토론이므로 기능 사용이 불가합니다.: {file_path}"
+            )
+
+        # 6. Gemini Assistant를 통한 주제 추천
+        try:
+            assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
+            factcheck = assistant.recommend_discussion_topic(content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"주제 추천 생성 실패: {str(e)}")
+
+        return {
+            "status": "success",
+            "message": "팩트 체크가 성공적으로 진행되었습니다.",
+            "factcheck": factcheck
+        }
