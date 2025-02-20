@@ -4,6 +4,8 @@ import { CssBaseline } from '@mui/material'
 import { ThemeProvider } from '@mui/material/styles'
 
 import { NovelProvider } from './contexts/NovelContext'
+import DiscussionList from './pages/DiscussionList'
+import MainPage from './pages/MainPage'
 import NavbarLayout from '/src/components/layout/NavbarLayout'
 import SidebarLayout from '/src/components/layout/SidebarLayout'
 import { AuthProvider } from '/src/hooks/useAuth'
@@ -22,11 +24,10 @@ import UserChangeInfo from '/src/pages/UserChangeInfo'
 import UserFindId from '/src/pages/UserFindId'
 import UserFindPassword from '/src/pages/UserFindPassword'
 import UserLogin from '/src/pages/UserLogin'
+import UserMypage from '/src/pages/UserMypage'
 import UserResetPassword from '/src/pages/UserResetPassword'
 import UserSignUp from '/src/pages/UserSignUp'
-import UserMypage from '/src/pages/UserMypage'
 import theme from '/src/styles/theme'
-import MainPage from './pages/MainPage'
 
 function App() {
   return (
@@ -60,6 +61,7 @@ function App() {
               {/* Sidebar Layout */}
               <Route element={<SidebarLayout />}>
                 <Route path="/discussion">
+                  <Route path="" element={<DiscussionList />} />
                   <Route path=":discussionId" element={<DiscussionRoom />} />
                   <Route path=":discussionId/summary" element={<DiscussionSummary />} />
                 </Route>
