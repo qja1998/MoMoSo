@@ -39,6 +39,7 @@ class Discussion(BaseModel):
     start_time: datetime
     end_time: Optional[datetime] = None
     participants: List[DiscussionUser]
+    is_active: bool
 
     class Config:
         from_attributes = True
@@ -52,6 +53,7 @@ class GetNewDiscussion(BaseModel):
     topic: str
     start_time: datetime
     max_participants: int
+    is_active: bool
 
     class Config:
         from_attributes = True

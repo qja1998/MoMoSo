@@ -224,7 +224,7 @@ export default function DiscussionRoom() {
   const [participants, setParticipants] = useState([]) // 나를 포함한 참가자들의 스트림 객체 배열
   const [subscribers, setSubscribers] = useState([]) // 나를 포함한 참가자들의 구독자 객체 배열
   const [allParticipants,setAllParticipants] = useState([]) // 전체 사용자를 기록하기 위한 배열
-
+  const [subject_test, setSubject] = useState(['주제 추천 버튼을 눌러주세요'])
   // participants 변경 감지를 위한 useEffect
   useEffect(() => {
     console.log('[Participants 변경]', participants)
@@ -237,7 +237,6 @@ export default function DiscussionRoom() {
   const [meetingStartTime] = useState(new Date());
   const messagesRef = useRef([]);
   const allParticipantsRef = useRef([]);
-
   useEffect(()=>{
     messagesRef.current = messages;
   },[messages]);
@@ -455,6 +454,66 @@ export default function DiscussionRoom() {
         throw error;
       }
     }
+  });
+
+  const sendProceedings = (async() => {
+    console.log('확인2')
+    // 메시지가 없을 경우 기본 메시지 생성
+    // if (participantsRef.current.length===0){
+      const formattedMessages = messagesRef.current.map(msg => {
+        // 타임스탬프를 한국 시간 형식으로 변환
+        const formattedTime = new Date(msg.timestamp).toLocaleTimeString('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+        
+        // 원하는 형태로 객체 구성
+        return {
+          type: msg.type,
+          user: msg.sender.nickname,
+          text: msg.content,
+          timestamp: formattedTime
+        };
+      });
+      const messagesToSave = formattedMessages.length > 0 ? formattedMessages :[
+        {
+          type: 'system',
+          text: '회의 중 메시지 없음',
+          timestamp: new Date().toLocaleDateString()
+        }
+      ];
+  
+      // Extract participant names correctly
+      const participantNames = [
+        user?.nickname,
+        ...allParticipantsRef.current
+          .filter(p => p.nickname && p.nickname !== user?.nickname)
+          .map(p => p.nickname)
+      ];
+  
+      const formData = new FormData();
+      formData.append('discussion_pk',discussionId)
+      formData.append('room_name',discussionInfo?.session_id);
+      formData.append('host_name',user?.nickname);
+      formData.append('start_time',meetingStartTime.toISOString());
+      formData.append('end_time',new Date().toISOString());
+      formData.append('duration',((new Date() - meetingStartTime)/1000/60).toFixed(2));
+      formData.append('participants', JSON.stringify(participantNames));
+  
+      formData.append('messages',JSON.stringify(messagesToSave));
+  
+      try {
+        const response = await axios.post(`${BACKEND_URL}/api/v1/discussion/subject`, formData,{
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        console.log('회의록 전송 성공:',response.data);
+        return response.data;
+      } catch (error) {
+        console.error('회의록 전송 실패: ',error);
+        throw error;
+      }
   });
 
   // 토론방 초기화 로직
@@ -928,15 +987,31 @@ export default function DiscussionRoom() {
 
   // 팩트 체크 핸들러
   const handleFactCheck = async (message) => {
+    console.log('factcheck',message.content)
+    console.log(discussionId)
+    const formData = new FormData();
+    formData.append('discussion_pk',discussionId)
+    formData.append('content',message.content)
+    console.log('formData',formData)
     try {
+      const fact_res = await axios.post(`${BACKEND_URL}/api/v1/discussion/fact-check`, formData,{
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      console.log(fact_res.data.factcheck)
+      
       // TODO: 팩트 체크 API 호출
-      const response = {
-        timestamp: new Date().toISOString(),
-        message: message.content,
-        result:
-          '31화에서 리나의 사랑 이야기에 대한 관심이 명시적으로 언급됩니다. 페이지 245, "리나는 늘 실패한 사랑 이야기에 관심이 많았다"라는 구절이 있습니다.',
-      }
-      setFactChecks((prev) => [...prev, response])
+      // const response = {
+        //   timestamp: new Date().toISOString(),
+        //   message: message.content,
+        //   result:
+        //     '31화에서 리나의 사랑 이야기에 대한 관심이 명시적으로 언급됩니다. 페이지 245, "리나는 늘 실패한 사랑 이야기에 관심이 많았다"라는 구절이 있습니다.',
+        // }
+        const test_resp = {
+          timestamp : new Date().toISOString(),
+          message : message.content,
+          result: fact_res.data.factcheck
+        }
+        setFactChecks((prev) => [...prev, test_resp])
     } catch (error) {
       console.error('Failed to check fact:', error)
     }
@@ -944,10 +1019,14 @@ export default function DiscussionRoom() {
 
   // 토론 주제 추천 핸들러
   const handleTopicRecommendation = async () => {
+    console.log('확인1')
     setIsGeneratingTopic(true)
     try {
       // TODO: 토론 주제 추천 API 호출
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await sendProceedings();
+      console.log(response.subject)
+      setSubject(response.subject)
     } catch (error) {
       console.error('Failed to generate topic:', error)
     } finally {
@@ -1365,7 +1444,9 @@ export default function DiscussionRoom() {
                   }}
                 >
                   <Typography variant="body2" color="text.secondary">
-                    카리나가 사용하는 타임 폴더의 기원과 목적에 대한 추측과 아이디어에 대해 토론해보세요.
+                    {/* 카리나가 사용하는 타임 폴더의 기원과 목적에 대한 추측과 아이디어에 대해 토론해보세요.
+                    안녕녕 */}
+                    {subject_test}
                   </Typography>
                 </Stack>
               </Stack>

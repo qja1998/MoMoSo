@@ -208,6 +208,7 @@ class Discussion(Base):
     start_time = Column(DateTime, default=func.now())
     end_time = Column(DateTime, nullable=True)
     max_participants = Column(Integer, nullable=False)
+    is_active = Column(Boolean, nullable=False, default=1) # 0: inactvie, 1 : active
 
     participants = relationship("User", secondary=user_discussion_table, back_populates="discussions") # M:N 관계 (토론 참여자)
     note = relationship("Note", uselist=False, back_populates="discussion") # 1:1 관계
