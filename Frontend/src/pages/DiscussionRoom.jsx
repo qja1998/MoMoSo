@@ -397,8 +397,7 @@ export default function DiscussionRoom() {
 
   const createProceedings = (async() => {
     // 메시지가 없을 경우 기본 메시지 생성
-    console.log('adasdasdasdadasd',participantsRef.current.length)
-    if (participantsRef.current.length===0){
+    if (participantsRef.current.length===0 && messagesRef.current.length > 0){
       const formattedMessages = messagesRef.current.map(msg => {
         // 타임스탬프를 한국 시간 형식으로 변환
         const formattedTime = new Date(msg.timestamp).toLocaleTimeString('ko-KR', {
@@ -416,14 +415,8 @@ export default function DiscussionRoom() {
           timestamp: formattedTime
         };
       });
-      const messagesToSave = formattedMessages.length > 0 ? formattedMessages :[
-        {
-          type: 'system',
-          text: '회의 중 메시지 없음',
-          timestamp: new Date().toLocaleDateString()
-        }
-      ];
-  
+
+      const messagesToSave = formattedMessages
       // Extract participant names correctly
       const participantNames = [
         user?.nickname,
@@ -457,9 +450,6 @@ export default function DiscussionRoom() {
   });
 
   const sendProceedings = (async() => {
-    console.log('확인2')
-    // 메시지가 없을 경우 기본 메시지 생성
-    // if (participantsRef.current.length===0){
       const formattedMessages = messagesRef.current.map(msg => {
         // 타임스탬프를 한국 시간 형식으로 변환
         const formattedTime = new Date(msg.timestamp).toLocaleTimeString('ko-KR', {
@@ -788,9 +778,6 @@ export default function DiscussionRoom() {
         // 8. 세션 연결
         await clientSideSession.connect(connection.token)
         console.log('[Step 8] 세션 연결 성공')
-        // 스트림 발행 전 상태 확인
-        const audioTracks = publisher.stream?.getMediaStream()?.getAudioTracks() || [];
-        console.log('Pre-publish audio tracks:', audioTracks);
 
         // 9. 세션에 스트림 발행
         await clientSideSession.publish(publisher)
@@ -821,12 +808,8 @@ export default function DiscussionRoom() {
 
       const cleanup = async () => {
         try {
-          // 먼저 현재 메시지로 회의록 저장
-          console.log('회의록 생성 시작', messages);
-      
           // 회의록 생성 먼저 진행
           const proceedingsResult = await createProceedings();
-          console.log('회의록 생성 완료:', proceedingsResult);
 
           if (publisher) {
             // 오디오 트랙 정리
@@ -837,14 +820,12 @@ export default function DiscussionRoom() {
 
             // Publisher 이벤트 리스너 제거
             publisher.off('*')
-            console.log(clientSideSession)
             // 세션에서 Publisher 제거
             if (clientSideSession) {
               await clientSideSession.unpublish(publisher)
             }
           }
 
-          console.log(clientSideSession)
           // 세션 연결 해제
           if (clientSideSession) {
             clientSideSession.off('*')
@@ -987,25 +968,14 @@ export default function DiscussionRoom() {
 
   // 팩트 체크 핸들러
   const handleFactCheck = async (message) => {
-    console.log('factcheck',message.content)
-    console.log(discussionId)
     const formData = new FormData();
     formData.append('discussion_pk',discussionId)
     formData.append('content',message.content)
-    console.log('formData',formData)
     try {
       const fact_res = await axios.post(`${BACKEND_URL}/api/v1/discussion/fact-check`, formData,{
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      console.log(fact_res.data.factcheck)
       
-      // TODO: 팩트 체크 API 호출
-      // const response = {
-        //   timestamp: new Date().toISOString(),
-        //   message: message.content,
-        //   result:
-        //     '31화에서 리나의 사랑 이야기에 대한 관심이 명시적으로 언급됩니다. 페이지 245, "리나는 늘 실패한 사랑 이야기에 관심이 많았다"라는 구절이 있습니다.',
-        // }
         const test_resp = {
           timestamp : new Date().toISOString(),
           message : message.content,
@@ -1019,13 +989,11 @@ export default function DiscussionRoom() {
 
   // 토론 주제 추천 핸들러
   const handleTopicRecommendation = async () => {
-    console.log('확인1')
     setIsGeneratingTopic(true)
     try {
       // TODO: 토론 주제 추천 API 호출
       // await new Promise((resolve) => setTimeout(resolve, 1000))
       const response = await sendProceedings();
-      console.log(response.subject)
       setSubject(response.subject)
     } catch (error) {
       console.error('Failed to generate topic:', error)
