@@ -2,8 +2,9 @@ import { useAuth } from '@/hooks/useAuth'
 
 import { useState } from 'react'
 
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
+import Diversity3Icon from '@mui/icons-material/Diversity3'
 import Edit from '@mui/icons-material/Edit'
 import Home from '@mui/icons-material/Home'
 import HowToRegIcon from '@mui/icons-material/HowToReg'
@@ -12,9 +13,8 @@ import KeyboardDoubleArrowRight from '@mui/icons-material/KeyboardDoubleArrowRig
 import LoginIcon from '@mui/icons-material/Login'
 import LogoutIcon from '@mui/icons-material/Logout'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
-import MenuBook from '@mui/icons-material/MenuBook'
+import LocalLibraryIcon from '@mui/icons-material/LocalLibrary';
 import PersonIcon from '@mui/icons-material/Person'
-import VideoCall from '@mui/icons-material/VideoCall'
 import Avatar from '@mui/material/Avatar'
 import Divider from '@mui/material/Divider'
 import Drawer from '@mui/material/Drawer'
@@ -28,7 +28,7 @@ import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import Stack from '@mui/material/Stack'
 
-const drawerWidth = 240
+const drawerWidth = 280
 
 const Sidebar = () => {
   const [open, setOpen] = useState(true)
@@ -38,9 +38,9 @@ const Sidebar = () => {
 
   const menuItems = [
     { text: '홈', icon: <Home fontSize="large" />, path: '/' },
-    { text: 'AI소설 에디터', icon: <Edit fontSize="large" />, path: '/novel/edit' },
-    { text: '소설 게시판', icon: <MenuBook fontSize="large" />, path: '/novel/viewer/list' },
-    { text: '그룹 토론', icon: <VideoCall fontSize="large" />, path: '/conference' },
+    { text: 'AI 소설 에디터', icon: <Edit fontSize="large" />, path: '/novel/edit/' },
+    { text: '그룹 토론', icon: <Diversity3Icon fontSize="large" />, path: '/discussion' },
+    { text: '소설 게시판', icon: <LocalLibraryIcon fontSize="large" />, path: '/novel' },
   ]
 
   const handleDrawerToggle = () => {
