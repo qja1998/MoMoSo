@@ -159,12 +159,12 @@ def get_novel_title(
 def get_episode_detail(
     novel_pk: int,
     ep_pk: int,
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_user),  # 변경
     db: Session = Depends(get_db)
 ):
     novel, episode = novel_crud.get_episode_detail(novel_pk, ep_pk, db)
     
-    # 로그인한 사용자인 경우 최근 본 소설 목록에 추가
+    # 로그인한 사용자인 경우에만 최근 본 소설 저장
     if current_user:
         save_recent_novel(db, current_user.user_pk, novel_pk)
     
