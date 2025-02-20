@@ -188,25 +188,45 @@ def delete_novel(novel_pk: int, db: Session):
     db.commit()
     return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
 
-def like_novel(novel_pk: int, user_pk: int, db: Session):
+
+async def like_novel(novel_pk: int, user_pk: int, db: Session):
     novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
     if not novel:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="소설을 찾을 수 없습니다.")
-
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="소설을 찾을 수 없습니다."
+        )
+    
     user = db.query(User).filter(User.user_pk == user_pk).first()
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="사용자를 찾을 수 없습니다.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="사용자를 찾을 수 없습니다."
+        )
 
-    if user in novel.liked_users:
-        novel.liked_users.remove(user)
-        novel.likes -= 1
-    else:
-        novel.liked_users.append(user)
-        novel.likes += 1
-
-    db.commit()
-    db.refresh(novel)  # 갱신된 소설 객체를 DB에서 다시 로드
-    return novel
+    try:
+        if user in novel.liked_users:
+            novel.liked_users.remove(user)
+            novel.likes -= 1
+        else:
+            novel.liked_users.append(user)
+            novel.likes += 1
+        
+        db.commit()
+        db.refresh(novel)
+        
+        return {
+            "status": "success",
+            "liked": user in novel.liked_users,
+            "total_likes": novel.likes
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="좋아요 처리 중 오류가 발생했습니다."
+        )
 
 # 메인 화면 추천 서비스 
 
