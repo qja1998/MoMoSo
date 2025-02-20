@@ -14,6 +14,7 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
 // 디자인 컴포넌트
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -56,6 +57,8 @@ axios.defaults.withCredentials = true
 const NovelEpisodeList = () => {
   // 상수
   const navigate = useNavigate()
+  const { isLoggedIn, showLoginModal, user } = useAuth()
+  const [localIsLiked, setLocalIsLiked] = useState(false);
   const { novelId } = useParams()
   const {
     novelData,
@@ -82,7 +85,32 @@ const NovelEpisodeList = () => {
     maxParticipants: false,
   })
 
-  const { isLoggedIn, showLoginModal } = useAuth()
+  const isLiked = useMemo(() => {
+    if (!isLoggedIn || !user || !novelData?.novel_info?.[0]) {
+      return false
+    }
+    const isLiked = novelData.novel_info[0].liked_users?.some(
+      likedUser => likedUser.user_pk === user.user_pk
+    )
+    return isLiked
+  }, [isLoggedIn, user, novelData])
+
+  const handleLike = async () => {
+    if (!isLoggedIn) {
+      showLoginModal();
+      return;
+    }
+  
+    try {
+      await axios.put(`${BACKEND_URL}/api/v1/novel/${novelId}/like`);
+      // 로컬 상태 즉시 토글
+      setLocalIsLiked(prev => !prev);
+      // 데이터 갱신
+      await fetchNovelData(novelId);
+    } catch (error) {
+      console.error('좋아요 처리 중 오류가 발생했습니다:', error);
+    }
+  };
 
   // 총 조회수/좋아요 계산을 useMemo로 최적화
   const { totalViews, totalLikes } = useMemo(
@@ -95,8 +123,15 @@ const NovelEpisodeList = () => {
 
   // 데이터 가져오기
   useEffect(() => {
-    fetchNovelData(novelId)
-  }, [novelId, fetchNovelData])
+    const fetchData = async () => {
+      try {
+        await fetchNovelData(novelId)
+      } catch (error) {
+        console.error('Error:', error)
+      }
+    }
+    fetchData()
+  }, [novelId])
 
   // 토론방 생성 핸들러
   const handleCreateDiscussion = useCallback(async () => {
@@ -265,7 +300,9 @@ const NovelEpisodeList = () => {
                 <Typography variant="body1" color="text.secondary">
                   {novelData.author}
                 </Typography>
-                <Typography variant="body1">{novelData.novel_info[0]?.summary || '시놉시스 없음'}</Typography>
+                <Typography variant="body1">
+                  {novelData.novel_info[0]?.summary || '요약 없음'}
+                  </Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
                   <Stack direction="row" spacing={1} alignItems="center">
                     <VisibilityIcon color="action" />
@@ -274,9 +311,19 @@ const NovelEpisodeList = () => {
                     </Typography>
                   </Stack>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <FavoriteIcon color="error" />
+                    <IconButton 
+                        onClick={handleLike}
+                        size="small"
+                        sx={{ padding: 0.5 }}
+                      >
+                        {localIsLiked ? (
+                          <FavoriteIcon fontSize="small" sx={{ color: 'error.main' }} />
+                        ) : (
+                          <FavoriteBorderIcon fontSize="small" sx={{ color: 'error.main' }} />
+                        )}
+                      </IconButton>
                     <Typography variant="body2" color="text.secondary">
-                      {totalLikes.toLocaleString()}
+                      {novelData?.novel_info?.[0]?.likes?.toLocaleString() || 0}
                     </Typography>
                   </Stack>
                 </Stack>
