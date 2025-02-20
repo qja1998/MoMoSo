@@ -36,8 +36,28 @@
 > AI 기반 소설 생성 & 그룹 토론 서비스 **MOMOSO**
 
 **기획의도 및 배경**
-> 
+* AI를 이용한 컨텐츠 제작 시장이 점점 성장하고 있음
+* 국내/해외 웹소설 시장 산업 규모가 증가하고 있음
+* 웹소설 작가들이 매일 연재를 함에 있어 어려움을 겪고 있음
+* 아이디어가 있어도, 필력이 부족해 소설을 써볼 엄두가 나지 않음
+* 소설을 읽다가 답답하거나 아쉬운 경우가 많음
+* 소설 내용에 대해 타인과 대화하고 싶은데, 마땅한 장소가 없음
 
+-> 이를 해결할 수 있는 AI 기반 소설 생성 & 그룹 토론 서비스를 만들어보자!
+
+**서비스 목적**
+* AI 기반 소설 생성 서비스를 통해 웹소설에 대한 접근성을 높이는 것
+* 그룹 토론 서비스를 통해 독자들이 의견을 나누고, 이 의견을 작가가 참고하여 글을 써내려감으로써 더 재미있는 소설을 쓰게 되는 선순환 구조를 만드는 것
+
+**서비스 목표**
+* AI 기반으로 아이디어만 있으면 간편하면서도 재미있는 소설을 쓸 수 있는 서비스 제공
+* 실시간 소통이 가능하도록 그룹 토론 서비스를 제공하고, 원활히 이루어질 수 있도록 주제 추천, FactCheck 등 AI 기능 제공
+* 그룹 토론 결과를 작가가 손쉽게 받아볼 수 있도록 회의록 요약 기능 제공
+
+**기대효과**
+* 집필 -> 독서 -> 토론 모든 것을 한 곳에서 할 수 있는 편의성 제공
+* AI의 도움으로 빠르게 소설의 세계관, 줄거리, 표지 등을 생성함으로써 생산성 증대
+* 독자의 피드백을 통해 작가가 완성도 높은 작품을 만들고, 이를 다시 독자가 소비하는 선순환 구조를 통한 완성도 증대
 
 ### ✅ **멤버 소개**
 ---
@@ -179,33 +199,12 @@
 ### **회원가입, 로그인**  
 
 <div align="center">
-  <table>
-    <thead>
-      <tr>
-        <th align="center">회원가입</th>
-        <th align="center">로그인</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td align="center">
-          <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/>
-        </td>
-        <td align="center">
-          <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/>
-        </td>
-      </tr>
-      <tr>
-        <td align="left">
-          1. 초대 코드를 이용한 로그인<br>
-          2. 계정에 등록되어 있는 멀티 프로필 선택 가능
-        </td>
-        <td align="left">
-          1. 소셜 로그인을 사용한 로그인 가능
-        </td>
-      </tr>
-    </tbody>
-  </table>
+
+| 회원가입 | 로그인 |
+|:---:|:---:|
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
+| 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
+
 </div>
 
 ### **메인 페이지**
@@ -258,7 +257,7 @@
 
 | 기획서 | 기능명세서 |
 |:---:|:---:|
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
+| <img src="/uploads/902235ca7d74014e129c58541cb7e304/image.png" style="max-width:450px; max-height:450px; object-fit: contain;"/> | <img src="/uploads/f3f551af1e917d96d24a9644c6b7ff32/image.png" style="max-width:450px; max-height:450px; object-fit: contain;"/> |
 
 </div>
 
@@ -266,7 +265,7 @@
 
 | ERD | API 연동 규격서 |
 |:---:|:---:|
-| <img src="/uploads/5b9b66c0f28dea56d75738ed72205fec/image.png" width="450"/> | <img src="/uploads/08f77bc4e6d7c095cdfbce9b114efdc0/API.png" width="450"/> |
+| <img src="/uploads/5b9b66c0f28dea56d75738ed72205fec/image.png" style="max-width:450px; max-height:450px; object-fit: contain;"/> | <img src="/uploads/08f77bc4e6d7c095cdfbce9b114efdc0/API.png" style="max-width:450px; max-height:450px; object-fit: contain;"/> |
 
 </div>
 
@@ -274,7 +273,7 @@
 
 | 플로우 차트 | 화면 설계(목업) |
 |:---:|:---:|
-| <img src="/uploads/b67618129aa683147eeff1bea0c9dcff/플로우차트.png" width="450"/> | <img src="/uploads/8676f34054fca08a449ac07bb360b3f8/목업.png" width="450"/> |
+| <img src="/uploads/b67618129aa683147eeff1bea0c9dcff/플로우차트.png" style="max-width:450px; max-height:450px; object-fit: contain;"/> | <img src="/uploads/8676f34054fca08a449ac07bb360b3f8/목업.png" style="max-width:450px; max-height:450px; object-fit: contain;"/> |
 
 </div>
 
@@ -282,7 +281,7 @@
 
 | 포팅 매뉴얼 |
 |:---:|
-| <img src="/uploads/94a5c45a931fb1b613a6170bfeebf7d2/image.png" width="900"/> |
+| <img src="/uploads/94a5c45a931fb1b613a6170bfeebf7d2/image.png" style="max-width:900px; max-height:900px; object-fit: contain;"/> |
 | https://www.notion.so/11-ea8df2fe44d9413c8e8694b247d1f5e8?pvs=4 |
 
 </div>
