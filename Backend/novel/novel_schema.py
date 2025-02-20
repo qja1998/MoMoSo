@@ -13,10 +13,14 @@ class UserRecentNovel(BaseModel):
     class Config:
         from_attributes = True
 
+class NovelInfo(BaseModel):
+    title: str
+    pk: int
+
 class MainPageResponse(BaseModel):
     user: UserRecentNovel
-    recent_best: Optional[str]  # 최근 인기 소설
-    month_best: Optional[str]  # 한 달 동안 인기 소설
+    recent_best: Optional[NovelInfo] = None
+    month_best: Optional[NovelInfo] = None
 
     class Config:
         from_attributes = True

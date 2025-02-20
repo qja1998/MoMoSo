@@ -41,7 +41,7 @@ const stylePresets = [
   { id: 4, name: '포토리얼', description: '사실적이고 생동감 있는 사진 스타일' },
   { id: 5, name: '미니멈', description: '심플하고 모던한 미니멈 스타일' },
 ]
-const BACKEND_URL = "http://127.0.0.1:8000/api/v1/"
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/`
 const NovelBackgroundEditor = () => {
   const [selectedGenre, setSelectedGenre] = useState([])
   const [title, setTitle] = useState('')
@@ -518,7 +518,7 @@ useEffect(() => {
             };
     
             const response = await axios.post(
-                "http://localhost:8000/image/generate",
+                `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/image/generate`,
                 requestData,
                 {
                     headers: {
