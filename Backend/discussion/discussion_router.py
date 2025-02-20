@@ -366,42 +366,84 @@ async def get_user_discussion_summaries(
 
 
 @router.post("/subject", description="토론 주제 추천")
-def create_discussion_subject(request: SubjectRequest, db: Session = Depends(get_db)):
-    """file_path를 반영하여 토론 주제를 추천"""
+def create_discussion_subject(
+    discussion_pk: int = Form(...),
+    room_name: str = Form(...),
+    host_name: str = Form(...),
+    start_time: str = Form(...),
+    end_time: str = Form(...),
+    duration: float = Form(...),
+    participants: str = Form(...),
+    messages: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """FormData를 받아 토론 주제를 추천"""
+    try:
+        # 1. 입력값 검증
+        if not messages or messages == "[]":
+            raise HTTPException(status_code=400, detail="메시지 내용이 비어있습니다.")
 
-    # 소설 및 토론 정보 조회
-    discussion = (
-        db.query(Discussion)
-        .filter(Discussion.discussion_pk == request.discussion_pk)
-        .first()
-    )
-    if not discussion:
-        raise HTTPException(status_code=404, detail="Discussion not found")
+        participants_list = json.loads(participants)
+        messages_list = json.loads(messages)
 
-    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
-    if not novel:
-        raise HTTPException(status_code=404, detail="Novel not found")
+        if not messages_list:
+            raise HTTPException(status_code=400, detail="메시지 파싱 결과가 비어있습니다.")
 
-    # 사용자 요청에 따른 file_path 생성
-    txt_filename = f"{novel.title}_{discussion.session_id}.txt"
-    file_path = os.path.join(DOCUMENT_PATH, txt_filename)
+        # 2. 회의록 데이터 구성
+        discussion_data = {
+            "room_name": room_name,
+            "host_name": host_name,
+            "start_time": start_time,
+            "end_time": end_time,
+            "duration": duration,
+            "participants": participants_list,
+            "messages": messages_list,
+        }
 
-    if not os.path.exists(file_path):
-        raise HTTPException(
-            status_code=404,
-            detail="TXT file not found. Please start the discussion first.",
+        # 3. Discussion 및 Novel 정보 조회
+        discussion = (
+            db.query(Discussion)
+            .filter(Discussion.discussion_pk == discussion_pk)
+            .first()
         )
+        if not discussion:
+            raise HTTPException(status_code=404, detail="Discussion not found")
 
-    assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
+        novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+        if not novel:
+            raise HTTPException(status_code=404, detail="Novel not found")
 
-    # JSON 형태의 대화 내용을 문자열로 변환
-    discussion_json = json.dumps(request.content, ensure_ascii=False)
-    subject_response = assistant.recommend_discussion_topic(discussion_json)
-    subject = (
-        subject_response if isinstance(subject_response, str) else str(subject_response)
-    )
+        # 4. 토론 텍스트 파일 경로 확인
+        txt_filename = f"{novel.title}_{discussion.session_id}.txt"
+        file_path = os.path.join(DOCUMENT_PATH, txt_filename)
 
-    return {"subject": subject}
+        if not os.path.exists(file_path):
+            raise HTTPException(
+                status_code=404,
+                detail="TXT file not found. Please start the discussion first.",
+            )
+
+        # 5. Gemini Assistant를 통한 주제 추천
+        try:
+            assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
+            discussion_json = json.dumps(discussion_data, ensure_ascii=False)
+            subject_response = assistant.recommend_discussion_topic(discussion_json)
+            subject = (
+                subject_response if isinstance(subject_response, str) else str(subject_response)
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"주제 추천 생성 실패: {str(e)}")
+
+        return {
+            "status": "success",
+            "message": "토론 주제가 성공적으로 생성되었습니다.",
+            "subject": subject
+        }
+
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="JSON 파싱 실패")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/fact-check", description="토론 팩트 체크")
@@ -563,20 +605,31 @@ async def receive_audio(
 
 @router.post("/meeting-minutes")
 async def create_meeting_minutes(
-    request: discussion_schema.MeetingMinutesRequest,
+    discussion_pk: int = Form(...),
+    room_name: str = Form(...),
+    host_name: str = Form(...),
+    start_time: str = Form(...),
+    end_time: str = Form(...),
+    duration: float = Form(...),
+    participants: str = Form(...),  # JSON string으로 전송됨
+    messages: str = Form(...),      # JSON string으로 전송됨
     db: Session = Depends(get_db)
 ):
     try:
+         # JSON 문자열을 파이썬 객체로 변환
+        participants_list = json.loads(participants)
+        messages_list = json.loads(messages)
+
         # 회의록 데이터 구성
         meeting_data = {
             "id": str(uuid.uuid4()),
-            "room_name": request.room_name,
-            "host_name": request.host_name,
-            "start_time": request.start_time,
-            "end_time": request.end_time,
-            "duration": request.duration,
-            "participants": request.participants,
-            "messages": request.messages,
+            "room_name": room_name,
+            "host_name": host_name,
+            "start_time": start_time,
+            "end_time": end_time,
+            "duration": duration,
+            "participants": participants_list,
+            "messages": messages_list,
         }
 
 
@@ -604,7 +657,7 @@ async def create_meeting_minutes(
     # Discussion 및 Novel 정보 조회
         discussion = (
             db.query(Discussion)
-            .filter(Discussion.discussion_pk == request.discussion_pk)
+            .filter(Discussion.discussion_pk == discussion_pk)
             .first()
         )
         if not discussion:
