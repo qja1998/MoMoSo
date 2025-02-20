@@ -232,12 +232,23 @@ export default function DiscussionRoom() {
   // 채팅 관련 상태 추가
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
+  const [meetingStartTime] = useState(new Date());
+  const messagesRef = useRef([]);
+
+  useEffect(()=>{
+    messagesRef.current = messages;
+  },[messages]);
 
   // AI 어시스턴트 관련 상태 추가
   const [factChecks, setFactChecks] = useState([])
   const [isGeneratingTopic, setIsGeneratingTopic] = useState(false)
 
   const vadRef = useRef(null)
+
+  const participantsRef = useRef([]);
+  useEffect(() =>{
+    participantsRef.current = participants;
+  },[participants]);
 
   // 오디오 데이터 전송
   const sendAudioData = async (blob) => {
@@ -376,6 +387,63 @@ export default function DiscussionRoom() {
       voiceActivityChecks.forEach(cleanup => cleanup && cleanup());
     };
   }, [subscribers]);
+
+  const createProceedings = (async() => {
+    // 메시지가 없을 경우 기본 메시지 생성
+    const formattedMessages = messagesRef.current.map(msg => {
+      // 타임스탬프를 한국 시간 형식으로 변환
+      const formattedTime = new Date(msg.timestamp).toLocaleTimeString('ko-KR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+      
+      // 원하는 형태로 객체 구성
+      return {
+        type: msg.type,
+        user: msg.sender.nickname,
+        text: msg.content,
+        timestamp: formattedTime
+      };
+    });
+    const messagesToSave = formattedMessages.length > 0 ? formattedMessages :[
+      {
+        type: 'system',
+        text: '회의 중 메시지 없음',
+        timestamp: new Date().toLocaleDateString()
+      }
+    ];
+
+    // Extract participant names correctly
+    const participantNames = [
+      user?.nickname,
+      ...participantsRef.current
+        .filter(p => p.nickname && p.nickname !== user?.nickname)
+        .map(p => p.nickname)
+    ];
+
+    const formData = new FormData();
+    formData.append('room_name',discussionInfo?.session_id);
+    formData.append('host_name',user?.nickname);
+    formData.append('start_time',meetingStartTime.toISOString());
+    formData.append('end_time',new Date().toISOString());
+    formData.append('duration',((new Date() - meetingStartTime)/1000/60).toFixed(2));
+    formData.append('participants', JSON.stringify(participantNames));
+
+    formData.append('messages',JSON.stringify(messagesToSave));
+
+    try {
+      const response = await axios.post(`${BACKEND_URL}/api/v1/discussion/meeting-minutes`, formData,{
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      console.log('회의록 저장 성공:',response.data);
+      return response.data;
+    } catch (error) {
+      console.error('회의록 저장 실패: ',error);
+      throw error;
+    }
+  });
 
   // 토론방 초기화 로직
   useEffect(() => {
@@ -659,7 +727,7 @@ export default function DiscussionRoom() {
         // Handle other errors appropriately
       }
     }
-
+    
     initializeDiscussionRoom()
     // Cleanup 함수
     return () => {
@@ -667,6 +735,13 @@ export default function DiscussionRoom() {
 
       const cleanup = async () => {
         try {
+          // 먼저 현재 메시지로 회의록 저장
+          console.log('회의록 생성 시작', messages);
+      
+          // 회의록 생성 먼저 진행
+          const proceedingsResult = await createProceedings();
+          console.log('회의록 생성 완료:', proceedingsResult);
+
           if (publisher) {
             // 오디오 트랙 정리
             if (publisher.stream?.getMediaStream()) {
