@@ -173,7 +173,7 @@ const NovelEditorNovelDetail = () => {
         {/* Cover Section */}
         <Box
           component="img"
-          src={novelInfo.coverImage || coverPlaceholder}
+          src={novelData?.novel_info?.[0]?.novel_img || coverPlaceholder}
           alt="소설 표지"
           sx={{
             width: 200,

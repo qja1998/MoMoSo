@@ -133,7 +133,8 @@ const NovelEpisodeList = () => {
       })
     } catch (error) {
       console.error('토론방 생성 실패')
-    } finally {
+    }  finally {
+      console.log("일단 finally 실행은 됨.")
       console.log(novelResponse.data)
     }
   }, [discussionForm, novelId])

@@ -25,8 +25,8 @@ class MainPageResponse(BaseModel):
 class CharacterBase(BaseModel) :
     name : str
     role : str
-    age : int 
-    sex : bool
+    age : str
+    sex : str
     job : str
     profile : str
 
@@ -168,41 +168,26 @@ class CharacterBase(BaseModel) :
     # novel_pk : int
     name : str
     role : str
-    age : int 
-    sex : bool
+    age : str
+    sex : str
     job : str
     profile : str
 
 class CharacterUpdateBase(BaseModel) :
     name: Optional[str] = None
     role: Optional[str] = None
-    age: Optional[int] = None
-    sex: Optional[bool] = None
+    age: Optional[str] = None  # int -> str
+    sex: Optional[str] = None  # bool -> str
     job: Optional[str] = None
     profile: Optional[str] = None
 
-    @field_validator("name","role","job","profile")
+    @field_validator("name", "role", "job", "profile", "age", "sex")  # age, sex도 문자열 검증
     @classmethod
     def validate_not_empty(cls, v):
-        if v is None and v.strip():
+        if v is None or not v.strip():
             raise ValueError("이 필드는 비워둘 수 없습니다.")
-        return v  # 값을 반환해야 함
-    
-    @field_validator("age")
-    @classmethod
-    def validate_age(cls, v) :
-        if v < 0 : 
-            raise ValueError("나이는 0살 이하일 수 없습니다.")
         return v
     
-    @field_validator("sex")
-    @classmethod
-    def validate_sex(cls, v) :
-        if v > 2 or v < 0 : 
-            raise ValueError("성별은 3가지 옵션 중 하나로 선택해주십시오.")
-        return v
-    
-
 
 # 소설 생성 AI 모델 응답용 스키마
 
