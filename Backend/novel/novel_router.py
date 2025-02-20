@@ -129,8 +129,12 @@ def create_novel(novel_info: novel_schema.NovelCreateBase, user: User = Depends(
     return novel
 
 @router.delete("/novel/{novel_pk}")
-def delete_novel(novel_pk: int, db: Session = Depends(get_db)):
-    return novel_crud.delete_novel(novel_pk, db)
+def delete_novel(
+    novel_pk: int, 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return novel_crud.delete_novel(novel_pk=novel_pk, user=current_user, db=db)
 
 
 #소설 좋아요 
@@ -193,8 +197,13 @@ def change_episode(novel_pk: int, update_data: novel_schema.EpisodeUpdateBase, e
 
 #에피소드 삭제
 @router.delete("/novel/{novel_pk}/{ep_pk}")
-def delete_episode(novel_pk: int, ep_pk : int, db: Session = Depends(get_db)) : 
-    return novel_crud.delete_episode(novel_pk,ep_pk,db)
+def delete_episode(
+    novel_pk: int, 
+    ep_pk: int, 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) : 
+    return novel_crud.delete_episode(novel_pk, ep_pk, current_user, db)
 
 # 특정 에피소드의 댓글 조회
 @router.get("/novel/{novel_pk}/episode/{ep_pk}/comments")
