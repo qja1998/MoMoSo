@@ -10,6 +10,8 @@ from fastapi import File, UploadFile # 삭제 예정
 import os
 from dotenv import load_dotenv
 import httpx
+import random
+
 
 # AI 이미지 생성 
 from ai.gen_image import ImageGenerator
@@ -33,10 +35,14 @@ from fastapi.responses import Response
 import requests
 import os
 from io import BytesIO
+from fastapi.staticfiles import StaticFiles
+
 
 router = APIRouter(
     prefix='/api/v1',
 )
+router.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 # router.py
 @router.get("/main", response_model=novel_schema.MainPageResponse)
@@ -116,15 +122,8 @@ def update_novel(novel_pk: int, update_data: novel_schema.NovelUpdateBase,db: Se
     return novel
 
 # 소설 생성
-
-"""
-
-여기 여기 
-
-"""
-@router.post("/novel", response_model=novel_schema.NovelShowBase)
+@router.post("/novel", response_model=novel_schema.NovelShowBaseCreate)
 def create_novel(novel_info: novel_schema.NovelCreateBase, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    print(user.refresh_token)
     novel = novel_crud.create_novel(novel_info, user.user_pk, db)
     return novel
 
@@ -411,22 +410,44 @@ JUPYTER_URL = os.environ["JUPYTER_URL"]
 @router.post("/image/generate")
 async def AI_img_generate(req: novel_schema.ImageRequest) :
     headers = {"Content-Type": "application/json"}
-    response = requests.post(JUPYTER_URL + "/api/v1/editor/image_ai", json=req, headers=headers)
-    if response.status_code == 200:
-        print("✅ 이미지 생성 성공!")
-        img_data = BytesIO(response.content)
-        image = Image.open(img_data)
+    req_data = req.model_dump()
 
-        # 🖼️ 이미지 띄우기
-        # image.show()
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{JUPYTER_URL}/api/v1/editor/image_ai", json=req_data, headers=headers, timeout=180.0)
+            print(response)
 
-        # 💾 이미지 저장
-        img_name = f"{req['title']}.png"
-        save_path = os.path.join(os.getcwd(), "static", img_name)
-        image.save(save_path, format="PNG")
-        print("📸 이미지가 저장되었습니다.")
+            if response.status_code == 200:
+                print("✅ 이미지 생성 성공!")
+                img_data = BytesIO(response.content)
+                image = Image.open(img_data)
+
+                # 💾 이미지 저장
+                img_name = f"{random.randrange(1, 10000)}.png"
+                save_path = os.path.join(os.getcwd(), "static", img_name)
+                try : 
+                    image.save(save_path, format="PNG")
+                    
+                    print("📸 이미지가 저장되었습니다.")
+                    return {"img_name" : img_name}
+
+                except Exception as e: 
+                    print(e) 
+                
+            
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Could not connect to image service: {str(e)}"
+            )
         
-        return HTTPException(status_code=status.HTTP_201_CREATED)
+        else:
+            print(response.status)
+            raise HTTPException(
+                status_code=response.status_code,
+                detail="Image generation failed"
+            )
 
 
 @router.post("/api/v1/editor/image_ai")
@@ -499,3 +520,214 @@ async def delete_image(delete_hash: str):
         print(f"Delete failed: {e}")
         raise HTTPException(status_code=500, detail="이미지 삭제 실패")
 
+
+@router.delete("/static_delete")
+async def delete_static_img(img_name : str) : 
+    image_path = os.path.join(os.getcwd(), "static", img_name)
+    os.remove(image_path)
+    return HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+
+@router.put("/save_gen_img/{novel_pk}")
+async def save_gen_img(novel_pk : int, img_name : str,  db: Session = Depends(get_db)) : 
+    image_path = os.path.join(os.getcwd(), "static", img_name)
+    if not os.path.exists(image_path):
+            raise HTTPException(status_code=400, detail="파일이 존재하지 않습니다.")
+
+    filename = os.path.basename(image_path)  # 파일 이름 추출
+    
+    content_type = "image/jpeg"  # 기본 content type, 필요에 따라 수정
+
+    # 파일 내용을 읽어서 bytes로 변환
+    with open(image_path, "rb") as image_file:
+        print(dir(image_file))
+        image_bytes = image_file.BytesIO()
+
+    # UploadFile 모방 객체 생성 (UploadFile은 직접 인스턴스화 할 수 없으므로)
+    class FakeUploadFile:
+        def __init__(self, filename: str, file: bytes, content_type: str):
+            self.filename = filename
+            self.file = file
+            self.content_type = content_type
+
+        async def read(self):
+            return self.file
+
+        async def close(self):
+            pass  # 파일을 직접 닫을 필요가 없음
+
+    try : 
+        upload_file = FakeUploadFile(filename=filename, file=image_bytes, content_type=content_type)
+
+        # Imgur에 업로드
+        imgur_link = await novel_crud.upload_to_imgur(upload_file)
+    except Exception as e : 
+        print(e)
+
+    novel  = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+    novel.novel_img = imgur_link
+    
+    # 임시 폴더에 있던 이미지 삭제
+    os.remove(image_path)
+
+    return {"link": imgur_link}
+
+@router.post("/image/generate/{novel_pk}")
+async def AI_img_generate_and_upload(
+    novel_pk: int,
+    req: novel_schema.ImageRequest,
+    db: Session = Depends(get_db)
+):
+    headers = {"Content-Type": "application/json"}
+    req_data = req.model_dump()
+
+    async with httpx.AsyncClient() as client:
+        try:
+            # 1. Generate image
+            response = await client.post(
+                f"{JUPYTER_URL}/api/v1/editor/image_ai",
+                json=req_data,
+                headers=headers,
+                timeout=180.0
+            )
+
+            if response.status_code == 200:
+                print("✅ 이미지 생성 성공!")
+                img_data = BytesIO(response.content)
+                image = Image.open(img_data)
+
+                # 2. Save image temporarily
+                img_name = f"{random.randrange(1, 10000)}.png"
+                save_path = os.path.join(os.getcwd(), "static", img_name)
+                
+                try:
+                    image.save(save_path, format="PNG")
+                    print("📸 이미지가 저장되었습니다.")
+
+                    # 3. Upload to Imgur and update novel
+                    try:
+                        # Create UploadFile object from saved image
+                        async with aiofiles.open(save_path, 'rb') as f:
+                            content = await f.read()
+                            file = UploadFile(
+                                filename=img_name,
+                                file=BytesIO(content),
+                                content_type="image/png"
+                            )
+                            
+                        # Upload to Imgur
+                        link_image = await novel_crud.upload_to_imgur(file)
+
+                        # Update Novel model
+                        novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+                        if novel is None:
+                            raise HTTPException(status_code=404, detail="Novel not found")
+                        
+                        novel.novel_img = link_image
+                        db.commit()
+                        db.refresh(novel)
+
+                        # Clean up temporary file
+                        os.remove(save_path)
+
+                        return {
+                            "message": "Image generated and uploaded successfully",
+                            "url": link_image
+                        }
+
+                    except Exception as upload_error:
+                        # Clean up temporary file in case of upload error
+                        if os.path.exists(save_path):
+                            os.remove(save_path)
+                        print(f"Upload failed: {upload_error}")
+                        raise HTTPException(status_code=500, detail="이미지 업로드 실패")
+
+                except Exception as save_error:
+                    print(f"Save failed: {save_error}")
+                    raise HTTPException(status_code=500, detail="이미지 저장 실패")
+
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Could not connect to image service: {str(e)}"
+            )
+        
+        else:
+            print(response.status)
+            raise HTTPException(
+                status_code=response.status_code,
+                detail="Image generation failed"
+            )
+            
+            
+            
+@router.post("/image/generate/{novel_pk}/newfunction")
+async def AI_img_generate_new(novel_pk: int, req: novel_schema.ImageRequest, db: Session = Depends(get_db)):
+    headers = {"Content-Type": "application/json"}
+    req_data = req.model_dump()
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{JUPYTER_URL}/api/v1/editor/image_ai", json=req_data, headers=headers, timeout=180.0)
+            print(response)
+
+            if response.status_code == 200:
+                print("✅ 이미지 생성 성공!")
+                img_data = BytesIO(response.content)
+                image = Image.open(img_data)
+
+                # 💾 이미지 저장
+                img_name = f"{random.randrange(1, 10000)}.png"
+                save_path = os.path.join(os.getcwd(), "static", img_name)
+                try:
+                    image.save(save_path, format="PNG")
+                    print("📸 이미지가 저장되었습니다.")
+
+                    # Upload API 호출을 위한 파일 준비
+                    files = {'image': ('image.png', open(save_path, 'rb'), 'image/png')}
+                    
+                    # Upload API 호출
+                    # upload_response = await client.post(
+                    #     f"{"http://localhost:8000"}/api/v1/editor/upload-image/{novel_pk}",
+                    #     files=files
+                    # )
+                    
+                    link_image = await novel_crud.upload_to_imgur(image)
+
+                    # Novel 모델 업데이트
+                    novel = db.query(Novel).filter(Novel.novel_pk == novel_pk).first()
+                    if novel is None:
+                        raise HTTPException(status_code=404, detail="Novel not found")
+                    novel.novel_img = link_image
+                    db.commit()
+                    db.refresh(novel)
+
+                    # 임시 파일 삭제
+                    os.remove(save_path)
+
+                    if upload_response.status_code == 200:
+                        return upload_response.json()
+                    else:
+                        raise HTTPException(
+                            status_code=upload_response.status_code,
+                            detail="Upload failed"
+                        )
+
+                except Exception as e:
+                    if os.path.exists(save_path):
+                        os.remove(save_path)
+                    print(e)
+                    raise HTTPException(status_code=500, detail="이미지 처리 실패")
+
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Could not connect to image service: {str(e)}"
+            )
+        
+        else:
+            print(response.status)
+            raise HTTPException(
+                status_code=response.status_code,
+                detail="Image generation failed"
+            )

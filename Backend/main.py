@@ -15,6 +15,7 @@ from auth.oauth_google import router as google_oauth_router
 
 from database import engine
 from models import Base
+from fastapi.staticfiles import StaticFiles
 
 # CustomHeaderMiddleware 정의
 class CustomHeaderMiddleware(BaseHTTPMiddleware):
@@ -24,41 +25,44 @@ class CustomHeaderMiddleware(BaseHTTPMiddleware):
         response.headers["Cross-Origin-Embedder-Policy"] = "unsafe-none"
         return response
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
         print("🚀 FastAPI 서버 시작 - lifespan 시작됨!")
-        
+
         # Redis 클라이언트 생성
         app.state.redis = await create_redis_client()
         print("✅ Redis 연결 완료!")
-        
+
         # ThreadPoolExecutor를 app.state에 저장
         app.state.thread_pool = ThreadPoolExecutor(max_workers=4)
         print("✅ ThreadPoolExecutor 초기화 완료!")
-        
+
         # 라우터 등록
         app.include_router(auth_router.router, tags=["auth"])
         app.include_router(user_router.router, tags=["user"])
         app.include_router(novel_router.router, tags=["novel"])
         app.include_router(discussion_router.router, tags=["discussion"])
         app.include_router(google_oauth_router, tags=["oauth"], prefix="/api/v1")
-        
+
         yield
-        
+
     finally:
         # Redis 연결 종료
         if hasattr(app.state, "redis"):
             await app.state.redis.close()
-        
+
         # ThreadPoolExecutor 종료
         if hasattr(app.state, "thread_pool"):
             app.state.thread_pool.shutdown(wait=True)
             print("✅ ThreadPoolExecutor 정상 종료!")
-            
+
         print("🛑 FastAPI 서버 종료!")
 
+
 app = FastAPI(lifespan=lifespan)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # CORS origins 설정
 origins = [
@@ -85,14 +89,17 @@ app.add_middleware(
     expose_headers=["Set-Cookie"],
 )
 
+
 @app.get("/")
 def read_root():
     return {"Hello": "World"}
 
+
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.getenv("PORT", 8000))
-    
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
