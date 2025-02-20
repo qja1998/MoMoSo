@@ -1,19 +1,28 @@
-from fastapi import Depends, HTTPException, APIRouter, status, Request
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_
+import datetime
+import json
+import os
+import uuid
+from pathlib import Path
 from typing import List
 
+import aiofiles
+import speech_recognition as sr
+from concurrent.futures import ThreadPoolExecutor
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from pydantic import BaseModel
+from sqlalchemy import and_
+from sqlalchemy.orm import Session, joinedload
 
 from . import discussion_crud, discussion_schema
 from database import get_db
-
-from models import User, Episode
+from models import Episode, User
 from utils.auth_utils import get_current_user
+
 
 router = APIRouter(
     prefix="/api/v1/discussion",
 )
-
 
 @router.get(
     "/",
@@ -282,218 +291,7 @@ def create_discussion_summary(
     return new_note
 
 
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
-from typing import Optional
-
-# router = APIRouter()
-
-
-@router.get("/note/{note_id}", description="토론 요약본 상세 조회")
-async def get_note_summary(note_id: int, db: Session = Depends(get_db)):
-    # Join을 통해 Note, Discussion 및 Novel 정보를 한 번에 조회
-    note = (
-        db.query(Note)
-        .options(
-            joinedload(Note.discussion),  # discussion 정보 로드
-        )
-        .filter(Note.note_pk == note_id)
-        .first()
-    )
-
-    if not note:
-        raise HTTPException(status_code=404, detail="Note not found")
-
-    # Novel 정보 별도 조회
-    novel = db.query(Novel).filter(Novel.novel_pk == note.discussion.novel_pk).first()
-
-    if not novel:
-        raise HTTPException(status_code=404, detail="Novel not found")
-
-    return {
-        "novel": {"novel_pk": novel.novel_pk, "title": novel.title},
-        "topic": note.discussion.topic,
-        "start_time": note.discussion.start_time,
-        "summary_text": note.summary,
-    }
-
-
-@router.get(
-    "/user/notes", description="로그인한 사용자의 소설에 대한 토론 요약본 목록 조회"
-)
-async def get_user_discussion_summaries(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
-):
-    try:
-        # Novel과 User 관계를 기준으로 먼저 쿼리
-        notes = (
-            db.query(Note)
-            .join(Discussion, Note.discussion_pk == Discussion.discussion_pk)
-            .join(Novel, Novel.novel_pk == Discussion.novel_pk)
-            .filter(Novel.user_pk == current_user.user_pk)
-            .all()
-        )
-
-        result = []
-        for note in notes:
-            # 각 note에 대해 novel 정보를 별도로 조회
-            novel = (
-                db.query(Novel)
-                .filter(Novel.novel_pk == note.discussion.novel_pk)
-                .first()
-            )
-
-            if novel:
-                result.append(
-                    {
-                        "noteId": note.note_pk,
-                        "novel": {"novel_pk": novel.novel_pk, "title": novel.title},
-                        "topic": note.discussion.topic,
-                        "category": (
-                            "WHOLE_NOVEL"
-                            if not note.discussion.category
-                            else "SPECIFIC_EPISODE"
-                        ),
-                        "start_time": note.discussion.start_time,
-                    }
-                )
-
-        return result
-
-    except Exception as e:
-        print(f"Error: {str(e)}")  # 서버 로그에 에러 출력
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/subject", description="토론 주제 추천")
-def create_discussion_subject(
-    discussion_pk: int = Form(...),
-    room_name: str = Form(...),
-    host_name: str = Form(...),
-    start_time: str = Form(...),
-    end_time: str = Form(...),
-    duration: float = Form(...),
-    participants: str = Form(...),
-    messages: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    """FormData를 받아 토론 주제를 추천"""
-    try:
-        # 1. 입력값 검증
-        if not messages or messages == "[]":
-            raise HTTPException(status_code=400, detail="메시지 내용이 비어있습니다.")
-
-        participants_list = json.loads(participants)
-        messages_list = json.loads(messages)
-
-        if not messages_list:
-            raise HTTPException(status_code=400, detail="메시지 파싱 결과가 비어있습니다.")
-
-        # 2. 회의록 데이터 구성
-        discussion_data = {
-            "room_name": room_name,
-            "host_name": host_name,
-            "start_time": start_time,
-            "end_time": end_time,
-            "duration": duration,
-            "participants": participants_list,
-            "messages": messages_list,
-        }
-
-        # 3. Discussion 및 Novel 정보 조회
-        discussion = (
-            db.query(Discussion)
-            .filter(Discussion.discussion_pk == discussion_pk)
-            .first()
-        )
-        if not discussion:
-            raise HTTPException(status_code=404, detail="Discussion not found")
-
-        novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
-        if not novel:
-            raise HTTPException(status_code=404, detail="Novel not found")
-
-        # 4. 토론 텍스트 파일 경로 확인
-        txt_filename = f"{novel.title}_{discussion.session_id}.txt"
-        file_path = os.path.join(DOCUMENT_PATH, txt_filename)
-
-        if not os.path.exists(file_path):
-            raise HTTPException(
-                status_code=404,
-                detail="TXT file not found. Please start the discussion first.",
-            )
-
-        # 5. Gemini Assistant를 통한 주제 추천
-        try:
-            assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
-            discussion_json = json.dumps(discussion_data, ensure_ascii=False)
-            subject_response = assistant.recommend_discussion_topic(discussion_json)
-            subject = (
-                subject_response if isinstance(subject_response, str) else str(subject_response)
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"주제 추천 생성 실패: {str(e)}")
-
-        return {
-            "status": "success",
-            "message": "토론 주제가 성공적으로 생성되었습니다.",
-            "subject": subject
-        }
-
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="JSON 파싱 실패")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/fact-check", description="토론 팩트 체크")
-def create_discussion_factcheck(
-    request: FactCheckRequest, db: Session = Depends(get_db)
-):
-    """
-    토론 중 제기된 주장에 대한 팩트 체크 수행
-    """
-    # 소설 및 토론 정보 조회
-    discussion = (
-        db.query(Discussion)
-        .filter(Discussion.discussion_pk == request.discussion_pk)
-        .first()
-    )
-    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
-
-    if not novel:
-        raise HTTPException(status_code=404, detail="Novel not found")
-    if not discussion:
-        raise HTTPException(status_code=404, detail="Discussion not found")
-
-    # 사용자 요청에 따른 file_path 생성
-    txt_filename = f"{novel.title}_{discussion.session_id}.txt"
-    file_path = os.path.join(DOCUMENT_PATH, txt_filename)
-
-    if not os.path.exists(file_path):
-        raise HTTPException(
-            status_code=404,
-            detail="TXT file not found. Please start the discussion first.",
-        )
-
-    assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
-
-    factcheck = assistant.fact_check(request.content)
-    return {"factcheck": factcheck}
-
-
 # =============================WebRTC 어셈블==================================
-from fastapi import UploadFile, File, Form, HTTPException
-from pathlib import Path
-import datetime
-import aiofiles
-import os
-import json
-import uuid
-import speech_recognition as sr
-from pydantic import BaseModel
-from typing import List
-from concurrent.futures import ThreadPoolExecutor
 
 UPLOAD_DIR = Path("audio_uploads")
 
@@ -632,29 +430,6 @@ async def create_meeting_minutes(
             "messages": messages_list,
         }
 
-
-    #     # 회의록 디렉토리 생성
-    #     os.makedirs("meeting_minutes", exist_ok=True)
-
-    #     # 파일명 생성
-    #     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    #     filename = f"meeting_{timestamp}_{meeting_data['room_name']}.json"
-    #     filepath = os.path.join("meeting_minutes", filename)
-
-    #     # JSON 파일로 저장
-    #     with open(filepath, "w", encoding="utf-8") as f:
-    #         json.dump(meeting_data, f, ensure_ascii=False, indent=4)
-
-    #     return {
-    #         "message": "회의록이 성공적으로 저장되었습니다.",
-    #         "meeting_id": meeting_data["id"],
-    #         "filename": filename,
-    #     }
-
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=str(e))
-
-    # Discussion 및 Novel 정보 조회
         discussion = (
             db.query(Discussion)
             .filter(Discussion.discussion_pk == discussion_pk)
@@ -706,4 +481,224 @@ async def create_meeting_minutes(
 
     except Exception as e:
         db.rollback()
+
+
+@router.get("/note/{note_id}", description="토론 요약본 상세 조회")
+async def get_note_summary(note_id: int, db: Session = Depends(get_db)):
+    # Join을 통해 Note, Discussion 및 Novel 정보를 한 번에 조회
+    note = (
+        db.query(Note)
+        .options(
+            joinedload(Note.discussion),  # discussion 정보 로드
+        )
+        .filter(Note.note_pk == note_id)
+        .first()
+    )
+
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    # Novel 정보 별도 조회
+    novel = db.query(Novel).filter(Novel.novel_pk == note.discussion.novel_pk).first()
+
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+
+    return {
+        "novel": {"novel_pk": novel.novel_pk, "title": novel.title},
+        "topic": note.discussion.topic,
+        "start_time": note.discussion.start_time,
+        "summary_text": note.summary,
+    }
+
+
+@router.get(
+    "/user/notes", description="로그인한 사용자의 소설에 대한 토론 요약본 목록 조회"
+)
+async def get_user_discussion_summaries(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    try:
+        # Novel과 User 관계를 기준으로 먼저 쿼리
+        notes = (
+            db.query(Note)
+            .join(Discussion, Note.discussion_pk == Discussion.discussion_pk)
+            .join(Novel, Novel.novel_pk == Discussion.novel_pk)
+            .filter(Novel.user_pk == current_user.user_pk)
+            .all()
+        )
+
+        result = []
+        for note in notes:
+            # 각 note에 대해 novel 정보를 별도로 조회
+            novel = (
+                db.query(Novel)
+                .filter(Novel.novel_pk == note.discussion.novel_pk)
+                .first()
+            )
+
+            if novel:
+                result.append(
+                    {
+                        "noteId": note.note_pk,
+                        "novel": {"novel_pk": novel.novel_pk, "title": novel.title},
+                        "topic": note.discussion.topic,
+                        "category": (
+                            "WHOLE_NOVEL"
+                            if not note.discussion.category
+                            else "SPECIFIC_EPISODE"
+                        ),
+                        "start_time": note.discussion.start_time,
+                    }
+                )
+
+        return result
+
+    except Exception as e:
+        print(f"Error: {str(e)}")  # 서버 로그에 에러 출력
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/subject", description="토론 주제 추천")
+def create_discussion_subject(
+    discussion_pk: int = Form(...),
+    room_name: str = Form(...),
+    host_name: str = Form(...),
+    start_time: str = Form(...),
+    end_time: str = Form(...),
+    duration: float = Form(...),
+    participants: str = Form(...),
+    messages: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """FormData를 받아 토론 주제를 추천"""
+    try:
+        # 1. 입력값 검증 및 로깅
+        print(f"Received discussion_pk: {discussion_pk}")
+        print(f"Received messages: {messages[:100]}...")  # 메시지 앞부분만 로깅
+
+        if not messages or messages == "[]":
+            raise HTTPException(status_code=400, detail="메시지 내용이 비어있습니다.")
+
+        try:
+            participants_list = json.loads(participants)
+            messages_list = json.loads(messages)
+        except json.JSONDecodeError as e:
+            raise HTTPException(status_code=400, detail=f"JSON 파싱 실패: {str(e)}")
+
+        if not messages_list:
+            raise HTTPException(status_code=400, detail="메시지 파싱 결과가 비어있습니다.")
+
+        # 2. Discussion 조회
+        try:
+            discussion = (
+                db.query(Discussion)
+                .filter(Discussion.discussion_pk == discussion_pk)
+                .first()
+            )
+            if not discussion:
+                raise HTTPException(status_code=404, detail=f"Discussion not found: {discussion_pk}")
+            print(f"Found discussion: {discussion.discussion_pk}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Discussion 조회 실패: {str(e)}")
+
+        # 3. Novel 조회
+        try:
+            novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+            if not novel:
+                raise HTTPException(status_code=404, detail=f"Novel not found: {discussion.novel_pk}")
+            print(f"Found novel: {novel.title}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Novel 조회 실패: {str(e)}")
+
+        # 4. 파일 경로 확인
+        txt_filename = f"{novel.title}_{discussion.session_id}.txt"
+        file_path = os.path.join(DOCUMENT_PATH, txt_filename)
+        print(f"Checking file path: {file_path}")
+
+        if not os.path.exists(file_path):
+            raise HTTPException(
+                status_code=404,
+                detail=f"File not found at path: {file_path}"
+            )
+
+        # 5. 데이터 구성
+        discussion_data = {
+            "room_name": room_name,
+            "host_name": host_name,
+            "start_time": start_time,
+            "end_time": end_time,
+            "duration": duration,
+            "participants": participants_list,
+            "messages": messages_list,
+        }
+
+        # 6. Gemini Assistant를 통한 주제 추천
+        try:
+            assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
+            discussion_json = json.dumps(discussion_data, ensure_ascii=False)
+            subject_response = assistant.recommend_discussion_topic(discussion_json)
+            subject = (
+                subject_response if isinstance(subject_response, str) else str(subject_response)
+            )
+            print(f"Generated subject: {subject[:100]}...")  # 생성된 주제 앞부분만 로깅
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"주제 추천 생성 실패: {str(e)}")
+
+        return {
+            "status": "success",
+            "message": "토론 주제가 성공적으로 생성되었습니다.",
+            "subject": subject
+        }
+
+    except HTTPException as he:
+        # 이미 처리된 HTTP 예외는 그대로 전달
+        raise he
+    except Exception as e:
+        # 예상치 못한 에러는 상세 로그 출력
+        print(f"Unexpected error: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=500, 
+            detail=f"서버 내부 오류: {str(e)}"
+        )
+
+
+@router.post("/fact-check", description="토론 팩트 체크")
+def create_discussion_factcheck(
+    request: FactCheckRequest, db: Session = Depends(get_db)
+):
+    """
+    토론 중 제기된 주장에 대한 팩트 체크 수행
+    """
+    # 소설 및 토론 정보 조회
+    discussion = (
+        db.query(Discussion)
+        .filter(Discussion.discussion_pk == request.discussion_pk)
+        .first()
+    )
+    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
+
+    # 사용자 요청에 따른 file_path 생성
+    txt_filename = f"{novel.title}_{discussion.session_id}.txt"
+    file_path = os.path.join(DOCUMENT_PATH, txt_filename)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(
+            status_code=404,
+            detail="TXT file not found. Please start the discussion first.",
+        )
+
+    assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
+
+    try:
+        factcheck = assistant.fact_check(request.content)
+        return {"factcheck": factcheck}
+    except Exception as e:  # 어떤 에러가 발생할지 모르므로 Exception으로 처리
         raise HTTPException(status_code=500, detail=str(e))
