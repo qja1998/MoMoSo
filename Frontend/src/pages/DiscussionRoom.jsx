@@ -212,7 +212,7 @@ export default function DiscussionRoom() {
 
   const isComponentMountedRef = useRef(true)
   const [discussionInfo, setDiscussionInfo] = useState(null)
-  const [isMicOn, setIsMicOn] = useState(true)
+  const [isMicOn, setIsMicOn] = useState(false)
   const [volume, setVolume] = useState(50)
   const [speakingUsers, setSpeakingUsers] = useState([]) // VAD로 현재 말하고 있는 사용자들의 ID 배열
   const [isVolumeHovered, setIsVolumeHovered] = useState(false)
@@ -650,7 +650,7 @@ export default function DiscussionRoom() {
           publisher = await openViduBrowser.initPublisherAsync(undefined, {
             audioSource: undefined, // 기본 마이크 사용
             videoSource: false,
-            publishAudio: true,
+            publishAudio: false,
             publishVideo: false,
             frameRate: 30,
             insertMode: 'APPEND',
@@ -834,6 +834,15 @@ export default function DiscussionRoom() {
               id: track.id
             }))
           );
+          // 자신을 participants 배열에 추가
+          setParticipants(prev => {
+            return [...prev,{
+              connectionId: connection.connectionId,
+              user_pk: user?.user_pk,
+              nickname: user?.nickname,
+              streamManager: publisher,
+            }];
+          });
         } catch (error) {
           console.error('[Step 9] 세션에 스트림 발행 실패:', error);
           throw error;
@@ -917,17 +926,34 @@ export default function DiscussionRoom() {
 
   // 볼륨 조절에 debounce 적용
   const debouncedVolumeChange = debounce((newValue) => {
-    participants.forEach((participant) => {
-      if (participant.streamManager) {
-        participant.streamManager.setAudioVolume(newValue)
+    // 정규화된 볼륨 값 (0-1 범위)
+    const normalizedVolume = newValue / 100;
+    
+    // DOM에서 모든 video/audio 요소를 찾아 볼륨 조절
+    const mediaElements = document.querySelectorAll('video, audio');
+    console.log(`[볼륨 조절] ${mediaElements.length}개의 미디어 요소 발견`);
+    
+    mediaElements.forEach((element, index) => {
+      try {
+        element.volume = normalizedVolume;
+        console.log(`[볼륨 조절] 요소 ${index} 볼륨 설정: ${normalizedVolume}`);
+      } catch (error) {
+        console.error(`[볼륨 조절] 요소 ${index} 볼륨 설정 실패:`, error);
       }
-    })
-  }, 100)
+    });
+  }, 100);
 
   const handleVolumeChange = (event, newValue) => {
     setVolume(newValue)
     debouncedVolumeChange(newValue)
   }
+
+  // 볼륨 토글 핸들러 (음소거/음소거 해제)
+  const toggleVolume = () => {
+    const newVolume = volume === 0 ? 50 : 0;
+    setVolume(newVolume);
+    debouncedVolumeChange(newVolume);
+  };
 
   // OpenVidu 시그널 이벤트 처리 부분 수정
   useEffect(() => {
@@ -1222,7 +1248,7 @@ export default function DiscussionRoom() {
 
                   {/* 볼륨 컨트롤 */}
                   <IconButton
-                    onClick={() => setVolume(volume === 0 ? 50 : 0)}
+                    onClick={toggleVolume}
                     onMouseEnter={() => setIsVolumeHovered(true)}
                     onMouseLeave={() => setIsVolumeHovered(false)}
                   >
