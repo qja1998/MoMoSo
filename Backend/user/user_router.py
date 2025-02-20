@@ -1,5 +1,5 @@
 
-from fastapi import Depends, HTTPException, APIRouter, status
+from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from models import User, Novel
@@ -58,7 +58,7 @@ async def update_user(
 @router.delete('/{user_id}', description='사용자 계정 삭제')
 def delete_user(
     user_id: int,
-    credentials: user_schema.DeleteUserForm,  # 이메일과 비밀번호 포함
+    credentials: user_schema.DeleteUserForm,
     db: Session = Depends(get_db)
 ):
     # 사용자 조회
@@ -86,7 +86,6 @@ async def get_novels_written(current_user: User = Depends(get_current_user), db:
     사용자가 작성한 소설 목록을 가져옴
     """
     novels_written = db.query(Novel).filter(Novel.user_pk == current_user.user_pk).all()
-
     return novels_written
 
 
@@ -122,4 +121,3 @@ async def save_recent_novel(
     로그인한 사용자가 조회한 소설을 최근 본 소설 목록에 저장
     """
     return user_crud.save_recent_novel(db, current_user.user_pk, novel_pk)
-

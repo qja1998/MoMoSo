@@ -1,31 +1,31 @@
-import datetime, json, os, uuid, logging
+import datetime
+import json
+import logging
+import os
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List
 
 import aiofiles
 import speech_recognition as sr
-from concurrent.futures import ThreadPoolExecutor
-
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
-from pydantic import BaseModel
-from sqlalchemy import and_
 from sqlalchemy.orm import Session, joinedload
 
-from . import discussion_crud, discussion_schema
 from database import get_db
-from models import Episode, User
+from models import Discussion, Novel, Note, User
 from utils.auth_utils import get_current_user
+from . import discussion_crud, discussion_schema
+from .discussion_func.discussion_rag import GeminiDiscussionAssistant
 
+GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
+DOCUMENT_PATH = "./document_path"  # txt 파일 저장 디렉토리
 
 router = APIRouter(
     prefix="/api/v1/discussion",
 )
 
-@router.get(
-    "/",
-    description="토론 방 전체 조회",
-    response_model=List[discussion_schema.Discussion],
-)
+@router.get("/", description="토론 방 전체 조회", response_model=List[discussion_schema.Discussion])
 def get_all_discussions(db: Session = Depends(get_db)):
     """
     모든 토론 방 목록 조회.
@@ -51,11 +51,7 @@ def enter_discussion_room(
     return discussion_crud.get_discussion_sessionid(db, discussion_pk, user_pk)
 
 
-@router.post(
-    "/",
-    response_model=discussion_schema.GetNewDiscussion,
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("/", response_model=discussion_schema.GetNewDiscussion, status_code=status.HTTP_201_CREATED)
 def create_discussion(
     discussion: discussion_schema.NewDiscussionForm,
     db: Session = Depends(get_db),
@@ -74,11 +70,7 @@ def create_discussion(
     return new_discussion
 
 
-@router.post(
-    "/{discussion_pk}/participants/{user_pk}",
-    response_model=discussion_schema.Discussion,
-    description="토론방 유저 추가",
-)
+@router.post("/{discussion_pk}/participants/{user_pk}", response_model=discussion_schema.Discussion, description="토론방 유저 추가")
 def add_participant(discussion_pk: int, user_pk: int, db: Session = Depends(get_db)):
     """
     토론 방에 유저 추가.
@@ -86,11 +78,7 @@ def add_participant(discussion_pk: int, user_pk: int, db: Session = Depends(get_
     return discussion_crud.add_participant(db, discussion_pk, user_pk)
 
 
-@router.delete(
-    "/{discussion_pk}/participants/{user_pk}",
-    response_model=discussion_schema.Discussion,
-    description="토론방 유저 삭제",
-)
+@router.delete( "/{discussion_pk}/participants/{user_pk}", response_model=discussion_schema.Discussion, description="토론방 유저 삭제")
 def remove_participant(discussion_pk: int, user_pk: int, db: Session = Depends(get_db)):
     """
     토론 방에서 유저 삭제.
@@ -121,192 +109,7 @@ def delete_discussion(discussion_pk: int, db: Session = Depends(get_db)):
     discussion_crud.delete_discussion(db, discussion_pk)
     return {"message": "토론 방 삭제 완료"}
 
-
-# =============================AI 어셈블==================================
-from .discussion_func.discussion_rag import GeminiDiscussionAssistant
-from models import Novel, Note, Discussion
-from .discussion_schema import SummaryRequest, FactCheckRequest, SubjectRequest
-import os
-
-GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
-DOCUMENT_PATH = "./document_path"  # txt 파일 저장 디렉토리
-
-
-
-def get_assistant(document_path: str = None):
-    return GeminiDiscussionAssistant(document_path, GEMINI_API_KEY)
-
-
-
-
-# @router.post("/create-txt", description="토론 시작 시, 소설 txt 파일 생성")
-# def create_txt_file(discussion_pk: int, db: Session = Depends(get_db)):
-#     """
-#     AI 기능을 위해 토론 시작 시, 소설 폴더에 소설 내용을 담은 txt 파일을 생성하는 기능
-#     """
-
-#     # 소설 및 토론 정보 조회
-#     discussion = (
-#         db.query(Discussion).filter(Discussion.discussion_pk == discussion_pk).first()
-#     )
-#     novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
-
-#     if not novel:
-#         raise HTTPException(status_code=404, detail="Novel not found")
-
-#     if not discussion:
-#         raise HTTPException(status_code=404, detail="Discussion not found")
-
-#     # 소설의 모든 에피소드 조회 (생성 날짜순 정렬)
-#     episodes = (
-#         db.query(Episode)
-#         .filter(Episode.novel_pk == novel.novel_pk)
-#         .order_by(Episode.created_date)
-#         .all()
-#     )
-
-#     if not episodes:
-#         raise HTTPException(status_code=400, detail="No episodes found for this novel")
-
-#     # txt 파일 제목 설정 (토론 세션 ID + 소설 제목)
-#     txt_title = f"{novel.title}_{discussion.session_id}.txt"
-
-#     # 파일 저장 경로 설정
-#     os.makedirs(DOCUMENT_PATH, exist_ok=True)  # 폴더가 없으면 생성
-#     file_path = os.path.join(DOCUMENT_PATH, txt_title)
-
-#     # 소설 내용 구성
-#     content = f" 소설 제목: {novel.title}\n\n"
-
-#     for idx, episode in enumerate(episodes):
-#         content += f"\n\n {idx + 1}화 에피소드 : {episode.ep_title}\n\n{episode.ep_content}\n\n"
-
-#     # 파일 생성 및 저장
-#     try:
-#         with open(file_path, "w", encoding="utf-8") as file:
-#             file.write(content)
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"파일 저장 실패: {str(e)}")
-
-#     return {
-#         "file_name": txt_title,
-#         "document_path": os.path.abspath(file_path),  # 절대 경로 반환
-#     }
-
-
-@router.post("/delete-txt", description="토론 종료 시, 소설 txt 파일 삭제")
-def delete_txt_file(discussion_pk: int, db: Session = Depends(get_db)):
-    """
-    토론 종료 시, 해당 토론에서 사용된 txt 파일을 삭제하는 기능
-    """
-
-    # 1️⃣ 해당 토론 조회
-    discussion = (
-        db.query(Discussion).filter(Discussion.discussion_pk == discussion_pk).first()
-    )
-    if not discussion:
-        raise HTTPException(status_code=404, detail="Discussion not found")
-
-    # 2️⃣ 토론과 연결된 소설 조회
-    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
-    if not novel:
-        raise HTTPException(status_code=404, detail="Novel not found")
-
-    # 3️⃣ 삭제할 txt 파일명 설정 (토론 세션 ID + 소설 제목)
-    txt_title = f"{novel.title}_{discussion.session_id}.txt"
-    file_path = os.path.join(DOCUMENT_PATH, txt_title)
-
-    # 4️⃣ 파일 존재 여부 확인 후 삭제
-    if os.path.exists(file_path):
-        try:
-            os.remove(file_path)  # 파일 삭제
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"파일 삭제 실패: {str(e)}")
-        return {"message": "TXT file successfully deleted.", "file_name": txt_title}
-    else:
-        # 파일이 이미 삭제되었거나 존재하지 않으면 204 No Content 반환
-        return {
-            "message": "TXT file not found or already deleted.",
-            "file_name": txt_title,
-        }
-
-
-@router.post("/note", description="토론 요약본 저장")
-def create_discussion_summary(
-    request: SummaryRequest,
-    db: Session = Depends(get_db),
-):
-    """
-    토론이 끝나면 rtc에서 넘겨받은 회의록으로 토론 요약본 저장
-    """
-
-    # 소설 및 토론 정보 조회
-    discussion = (
-        db.query(Discussion)
-        .filter(Discussion.discussion_pk == request.discussion_pk)
-        .first()
-    )
-    if not discussion:
-        raise HTTPException(status_code=404, detail="Discussion not found")
-
-    novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
-    if not novel:
-        raise HTTPException(status_code=404, detail="Novel not found")
-
-    # 사용자 요청에 따른 file_path 생성
-    txt_filename = f"{novel.title}_{discussion.session_id}.txt"
-    file_path = os.path.join(DOCUMENT_PATH, txt_filename)
-
-    if not os.path.exists(file_path):
-        raise HTTPException(
-            status_code=404,
-            detail="TXT file not found. Please start the discussion first.",
-        )
-
-    assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
-
-    # 유저 발화 기반 요약 실행
-    meeting_json = json.dumps(request.content, ensure_ascii=False)
-    summary_response = assistant.generate_meeting_notes(meeting_json)
-    summary = (
-        summary_response.content
-        if hasattr(summary_response, "content")
-        else str(summary_response)
-    )
-
-    # discussion_pk 추가
-    new_note = Note(
-        novel_pk=novel.novel_pk,
-        user_pk=novel.user_pk,
-        discussion_pk=discussion.discussion_pk,  # 추가된 부분
-        summary=summary,
-    )
-
-    try:
-        db.add(new_note)
-        db.commit()
-        db.refresh(new_note)
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"DB 저장 실패: {str(e)}")
-
-    return new_note
-
-
-# =============================WebRTC 어셈블==================================
-
 UPLOAD_DIR = Path("audio_uploads")
-
-
-class MeetingMinutesData(BaseModel):
-    room_name: str
-    host_name: str
-    start_time: str
-    end_time: str
-    duration: float
-    participants: List[str]
-    messages: List[dict]
-
 
 def process_audio_sync(file_path):
     """
@@ -403,8 +206,8 @@ async def receive_audio(
         return {"error": str(e)}
 
 
-# Logger 설정
-logger = logging.getLogger(__name__)
+def get_assistant(document_path: str = None):
+    return GeminiDiscussionAssistant(document_path, GEMINI_API_KEY)
 
 @router.post("/meeting-minutes")
 async def create_meeting_minutes(
@@ -414,13 +217,11 @@ async def create_meeting_minutes(
     start_time: str = Form(...),
     end_time: str = Form(...),
     duration: float = Form(...),
-    participants: str = Form(...),  # JSON string으로 전송됨
-    messages: str = Form(...),      # JSON string으로 전송됨
+    participants: str = Form(...),
+    messages: str = Form(...),    
     db: Session = Depends(get_db)
 ):
     try:
-        logger.info(f"Starting meeting minutes creation for discussion_pk: {discussion_pk}")
-        
         # 1. Discussion 조회 및 비활성화 처리
         discussion = (
             db.query(Discussion)
@@ -428,30 +229,21 @@ async def create_meeting_minutes(
             .first()
         )
         if not discussion:
-            logger.error(f"Discussion not found: {discussion_pk}")
             raise HTTPException(status_code=404, detail="Discussion not found")
-        
-        logger.info(f"Found discussion with session_id: {discussion.session_id}")
             
         discussion.is_active = 0  # 토론 비활성화
         discussion.end_time = datetime.datetime.now()  # 종료 시간 업데이트
-        logger.info("Discussion marked as inactive")
 
         # Novel 조회
         novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
         if not novel:
-            logger.error(f"Novel not found for novel_pk: {discussion.novel_pk}")
-            raise HTTPException(status_code=404, detail="Novel not found")
-            
-        logger.info(f"Found novel: {novel.title}")
 
+            raise HTTPException(status_code=404, detail="Novel not found")  
         # 2. 회의록 생성 및 요약
         try:
             participants_list = json.loads(participants)
             messages_list = json.loads(messages)
-            logger.info("Successfully parsed participants and messages JSON")
         except json.JSONDecodeError as e:
-            logger.error(f"JSON parsing error: {str(e)}")
             raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
 
         # 회의록 데이터 구성
@@ -465,15 +257,12 @@ async def create_meeting_minutes(
             "participants": participants_list,
             "messages": messages_list,
         }
-        logger.info("Meeting data structured successfully")
 
         # 토론 텍스트 파일 경로 확인
         txt_filename = f"{novel.title}_{discussion.session_id}.txt"
         txt_file_path = os.path.join(DOCUMENT_PATH, txt_filename)
-        logger.info(f"Checking file path: {txt_file_path}")
 
         if not os.path.exists(txt_file_path):
-            logger.error(f"File not found: {txt_file_path}")
             raise HTTPException(
                 status_code=404,
                 detail=f"토론 파일을 찾을 수 없습니다: {txt_filename}",
@@ -481,7 +270,6 @@ async def create_meeting_minutes(
 
         # Gemini Assistant를 통한 요약 생성
         try:
-            logger.info("Starting Gemini Assistant for summary generation")
             assistant = GeminiDiscussionAssistant(txt_file_path, GEMINI_API_KEY)
             meeting_json = json.dumps(meeting_data, ensure_ascii=False)
             summary_response = assistant.generate_meeting_notes(meeting_json)
@@ -490,12 +278,10 @@ async def create_meeting_minutes(
                 if hasattr(summary_response, "content")
                 else str(summary_response)
             )
-            logger.info("Summary generated successfully")
+
         except Exception as e:
-            logger.error(f"Summary generation failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"요약 생성 실패: {str(e)}")
 
-        # DB에 요약본 저장
         try:
             new_note = Note(
                 novel_pk=novel.novel_pk,
@@ -504,26 +290,21 @@ async def create_meeting_minutes(
                 summary=summary,
             )
             db.add(new_note)
-            logger.info("Note added to database session")
+
         except Exception as e:
-            logger.error(f"Failed to create note: {str(e)}")
             raise HTTPException(status_code=500, detail=f"요약본 저장 실패: {str(e)}")
         
         # 3. txt 파일 삭제
         if os.path.exists(txt_file_path):
             try:
                 os.remove(txt_file_path)
-                logger.info(f"Successfully deleted file: {txt_file_path}")
             except Exception as e:
-                logger.error(f"Failed to delete file {txt_file_path}: {str(e)}")
-
+                pass
         # 모든 변경사항 커밋
         try:
             db.commit()
             db.refresh(new_note)
-            logger.info("Successfully committed all changes to database")
         except Exception as e:
-            logger.error(f"Database commit failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"데이터베이스 저장 실패: {str(e)}")
 
         return {
@@ -533,7 +314,6 @@ async def create_meeting_minutes(
         }
 
     except Exception as e:
-        logger.error(f"Unexpected error in create_meeting_minutes: {str(e)}")
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -565,7 +345,6 @@ async def get_note_summary(note_id: int, db: Session = Depends(get_db)):
         "start_time": note.discussion.start_time,
         "summary_text": note.summary,
     }
-
 
 @router.get(
     "/user/notes", description="로그인한 사용자의 소설에 대한 토론 요약본 목록 조회"
@@ -777,6 +556,6 @@ def create_discussion_factcheck(
         }
 
     except Exception as e:
-        logger.error(f"Fact check failed: {str(e)}")
+
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
