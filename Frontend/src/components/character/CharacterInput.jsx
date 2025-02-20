@@ -4,20 +4,22 @@ import PropTypes from 'prop-types'
 import { useState } from 'react'
 
 import DeleteIcon from '@mui/icons-material/Delete'
-import RefreshIcon from '@mui/icons-material/Refresh'
 import SaveIcon from '@mui/icons-material/Save'
-import { Box, Card, Divider, Stack, TextField } from '@mui/material'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Card from '@mui/material/Card'
+import Divider from '@mui/material/Divider'
+import Stack from '@mui/material/Stack'
+import TextField from '@mui/material/TextField'
 
-import { PrimaryButton } from '../common/buttons'
+// const CHARACTER_TYPES = {
+//   protagonist: '주인공',
+//   supporter: '조력자',
+//   antagonist: '적대자',
+//   extra: '기타 인물',
+// }
 
-const CHARACTER_TYPES = {
-  protagonist: '주인공',
-  supporter: '조력자',
-  antagonist: '적대자',
-  extra: '기타 인물',
-}
-
-const CharacterInput = ({ type, character, onChange, onGenerate, onDelete, novelPk, backendUrl }) => {
+const CharacterInput = ({ type, character, onChange, onDelete, novelId }) => {
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -31,30 +33,21 @@ const CharacterInput = ({ type, character, onChange, onGenerate, onDelete, novel
       const characterData = {
         name: character.name,
         role: character.type,
-        age: character.age.toString(),
-        sex: character.gender.toString(),
+        age: character.age,
+        sex: character.gender,
         job: character.job,
         profile: character.profile,
       }
 
-      console.log('Sending character data:', characterData)
-
-      let response
-      if (character.character_pk) {
-        response = await axios.put(`${backendUrl}novel/character/${character.character_pk}`, characterData, {
+      const response = await axios.post(
+        `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/novel/character/${novelId}`,
+        characterData,
+        {
           headers: {
             'Content-Type': 'application/json',
           },
-          withCredentials: true,
-        })
-      } else {
-        response = await axios.post(`${backendUrl}novel/character/${novelPk}`, characterData, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          withCredentials: true,
-        })
-      }
+        }
+      )
 
       if (response.status === 200) {
         console.log('Character saved successfully:', response.data)
@@ -72,15 +65,31 @@ const CharacterInput = ({ type, character, onChange, onGenerate, onDelete, novel
   }
 
   const handleDeleteClick = async () => {
-    if (window.confirm('이 캐릭터를 삭제하시겠습니까?')) {
-      setIsDeleting(true)
-      try {
-        await onDelete(character.id, character.character_pk)
-      } catch (error) {
-        console.error('Error in delete handler:', error)
-      } finally {
-        setIsDeleting(false)
+    try {
+      // character.id가 있는 경우만 서버 요청
+      if (character.character_pk) {
+        const response = await axios.delete(
+          `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/novel/character/${novelId}/${character.id}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+
+        if (response.status === 200) {
+          console.log('Character deleted successfully')
+          alert('캐릭터가 성공적으로 삭제되었습니다.')
+        }
       }
+
+      // character.id 유무와 관계없이 UI에서 삭제
+      if (onDelete) {
+        onDelete(character.character_pk || character.id)
+      }
+    } catch (error) {
+      console.error('Error deleting character:', error)
+      alert('캐릭터 삭제 중 오류가 발생했습니다.')
     }
   }
 
@@ -216,26 +225,55 @@ const CharacterInput = ({ type, character, onChange, onGenerate, onDelete, novel
       </Stack>
       <Divider sx={{ my: 2 }} />
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'flex-end' }}>
-        <PrimaryButton
+        <Button
           startIcon={<SaveIcon />}
-          backgroundColor="#111111"
-          hoverBackgroundColor="#404040"
-          sx={{ py: 0.5 }}
           onClick={handleSaveClick}
-          disabled={isSaving}
+          loading={isSaving}
+          sx={{
+            fontWeight: 500,
+            fontSize: '1rem',
+            borderRadius: 2,
+            px: 2,
+            py: 0.5,
+            whiteSpace: 'nowrap',
+            ...(isSaving
+              ? {
+                  backgroundColor: 'grey.200',
+                  color: 'grey.600',
+                  border: '1px solid',
+                  borderColor: 'grey.600',
+                }
+              : {
+                  backgroundColor: '#111111',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: '#404040',
+                  },
+                }),
+          }}
         >
-          {isSaving ? '저장 중...' : '저장'}
-        </PrimaryButton>
-        <PrimaryButton
+          저장
+        </Button>
+        <Button
           startIcon={<DeleteIcon />}
-          backgroundColor="#D32F2F"
-          hoverBackgroundColor="#A82525"
-          sx={{ py: 0.5 }}
           onClick={handleDeleteClick}
-          disabled={isDeleting}
+          loading={isDeleting}
+          sx={{
+            fontWeight: 500,
+            fontSize: '1rem',
+            borderRadius: 2,
+            px: 2,
+            py: 0.5,
+            whiteSpace: 'nowrap',
+            backgroundColor: '#D32F2F',
+            color: 'white',
+            '&:hover': {
+              backgroundColor: '#A82525',
+            },
+          }}
         >
-          {isDeleting ? '삭제 중...' : '삭제'}
-        </PrimaryButton>
+          삭제
+        </Button>
       </Stack>
     </Card>
   )
@@ -251,12 +289,12 @@ CharacterInput.propTypes = {
     age: PropTypes.string.isRequired,
     job: PropTypes.string.isRequired,
     profile: PropTypes.string.isRequired,
+    type: PropTypes.string,
   }).isRequired,
   onChange: PropTypes.func.isRequired,
   onGenerate: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
-  novelPk: PropTypes.any,
-  backendUrl: PropTypes.string.isRequired,
+  novelId: PropTypes.string,
 }
 
 export default CharacterInput
