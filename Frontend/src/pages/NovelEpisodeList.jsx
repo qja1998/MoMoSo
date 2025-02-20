@@ -162,8 +162,11 @@ const NovelEpisodeList = () => {
         withCredentials: true,
       })
 
+      console.log('토론방 생성 성공')
+
       // NovelContext의 fetchNovelData 사용
       await fetchNovelData(novelId)
+      console.log('데이터 새로고침 완료')
 
       setOpenModal(false)
       setDiscussionForm(initialDiscussionForm)
@@ -393,13 +396,17 @@ const NovelEpisodeList = () => {
                   },
                 }}
               >
+                {console.log('현재 discussions:', discussions)}
                 {discussions && discussions.length > 0 ? (
-                  discussions.map((discussion) => {
-                    // 회차별 토론인 경우 해당 회차 정보와 인덱스 찾기
-                    const episodeIndex =
-                      discussion.category && discussion.ep_pk
-                        ? novelData.episode.findIndex((ep) => ep.ep_pk === discussion.ep_pk)
-                        : -1
+                  discussions
+                    .filter(discussion => discussion.is_active === true)
+                    .map((discussion) => {
+                      console.log('필터링된 discussion:', discussion)
+                      // 회차별 토론인 경우 해당 회차 정보와 인덱스 찾기
+                      const episodeIndex =
+                        discussion.category && discussion.ep_pk
+                          ? novelData.episode.findIndex((ep) => ep.ep_pk === discussion.ep_pk)
+                          : -1
 
                     return (
                       <Paper
@@ -464,11 +471,11 @@ const NovelEpisodeList = () => {
                       </Paper>
                     )
                   })
-                ) : (
-                  <Typography variant="body2" color="text.secondary" align="center">
-                    토론방이 없습니다.
-                  </Typography>
-                )}
+              ) : (
+                <Typography variant="body2" color="text.secondary" align="center">
+                  토론방이 없습니다.
+                </Typography>
+              )}
               </Stack>
             </>
           )}
