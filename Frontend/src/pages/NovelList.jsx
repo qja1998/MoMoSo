@@ -24,6 +24,7 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 
 import coverPlaceholder from '../assets/placeholder/cover-image-placeholder.png'
+import placeholderImage from '/placeholder/cover-image-placeholder.png'
 
 const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
 
@@ -96,6 +97,10 @@ const NovelList = () => {
     },
     [navigate]
   )
+
+  const handleImageError = (event) => {
+    event.target.src = placeholderImage
+  }
 
   const filteredNovels = useMemo(() => {
     return novels
@@ -206,8 +211,9 @@ const NovelList = () => {
                 <CardMedia
                   component="img"
                   sx={{ aspectRatio: '3/4', objectFit: 'cover' }}
-                  image={novel.novel_img?.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? novel.novel_img : coverPlaceholder}
+                  image={novel.coverImage || placeholderImage}
                   alt={novel.title}
+                  onError={handleImageError}
                 />
                 <CardContent>
                   <Typography variant="h6" noWrap>

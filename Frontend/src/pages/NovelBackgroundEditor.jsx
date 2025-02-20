@@ -409,7 +409,7 @@ useEffect(() => {
               const formattedCharacters = newCharacters.map((char, index) => {
                   const formattedChar = {
                       id: characters[index]?.id || index + 1,
-                      type: char.role || 'protagonist',
+                      type: char.role || '',
                       name: char.name || '',
                       gender: char.sex || '',
                       age: char.age || '',

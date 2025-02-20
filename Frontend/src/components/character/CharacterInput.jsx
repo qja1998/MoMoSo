@@ -1,10 +1,13 @@
 import axios from 'axios'
 import PropTypes from 'prop-types'
+
 import { useState } from 'react'
+
 import DeleteIcon from '@mui/icons-material/Delete'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import SaveIcon from '@mui/icons-material/Save'
 import { Box, Card, Divider, Stack, TextField } from '@mui/material'
+
 import { PrimaryButton } from '../common/buttons'
 
 const CHARACTER_TYPES = {
@@ -31,36 +34,28 @@ const CharacterInput = ({ type, character, onChange, onGenerate, onDelete, novel
         age: character.age.toString(),
         sex: character.gender.toString(),
         job: character.job,
-        profile: character.profile
+        profile: character.profile,
       }
-  
+
       console.log('Sending character data:', characterData)
-  
-      let response;
+
+      let response
       if (character.character_pk) {
-        response = await axios.put(
-          `${backendUrl}novel/character/${character.character_pk}`, 
-          characterData,
-          {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            withCredentials: true
-          }
-        );
+        response = await axios.put(`${backendUrl}novel/character/${character.character_pk}`, characterData, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          withCredentials: true,
+        })
       } else {
-        response = await axios.post(
-          `${backendUrl}novel/character/${novelPk}`, 
-          characterData,
-          {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            withCredentials: true
-          }
-        );
+        response = await axios.post(`${backendUrl}novel/character/${novelPk}`, characterData, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          withCredentials: true,
+        })
       }
-  
+
       if (response.status === 200) {
         console.log('Character saved successfully:', response.data)
         alert('캐릭터가 성공적으로 저장되었습니다.')
@@ -78,16 +73,16 @@ const CharacterInput = ({ type, character, onChange, onGenerate, onDelete, novel
 
   const handleDeleteClick = async () => {
     if (window.confirm('이 캐릭터를 삭제하시겠습니까?')) {
-      setIsDeleting(true);
+      setIsDeleting(true)
       try {
-        await onDelete(character.id, character.character_pk);
+        await onDelete(character.id, character.character_pk)
       } catch (error) {
-        console.error('Error in delete handler:', error);
+        console.error('Error in delete handler:', error)
       } finally {
-        setIsDeleting(false);
+        setIsDeleting(false)
       }
     }
-  };
+  }
 
   return (
     <Card
@@ -112,6 +107,12 @@ const CharacterInput = ({ type, character, onChange, onGenerate, onDelete, novel
               borderRadius: '8px',
             },
           }}
+          slotProps={{
+            inputLabel: {
+              shrink: true,
+              sx: { fontWeight: 'bold' },
+            },
+          }}
         />
       </Stack>
       <Divider sx={{ my: 2 }} />
@@ -128,6 +129,12 @@ const CharacterInput = ({ type, character, onChange, onGenerate, onDelete, novel
                 borderRadius: '8px',
               },
             }}
+            slotProps={{
+              inputLabel: {
+                shrink: true,
+                sx: { fontWeight: 'bold' },
+              },
+            }}
           />
           <TextField
             label="성별"
@@ -138,6 +145,12 @@ const CharacterInput = ({ type, character, onChange, onGenerate, onDelete, novel
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: '8px',
+              },
+            }}
+            slotProps={{
+              inputLabel: {
+                shrink: true,
+                sx: { fontWeight: 'bold' },
               },
             }}
           />
@@ -154,6 +167,12 @@ const CharacterInput = ({ type, character, onChange, onGenerate, onDelete, novel
                 borderRadius: '8px',
               },
             }}
+            slotProps={{
+              inputLabel: {
+                shrink: true,
+                sx: { fontWeight: 'bold' },
+              },
+            }}
           />
           <TextField
             label="직업"
@@ -164,6 +183,12 @@ const CharacterInput = ({ type, character, onChange, onGenerate, onDelete, novel
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: '8px',
+              },
+            }}
+            slotProps={{
+              inputLabel: {
+                shrink: true,
+                sx: { fontWeight: 'bold' },
               },
             }}
           />
@@ -179,6 +204,12 @@ const CharacterInput = ({ type, character, onChange, onGenerate, onDelete, novel
           sx={{
             '& .MuiOutlinedInput-root': {
               borderRadius: '8px',
+            },
+          }}
+          slotProps={{
+            inputLabel: {
+              shrink: true,
+              sx: { fontWeight: 'bold' },
             },
           }}
         />
@@ -225,7 +256,7 @@ CharacterInput.propTypes = {
   onGenerate: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
   novelPk: PropTypes.any,
-  backendUrl: PropTypes.string.isRequired
+  backendUrl: PropTypes.string.isRequired,
 }
 
 export default CharacterInput
