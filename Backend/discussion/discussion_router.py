@@ -697,6 +697,8 @@ def create_discussion_factcheck(
 
     assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
 
-    factcheck = assistant.fact_check(request.content)
-    return {"factcheck": factcheck}
+    try:
+        factcheck = assistant.fact_check(request.content)
+        return {"factcheck": factcheck}
+    except Exception as e:  # 어떤 에러가 발생할지 모르므로 Exception으로 처리
         raise HTTPException(status_code=500, detail=str(e))
