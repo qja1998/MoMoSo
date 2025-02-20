@@ -4,7 +4,7 @@ import { OpenVidu as OpenViduNode } from 'openvidu-node-client'
 import RecordRTC from 'recordrtc'
 import { nanoid } from 'nanoid'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, createRef } from 'react'
 
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -212,7 +212,7 @@ export default function DiscussionRoom() {
 
   const isComponentMountedRef = useRef(true)
   const [discussionInfo, setDiscussionInfo] = useState(null)
-  const [isMicOn, setIsMicOn] = useState(true)
+  const [isMicOn, setIsMicOn] = useState(false)
   const [volume, setVolume] = useState(50)
   const [speakingUsers, setSpeakingUsers] = useState([]) // VAD로 현재 말하고 있는 사용자들의 ID 배열
   const [isVolumeHovered, setIsVolumeHovered] = useState(false)
@@ -247,11 +247,25 @@ export default function DiscussionRoom() {
     allParticipantsRef.current = allParticipants;
    },[allParticipants]);
 
+   useEffect(() => {
+    // 5초마다 구독자 오디오 상태 확인
+    const checkInterval = setInterval(() => {
+      // 구독자 측 간단 체크
+      subscribers.forEach((sub, idx) => {
+        console.log(`구독자 ${idx} 오디오 활성화 상태:`, sub.stream.audioActive);
+      });
+    }, 5000);
+    
+    return () => clearInterval(checkInterval);
+  }, [subscribers]);
+
   // AI 어시스턴트 관련 상태 추가
   const [factChecks, setFactChecks] = useState([])
   const [isGeneratingTopic, setIsGeneratingTopic] = useState(false)
 
   const vadRef = useRef(null)
+
+  const videoRefs = useRef(new Map());
 
   const participantsRef = useRef([]);
   useEffect(() =>{
@@ -576,7 +590,12 @@ export default function DiscussionRoom() {
         try {
           // 4-1. 세션의 현재 상태 업데이트
           await serverSideSession.fetch()
-
+          console.log('[Server Session] 활성 연결 수:', serverSideSession.activeConnections.length);
+          console.log('[Server Session] 활성 스트림 수:', 
+            serverSideSession.activeConnections.reduce((count, conn) => {
+              return count + conn.publishers.length;
+            }, 0)
+          );
           // 4-2. 현재 사용자의 기존 연결 찾기
           const userConnections = serverSideSession.activeConnections.filter((conn) => {
             try {
@@ -631,7 +650,7 @@ export default function DiscussionRoom() {
           publisher = await openViduBrowser.initPublisherAsync(undefined, {
             audioSource: undefined, // 기본 마이크 사용
             videoSource: false,
-            publishAudio: true,
+            publishAudio: false,
             publishVideo: false,
             frameRate: 30,
             insertMode: 'APPEND',
@@ -677,6 +696,14 @@ export default function DiscussionRoom() {
                 return;
               }
 
+              const existingParticipant = participants.find(p => 
+                p.connectionId === event.stream.connection.connectionId
+              );
+
+              if (existingParticipant) {
+                return;
+              }
+
               const subscriberOptions = {
                 insertMode: 'APPEND',
                 subscribeToAudio: true,
@@ -684,6 +711,11 @@ export default function DiscussionRoom() {
               };
           
               const subscriber = clientSideSession.subscribe(event.stream, undefined, subscriberOptions);
+
+              // 비디오 엘리먼트 생성 및 연결
+              const videoElement = document.createElement('video');
+              videoElement.style.display = 'none';
+              subscriber.addVideoElement(videoElement);
               
               // participants 배열 업데이트
               setParticipants(prev => {
@@ -765,6 +797,15 @@ export default function DiscussionRoom() {
                 newSpeakers.delete(connectionData.user_pk);
                 return Array.from(newSpeakers);
               });
+
+              // 비디오 엘리먼트 ref 정리
+              const container = videoRefs.current.get(event.stream.connection.connectionId)?.current;
+              if (container) {
+                while (container.firstChild) {
+                  container.removeChild(container.firstChild);
+                }
+              }
+              videoRefs.current.delete(event.stream.connection.connectionId);
             } catch (error) {
               console.error('Error handling stream destruction:', error);
             }
@@ -781,8 +822,31 @@ export default function DiscussionRoom() {
         console.log('[Step 8] 세션 연결 성공')
 
         // 9. 세션에 스트림 발행
-        await clientSideSession.publish(publisher)
-        console.log('[Step 9] 세션에 스트림 발행 성공')
+        try {
+          console.log('[Step 9-1] 세션 발행 시작', publisher.stream);
+          const publishResult = await clientSideSession.publish(publisher);
+          console.log('[Step 9-2] 세션 발행 성공', publishResult);
+          console.log('[Step 9-3] 오디오 트랙 상태:', 
+            publisher.stream.getMediaStream().getAudioTracks().map(track => ({
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+              id: track.id
+            }))
+          );
+          // 자신을 participants 배열에 추가
+          setParticipants(prev => {
+            return [...prev,{
+              connectionId: connection.connectionId,
+              user_pk: user?.user_pk,
+              nickname: user?.nickname,
+              streamManager: publisher,
+            }];
+          });
+        } catch (error) {
+          console.error('[Step 9] 세션에 스트림 발행 실패:', error);
+          throw error;
+        }
         
         // 10. 전체 데이터 확인
         console.log('[Step 10] 전체 데이터 확인', {
@@ -862,17 +926,34 @@ export default function DiscussionRoom() {
 
   // 볼륨 조절에 debounce 적용
   const debouncedVolumeChange = debounce((newValue) => {
-    participants.forEach((participant) => {
-      if (participant.streamManager) {
-        participant.streamManager.setAudioVolume(newValue)
+    // 정규화된 볼륨 값 (0-1 범위)
+    const normalizedVolume = newValue / 100;
+    
+    // DOM에서 모든 video/audio 요소를 찾아 볼륨 조절
+    const mediaElements = document.querySelectorAll('video, audio');
+    console.log(`[볼륨 조절] ${mediaElements.length}개의 미디어 요소 발견`);
+    
+    mediaElements.forEach((element, index) => {
+      try {
+        element.volume = normalizedVolume;
+        console.log(`[볼륨 조절] 요소 ${index} 볼륨 설정: ${normalizedVolume}`);
+      } catch (error) {
+        console.error(`[볼륨 조절] 요소 ${index} 볼륨 설정 실패:`, error);
       }
-    })
-  }, 100)
+    });
+  }, 100);
 
   const handleVolumeChange = (event, newValue) => {
     setVolume(newValue)
     debouncedVolumeChange(newValue)
   }
+
+  // 볼륨 토글 핸들러 (음소거/음소거 해제)
+  const toggleVolume = () => {
+    const newVolume = volume === 0 ? 50 : 0;
+    setVolume(newVolume);
+    debouncedVolumeChange(newVolume);
+  };
 
   // OpenVidu 시그널 이벤트 처리 부분 수정
   useEffect(() => {
@@ -992,8 +1073,6 @@ export default function DiscussionRoom() {
   const handleTopicRecommendation = async () => {
     setIsGeneratingTopic(true)
     try {
-      // TODO: 토론 주제 추천 API 호출
-      // await new Promise((resolve) => setTimeout(resolve, 1000))
       const response = await sendProceedings();
       setSubject(response.subject)
     } catch (error) {
@@ -1006,6 +1085,40 @@ export default function DiscussionRoom() {
   const handleImageError = (event) => {
     event.target.src = placeholderImage
   }
+
+  // 비디오 엘리먼트 생성 및 연결을 위한 useEffect 수정
+  useEffect(() => {
+    // 약간의 지연을 주어 DOM이 마운트된 후 실행되도록 함
+    const timer = setTimeout(() => {
+      participants.forEach(participant => {
+        const container = videoRefs.current.get(participant.connectionId)?.current;
+        
+        // container가 존재하고 비어있을 때만 videoElement 생성
+        if (container && !container.hasChildNodes() && participant.streamManager) {
+          try {
+            const videoElement = participant.streamManager.createVideoElement();
+            videoElement.style.display = 'none';
+            container.appendChild(videoElement);
+          } catch (error) {
+            console.error('Error creating video element:', error);
+          }
+        }
+      });
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      // cleanup
+      participants.forEach(participant => {
+        const container = videoRefs.current.get(participant.connectionId)?.current;
+        if (container) {
+          while (container.firstChild) {
+            container.removeChild(container.firstChild);
+          }
+        }
+      });
+    };
+  }, [participants]);
 
   return (
     <Grid
@@ -1135,7 +1248,7 @@ export default function DiscussionRoom() {
 
                   {/* 볼륨 컨트롤 */}
                   <IconButton
-                    onClick={() => setVolume(volume === 0 ? 50 : 0)}
+                    onClick={toggleVolume}
                     onMouseEnter={() => setIsVolumeHovered(true)}
                     onMouseLeave={() => setIsVolumeHovered(false)}
                   >
