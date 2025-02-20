@@ -1,19 +1,15 @@
 # MOMOSO
 
-### **AI 기반 소설생성 & 토론 서비스**
-![MOMOSO](/uploads/93054a8c93d071fe2f65d755dc3ccbad/MOMOSO.png)
+![MOMOSO](/uploads/6b64d5218ef4c204ca5703cd4714e443/MOMOSO.png)
 
+### **서비스 소개 영상**
+![UCC 영상](https://example.com/video)
 ---
 
 ## 목차
 1. [프로젝트 소개](#1️⃣-프로젝트-소개)
-2. [서비스 소개](#2️⃣-서비스-소개)
-3. [기획 배경](#3️⃣-기획-배경)
-4. [주요 기능](#4️⃣-주요-기능)
-5. [화면 소개](#5️⃣-화면-소개)
-6. [기술 스택](#6️⃣-기술-스택)
-7. [서비스 아키텍처](#7️⃣-서비스-아키텍처)
-8. [프로젝트 산출물](#8️⃣-프로젝트-산출물)
+2. [주요 기능](#2️⃣-주요-기능)
+3. [프로젝트 산출물](#3️⃣-프로젝트-산출물)
 
 ---
 
@@ -31,92 +27,57 @@
 
 ## 1️⃣ 프로젝트 소개
 
-### **프로젝트 개요**  
-MOMOSO는 소설을 써보고 싶지만 필력이 부족하거나, 독자의 의견을 적극적으로 반영하고 싶은 작가 또는 소설의 전개에 보다 적극적으로 개입하고 싶거나, 내가 보는 소설에 대해 더 깊은 토론을 해보고 싶은 독자에게 도움이 될 수 있는 서비스를 제공하는 프로젝트 입니다.
+### ✅ **프로젝트 기간**  
+---
+> 25.01.13 ~ 25.02.21 (총 6주)
 
-### **프로젝트 기간**  
-25.01.13 ~ 25.02.21 (총 6주)
+### ✅ **프로젝트 개요**
+---  
+> AI 기반 소설 생성 & 그룹 토론 서비스 **MOMOSO**
 
-### **팀원 소개 및 역할**  
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="100"/> <br> 전제후 <br> **팀장/AI/PM** | <img src="/uploads/db5edf5adf21aa5c1a182439139a6936/권기범.png" width="100"/> <br> 권기범 <br> **Devops/AI** | <img src="/uploads/7be088a72bb329d2a2370e24f18a940c/김의찬.png" width="100"/> <br> 김의찬 <br> **WebRTC** | <img src="/uploads/ced62e92587854fce8696b8799faf392/김윤하.png" width="100"/> <br> 김윤하 <br> **BE, FE** | <img src="/uploads/c96b88c3f3e7efc2d269844166c52909/이지은.png" width="100"/> <br> 이지은 <br> **BE, FE** | <img src="/uploads/0f5b6c8a382b213991c95b2326a99cc6/조현준.png" width="100"/> <br> 조현준 <br> **FE** |
+**기획의도 및 배경**
+> 
+
+
+### ✅ **멤버 소개**
+---
+<div align="center">
+
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="100"/> <br> 🎉 전제후(팀장) <br> **PM, AI** | <img src="/uploads/db5edf5adf21aa5c1a182439139a6936/권기범.png" width="100"/> <br> 🌟 권기범 <br> **DevOps, AI** | <img src="/uploads/7be088a72bb329d2a2370e24f18a940c/김의찬.png" width="100"/> <br> 🚀 김의찬 <br> **통신, BE** | <img src="/uploads/ced62e92587854fce8696b8799faf392/김윤하.png" width="100"/> <br> 💡 김윤하 <br> **BE, FE** | <img src="/uploads/c96b88c3f3e7efc2d269844166c52909/이지은.png" width="100"/> <br> 🎯 이지은 <br> **BE, FE** | <img src="/uploads/0f5b6c8a382b213991c95b2326a99cc6/조현준.png" width="100"/> <br> 🌈 조현준 <br> **FE** |
 |:------------------------------------------------------------------:|:------------------------------------------------------------------:|:------------------------------------------------------------------:|:--------------------------------------------------------------------:|:--------------------------------------------------------------------:|:--------------------------------------------------------------------:|
-- **전제후 (팀장/AI/PM)**  
+
+</div>
+
+- **전제후 (팀장/PM/AI)**  
   - 프로젝트 총괄
-  - 소설 생성 및 회의록 요약 기능 구현
+  - 소설 생성 기능 구현
+  - 회의록 요약 기능 구현
+  - UCC 제작
 - **권기범 (Devops/AI)**
-  - Infra(Docker, Gitlab CI/CD)
-  - Diffusion Model
-  - RAG
-- **김의찬 (WebRTC)**
+  - Infra(Docker & CI/CD) 구축
+  - 이미지 생성(Diffusion model) 기능 구현
+  - RAG 기능 구현
+- **김의찬 (통신, BE)**
   - 그룹 토론 기능 구현(WebRTC, OpenVidu)
+  - VAD 기능 구현
+  - STT 기능 구현
 - **김윤하 (BE, FE)**
   - Back-end 개발 총괄
-  - 
+  - 인증, 유저 기능 구현(JWT, 구글 소셜 로그인, CRUD)
+  - 토론방 기능 구현
+  - 메인 페이지, 마이 페이지 설계
 - **이지은 (BE, FE)**
   - Back-end 개발 총괄 
-  -
+  - ERD, API 설계
+  - 소설 에디터, 댓글, 대댓글 기능 구현
+  - 좋아요, 이미지 저장 및 임시저장 기능 구현
 - **조현준 (FE)**
   - FE 개발 총괄
   - UI, UX 디자인 총괄(Figma, Webflow)
+  - 19개 페이지 디자인 레이아웃 설계
 
-### **UCC**  
-![UCC 영상](https://example.com/video)  
-
+### ✅ **기술 스택**
 ---
-
-## 3️⃣ 기획 배경
-
-### 배경
-
-### 목적
-
-### 의의
-
----
-
-## 4️⃣ 주요 기능
-### **회원 관리 기능**  
-- 회원 가입(구글, 카카오 등)
-- 회원 탈퇴
-- 회원... 
-
-### **AI 기반 소설 생성 기능**  
-- AI 기반 소설 기본정보 생성
-  - 장르, 제목 입력
-  - AI기반 세계관, 줄거리, 등장인물 생성
-  - Diffusion Model을 활용한 소설 표시 생성
-- AI 기반 소설 내용 생성
-  - 기본정보 기반 소설 1화 생성
-  - 기본정보 및 이전 소설 내용 기반 소설 다음화 생성
-
-### **그룹 토론 기능**  
-- WebRTC, OpenVidu 기반 그룹 토론
-- RAG 기반 주제 추천, FactCheck 기능
-- STT 기반 회의록 기록 기능
-- AI 기반 회의록 요약 기능
-
----
-
-## 5️⃣ 화면 소개
-### **랜딩 페이지**  
-![랜딩 페이지](/uploads/4a41858040a8f38644214eed08613063/전제후.png)
-### **회원 가입 페이지**
-![회원 가입 페이지](/uploads/4a41858040a8f38644214eed08613063/전제후.png)
-### **소설 목록 페이지**
-![소설 목록 페이지](/uploads/4a41858040a8f38644214eed08613063/전제후.png)
-### **소설 에디터 페이지**
-![소설 에디터 페이지](/uploads/4a41858040a8f38644214eed08613063/전제후.png)
-### **그룹 토론 생성 페이지**
-![그룹 토론 생성 페이지](/uploads/4a41858040a8f38644214eed08613063/전제후.png)
-### **그룹 토론 페이지**
-![그룹 토론 페이지](/uploads/4a41858040a8f38644214eed08613063/전제후.png)
-### **회의록 요약 페이지**
-![회의록 요약 페이지](/uploads/4a41858040a8f38644214eed08613063/전제후.png)
-
----
-
-## 6️⃣ 기술 스택
-
 <table>
   <tr>
     <th>프론트엔드</th>
@@ -160,63 +121,122 @@ MOMOSO는 소설을 써보고 싶지만 필력이 부족하거나, 독자의 의
     </td>
   </tr>
   <tr>
-    <th>배포 및 기타</th>
+    <th>Infra 및 배포</th>
     <td>
       <img src="https://img.shields.io/badge/Docker-2496ED.svg?style=flat-square&logo=docker&logoColor=white"/>
       <img src="https://img.shields.io/badge/GitLab%20CI%2FCD-FC6D26.svg?style=flat-square&logo=gitlab&logoColor=white"/>
     </td>
   </tr>
+  <tr>
+    <th>Tools</th>
+    <td>
+      <img 
+        src="https://img.shields.io/badge/Notion-000000.svg?style=flat-square&logo=notion&logoColor=white" 
+        alt="Notion Badge"
+      />
+      <img 
+        src="https://img.shields.io/badge/GitLab-FC6D26.svg?style=flat-square&logo=gitlab&logoColor=white" 
+        alt="GitLab Badge"
+      />
+      <img 
+        src="https://img.shields.io/badge/Jira-0052CC.svg?style=flat-square&logo=jira&logoColor=white" 
+        alt="Jira Badge"
+      />
+    </td>
+  </tr>
 </table>
 
-- **프론트엔드:**  
-  - React, Redux, Next.js
-- **백엔드:**  
-  - FastAPI
-- **데이터베이스:**  
-  - MariaDB, Redis, ChromaDB
-- **웹서버:**
-  - Nginx
-- **AI:**
-  - Stable Diffusion, Langchain
-- **WebRTC:**
-  - OpenVidu
-- **배포 및 기타:**  
-  - Docker, Gitlab CI/CD
-
----
-
-## 7️⃣ 서비스 아키텍처
-기범아 소개랑 구성요소 부분 부탁해
-
-MOMOSO는 모듈화된 마이크로서비스 아키텍처를 채택하여 높은 확장성과 유연성을 제공합니다.
-
-- **구성 요소**  
-  - **클라이언트:** React 기반 웹 애플리케이션  
-  - **API 서버:** Node.js를 활용한 RESTful API 서버  
-  - **데이터베이스:** MongoDB를 주 데이터베이스로 사용하며, Redis로 캐시 관리  
-  - **파일 저장소:** AWS S3를 활용한 파일 업로드 및 관리
-
-### **아키텍처 다이어그램**  
+### ✅ **아키텍처 다이어그램** 
+--- 
   ![서비스 아키텍처](/uploads/c035b51521f8de6d581b2740c976d8a7/시스템_아키텍처.png)
 
----
+## 2️⃣ 주요 기능
 
-## 8️⃣ 프로젝트 산출물
+### **회원가입, 로그인**  
 
-### 기획서
+<div align="center">
 
-### 기능명세서
+| 회원가입 | 로그인 |
+|:---:|:---:|
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="https://예시_이미지_경로/parent_login.png" width="300"/> |
+| 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
 
-### API 연동 규격서
+</div>
 
-### ERD
+### **메인 페이지**
 
-### 플로우차트
+<div align="center">
 
-### 화면 설계(목업)
+| 랜딩 페이지 | 메인 페이지 |
+|:---:|:---:|
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+| 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
 
-### 포팅 매뉴얼
+</div>
 
-### 발표 자료(PPT)
+### **AI 에디터**
 
-### 시연 영상
+<div align="center">
+
+| 소설정보 페이지 | 소설작성 페이지 |
+|:---:|:---:|
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+| 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
+
+</div>
+
+### **그룹 토론**
+
+<div align="center">
+
+| 토론방 생성 | 그룹 토론 페이지 | 회의록 요약 |
+|:---:|:---:|:---:|
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+| 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
+
+</div>
+
+### **소설 게시판**
+
+<div align="center">
+
+| 전체 소설 페이지 | 상세보기 페이지 |
+|:---:|:---:|
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+| 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
+
+</div>
+
+## 3️⃣ 프로젝트 산출물
+
+<div align="center">
+
+| 기획서 | 기능명세서 |
+|:---:|:---:|
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+
+</div>
+
+<div align="center">
+
+| ERD | API 연동 규격서 |
+|:---:|:---:|
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+
+</div>
+
+<div align="center">
+
+| 플로우 차트 | 화면 설계(목업) |
+|:---:|:---:|
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+
+</div>
+
+<div align="center">
+
+| 포팅 매뉴얼 |
+|:---:|
+| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="300"/> |
+
+</div>
