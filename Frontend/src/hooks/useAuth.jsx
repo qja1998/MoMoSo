@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
   const [googleLoginUrl, setGoogleLoginUrl] = useState('')
 
   const baseURL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
-  
+
   // Axios 기본 설정
   useEffect(() => {
     axios.defaults.withCredentials = true
@@ -35,16 +35,15 @@ export const AuthProvider = ({ children }) => {
 
   // 로그인 상태 확인
   const checkLoginStatus = async () => {
-    console.log('Checking login status...');
     setLoading(true)
     try {
       const response = await axios.get('/api/v1/auth/me', {
-      withCredentials: true,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    });
+        withCredentials: true,
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      })
       if (response.data) {
         setIsLoggedIn(true)
         setUser(response.data)
@@ -53,7 +52,6 @@ export const AuthProvider = ({ children }) => {
         setUser(null)
       }
     } catch (error) {
-      console.error('로그인 상태 확인 실패:', error)
       setIsLoggedIn(false)
       setUser(null)
     }
@@ -69,7 +67,7 @@ export const AuthProvider = ({ children }) => {
       setOpenLogoutModal(true)
       navigate('/auth/login')
     } catch (error) {
-      console.error('로그아웃 실패:', error)
+      // 에러 발생 시 사용자에게 알림
     }
   }
 
@@ -112,7 +110,6 @@ export const AuthProvider = ({ children }) => {
       await checkLoginStatus()
       navigate(-1)
     } catch (error) {
-      console.error('로그인 실패:', error)
       if (error.response?.status === 400) {
         setLoginError(error.response.data.detail)
       } else {
@@ -122,14 +119,13 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-
   const handleSocialLogin = useCallback(async () => {
     // 로그인 전에 loading 상태를 true로 설정
-    setLoading(true);
-    
+    setLoading(true)
+
     // Google 로그인 페이지로 리다이렉트
-    window.location.href = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/oauth/google/login`;
-  }, []);
+    window.location.href = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/oauth/google/login`
+  }, [])
 
   useEffect(() => {
     checkLoginStatus()

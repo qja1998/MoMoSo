@@ -5,6 +5,7 @@ from novel import novel_crud, novel_schema
 from models import Novel, User, Discussion
 from typing import List, Optional
 from utils.auth_utils import get_optional_user
+from user.user_crud import save_recent_novel
 from fastapi import File, UploadFile # 삭제 예정 
 import os
 from dotenv import load_dotenv
@@ -21,6 +22,7 @@ from .novel_schema import WorldviewRequest, SynopsisRequest, CharacterRequest, C
 from .novel_crud import get_previous_chapters
 from utils.auth_utils import get_current_user
 
+
 from fastapi import File, UploadFile
 
 from PIL import Image
@@ -36,43 +38,26 @@ router = APIRouter(
     prefix='/api/v1',
 )
 
+# router.py
 @router.get("/main", response_model=novel_schema.MainPageResponse)
-def main_page(
+async def main_page(
     db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_user)  # 로그인 검증만 수행
+    current_user: User = Depends(get_current_user)
 ):
     """
     메인 페이지: 최근 인기 소설, 최근 본 소설 정보 반환
     """
-    recent_best = novel_crud.recent_hit(2, db)  # 최근 좋아요 많은 소설
-    month_best = novel_crud.recent_hit(30, db)  # 한 달 동안 좋아요 많은 소설
-
-    if current_user:
-        # 로그인한 경우, 최근 본 소설을 조회 (CRUD 호출)
-        recent_novels = novel_crud.get_recent_novels(db, current_user.user_pk)
-        response_data = {
-            "user": {
-                "user_pk": current_user.user_pk,
-                "name": current_user.name,
-                "nickname": current_user.nickname,
-                "recent_novels": recent_novels
-            },
-            "recent_best": recent_best,
-            "month_best": month_best
-        }
-    else:
-        # 비로그인 사용자는 기본값(`Guest`)을 반환
-        response_data = {
-            "user": {
-                "user_pk": 0,
-                "name": "Guest",
-                "nickname": "Guest",
-                "recent_novels": None
-            },
-            "recent_best": recent_best,
-            "month_best": month_best
-        }
-
+    response_data = {
+        "user": {
+            "user_pk": current_user.user_pk,
+            "name": current_user.name,
+            "nickname": current_user.nickname,
+            "recent_novels": novel_crud.get_recent_novels(db, current_user.user_pk)
+        },
+        "recent_best": novel_crud.recent_hit(2, db),
+        "month_best": novel_crud.recent_hit(30, db)
+    }
+    
     return response_data
 
 
@@ -170,9 +155,14 @@ def get_novel_title(
 def get_episode_detail(
     novel_pk: int,
     ep_pk: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     novel, episode = novel_crud.get_episode_detail(novel_pk, ep_pk, db)
+    
+    # 로그인한 사용자인 경우 최근 본 소설 목록에 추가
+    if current_user:
+        save_recent_novel(db, current_user.user_pk, novel_pk)
     
     return novel_schema.EpisodeDetailResponse(
         novel_title=novel.title,
