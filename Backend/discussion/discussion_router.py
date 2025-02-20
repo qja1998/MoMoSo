@@ -563,48 +563,94 @@ async def receive_audio(
 
 @router.post("/meeting-minutes")
 async def create_meeting_minutes(
-    room_name: str = Form(...),
-    host_name: str = Form(...),
-    start_time: str = Form(...),
-    end_time: str = Form(...),
-    duration: float = Form(...),
-    participants: str = Form(...),
-    messages: str = Form(...),
+    request: discussion_schema.MeetingMinutesRequest,
+    db: Session = Depends(get_db)
 ):
     try:
-        # JSON 문자열을 파이썬 객체로 변환
-        participants_list = json.loads(participants)
-        messages_list = json.loads(messages)
-
-        # 회의록 데이터 저장 로직
+        # 회의록 데이터 구성
         meeting_data = {
             "id": str(uuid.uuid4()),
-            "room_name": room_name,
-            "host_name": host_name,
-            "start_time": start_time,
-            "end_time": end_time,
-            "duration": duration,
-            "participants": participants_list,
-            "messages": messages_list,
+            "room_name": request.room_name,
+            "host_name": request.host_name,
+            "start_time": request.start_time,
+            "end_time": request.end_time,
+            "duration": request.duration,
+            "participants": request.participants,
+            "messages": request.messages,
         }
 
-        # 회의록 디렉토리 생성
-        os.makedirs("meeting_minutes", exist_ok=True)
 
-        # 파일명 생성
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"meeting_{timestamp}_{meeting_data['room_name']}.json"
-        filepath = os.path.join("meeting_minutes", filename)
+    #     # 회의록 디렉토리 생성
+    #     os.makedirs("meeting_minutes", exist_ok=True)
 
-        # JSON 파일로 저장
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(meeting_data, f, ensure_ascii=False, indent=4)
+    #     # 파일명 생성
+    #     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    #     filename = f"meeting_{timestamp}_{meeting_data['room_name']}.json"
+    #     filepath = os.path.join("meeting_minutes", filename)
+
+    #     # JSON 파일로 저장
+    #     with open(filepath, "w", encoding="utf-8") as f:
+    #         json.dump(meeting_data, f, ensure_ascii=False, indent=4)
+
+    #     return {
+    #         "message": "회의록이 성공적으로 저장되었습니다.",
+    #         "meeting_id": meeting_data["id"],
+    #         "filename": filename,
+    #     }
+
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=str(e))
+
+    # Discussion 및 Novel 정보 조회
+        discussion = (
+            db.query(Discussion)
+            .filter(Discussion.discussion_pk == request.discussion_pk)
+            .first()
+        )
+        if not discussion:
+            raise HTTPException(status_code=404, detail="Discussion not found")
+
+        novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+        if not novel:
+            raise HTTPException(status_code=404, detail="Novel not found")
+
+        # 토론 텍스트 파일 경로 확인
+        txt_filename = f"{novel.title}_{discussion.session_id}.txt"
+        txt_file_path = os.path.join(DOCUMENT_PATH, txt_filename)
+
+        if not os.path.exists(txt_file_path):
+            raise HTTPException(
+                status_code=404,
+                detail="TXT file not found. Please start the discussion first.",
+            )
+
+        # Gemini Assistant를 통한 요약 생성
+        assistant = GeminiDiscussionAssistant(txt_file_path, GEMINI_API_KEY)
+        meeting_json = json.dumps(meeting_data, ensure_ascii=False)
+        summary_response = assistant.generate_meeting_notes(meeting_json)
+        summary = (
+            summary_response.content
+            if hasattr(summary_response, "content")
+            else str(summary_response)
+        )
+
+        # DB에 요약본 저장
+        new_note = Note(
+            novel_pk=novel.novel_pk,
+            user_pk=novel.user_pk,
+            discussion_pk=discussion.discussion_pk,
+            summary=summary,
+        )
+
+        db.add(new_note)
+        db.commit()
+        db.refresh(new_note)
 
         return {
-            "message": "회의록이 성공적으로 저장되었습니다.",
-            "meeting_id": meeting_data["id"],
-            "filename": filename,
+            "message": "토론 요약본이 성공적으로 저장되었습니다.",
+            "note": new_note
         }
 
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
