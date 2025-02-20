@@ -32,16 +32,16 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
     try {
       const characterData = {
         name: character.name,
-        role: character.type, // Assuming 'type' maps to 'role'
-        age: parseInt(character.age, 10), // Convert age to integer
-        sex: character.gender === 'male', // Convert gender to boolean
+        role: character.type,
+        age: character.age,
+        sex: character.gender,
         job: character.job,
-        profile: character.profile,
+        profile: character.profile
       }
 
       console.log('Sending character data:', characterData) // Check the transformed data
-
-      const response = await axios.post(`http://127.0.0.1:8000/api/v1/novel/character/${novelPk}`, characterData, {
+      console.log(novelPk, novelPk.current, "노벨 PK좀 주십소")
+      const response = await axios.post(`${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/novel/character/${novelPk.current}`, characterData, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -61,6 +61,38 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
       setIsSaving(false)
     }
   }
+  const handleDeleteClick = async () => {
+    try {
+      // character.id가 있는 경우만 서버 요청
+      if (character.character_pk) {
+        const novelId = typeof novelPk === 'object' ? novelPk.current : novelPk;
+        
+        const response = await axios.delete(
+          `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/novel/character/${novelId}/${character.id}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+  
+        if (response.status === 200) {
+          console.log('Character deleted successfully');
+          alert('캐릭터가 성공적으로 삭제되었습니다.');
+        }
+      }
+  
+      // character.id 유무와 관계없이 UI에서 삭제
+      if (onDelete) {
+        onDelete(character.character_pk || character.id); // tempId는 임시 식별자로 사용
+      }
+  
+    } catch (error) {
+      console.error('Error deleting character:', error);
+      alert('캐릭터 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
 
   return (
     <Card
@@ -159,7 +191,7 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
       </Stack>
       <Divider sx={{ my: 2 }} />
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'flex-end' }}>
-        <PrimaryButton
+        {/* <PrimaryButton
           startIcon={<RefreshIcon />}
           backgroundColor="#1c1c1c"
           hoverBackgroundColor="#444444"
@@ -167,7 +199,7 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
           sx={{ py: 0.5 }}
         >
           재생성
-        </PrimaryButton>
+        </PrimaryButton> */}
         <PrimaryButton
           startIcon={<SaveIcon />}
           backgroundColor="#111111"
@@ -183,6 +215,7 @@ const CharacterInput = ({ type, character, onChange, onGenerate, novelPk }) => {
           backgroundColor="#D32F2F"
           hoverBackgroundColor="#A82525"
           sx={{ py: 0.5 }}
+          onClick={handleDeleteClick}
         >
           삭제
         </PrimaryButton>

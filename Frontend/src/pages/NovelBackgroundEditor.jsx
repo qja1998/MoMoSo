@@ -1,6 +1,6 @@
 import styled from '@emotion/styled'
 import axios from 'axios'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 // Import useEffect
 import AddIcon from '@mui/icons-material/Add'
@@ -33,13 +33,22 @@ const ResultSlot = styled(Paper)(({ theme }) => ({
 
 // 스타일 프리셋 데이터
 const stylePresets = [
-  { id: 1, name: '수채화', description: '부드럽고 감성적인 수채화 스타일' },
-  { id: 2, name: '유화', description: '클래식하고 고급스러운 유화 스타일' },
-  { id: 3, name: '일러스트', description: '현대적이고 감각적인 일러스트 스타일' },
-  { id: 4, name: '포토리얼', description: '사실적이고 생동감 있는 사진 스타일' },
-  { id: 5, name: '미니멈', description: '심플하고 모던한 미니멈 스타일' },
+  { id: 1, name: '수채화', description: '부드럽고 감성적인 수채화 스타일', value: 'watercolor' },
+  { id: 2, name: '자수', description: '바늘과 실로 수를 놓은 듯한 질감과 디테일', value: 'embroidery' },
+  { id: 3, name: '픽셀 아트', description: '도트 이미지', value: 'pixel_art' },
+  { id: 4, name: '선화 만화', description: '펜 선으로만 표현된 만화 스타일', value: 'linear_manga' },
+  { id: 5, name: '스튜디오 지브리', description: '지브리의 분위기', value: 'studio_ghibli' },
+  { id: 6, name: '3D 스타일', description: '현실감과 생동감 있는 이미지', value: '3d_style' },
+  { id: 7, name: '티셔츠 디자인', description: '티셔츠에 프린트하기 적합한 단순한 디자인', value: 'tshirt_design' },
+  { id: 8, name: '동화책', description: '동화책 삽화처럼 따뜻하고 환상적인 분위기', value: 'storybook' },
+  { id: 9, name: '귀여운 만화', description: '단순하고 귀여운 캐릭터', value: 'cute_cartoon' },
+  { id: 10, name: '스케치', description: '연필이나 펜으로 그린 듯한 거친 질감', value: 'sketch' },
+  { id: 11, name: '로고', description: '특징을 간결하고 명확하게 표현', value: 'logo' },
+  { id: 12, name: '사실주의', description: '실제 사물이나 풍경을 최대한 비슷하게 묘사.', value: 'realism' },
+  { id: 13, name: '사진', description: '실제 사진처럼 표현.', value: 'photo' },
 ]
-const BACKEND_URL = "http://127.0.0.1:8000/api/v1/"
+
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}/api/v1/`
 const NovelBackgroundEditor = () => {
   const [selectedGenre, setSelectedGenre] = useState([])
   const [title, setTitle] = useState('')
@@ -68,10 +77,15 @@ const NovelBackgroundEditor = () => {
   const [novelPk, setNovelPk] = useState(null)
   const { novelId } = useParams();
   const location = useLocation(); // useLocation 훅 사용
+
   
   const genres = ['판타지', '무협', '액션', '로맨스', '스릴러', '드라마', 'SF', '기타']
   const navigate = useNavigate();
   const [novelData, setNovelData] = useState(null); // 소설 데이터 상태 추가
+  const CreatedNovelPk = useRef([])
+  useEffect(()=>{
+    CreatedNovelPk.current = novelPk
+  },[novelPk])
   
   axios.defaults.withCredentials = true; 
   // novelId가 변경될 때마다 실행되는 useEffect
@@ -132,7 +146,7 @@ const NovelBackgroundEditor = () => {
       const response = await axios.get(`${BACKEND_URL}novel/character/${novel_pk}`);
       if (response.data && Array.isArray(response.data)) {
         // 서버에서 받은 데이터로 캐릭터 배열 업데이트
-        console.log(response.data)
+        console.log("tj버에서 받은 데이터로 캐릭터 배열 업데이트", response.data)
         const updatedCharacters = characters.map((char, index) => {
           const serverChar = response.data[index];
           if (serverChar) {
@@ -265,7 +279,7 @@ const NovelBackgroundEditor = () => {
                 title: title,
                 worldview: worldView,
                 synopsis: background,
-                genre: selectedGenre,
+                genres: selectedGenre,
                 summary: summary,
             };
 
@@ -300,6 +314,7 @@ const NovelBackgroundEditor = () => {
                     console.log("Response Data:", response.data); // Log the response
                     console.log("Novel Pk value:", response.data.novel_pk);
                     setNovelPk(response.data.novel_pk);
+                    // CreatedNovelPk  = response.data.novel_pk
                 }
             }
             // 성공 처리 (예: 사용자에게 알림)
@@ -381,7 +396,7 @@ const NovelBackgroundEditor = () => {
                 const formattedCharacters = newCharacters.map((char, index) => {
                     const formattedChar = {
                         id: characters[index]?.id || index + 1,
-                        type: char.role || 'protagonist',
+                        type: char.role || '',
                         name: char.name || '',
                         sex: char.sex || '',
                         age: char.age || '',
@@ -451,10 +466,10 @@ const NovelBackgroundEditor = () => {
         setUploadLoading(true);
         try {
             const formData = new FormData();
-            formData.append("file", file);
+            formData.append("image", file);
       
             const response = await axios.post(
-                `${BACKEND_URL}save?user_novel=novel&pk=${novelPk}`,
+                `${BACKEND_URL}upload-image/${CreatedNovelPk.current}`,
                 formData,
                 {
                     headers: {
@@ -464,6 +479,7 @@ const NovelBackgroundEditor = () => {
             );
     
             if (response.status === 200) {
+                console.log(response)
                 console.log("File uploaded successfully:", response.data);
                 alert("표지 이미지가 성공적으로 업로드되었습니다.");
             }
@@ -481,28 +497,31 @@ const NovelBackgroundEditor = () => {
     const handleGenerate = async () => {
         setIsGenerating(true);
         try {
-            const requestData = {
-                genre: selectedGenre,
-                style: stylePresets.find(style => style.id === selectedStyle)?.name || '',
-                title: title,
-                worldview: worldview,
-                keywords: keywords
-            };
-    
-            const response = await axios.post(
-                "http://localhost:8000/image/generate",
-                requestData,
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-    
-            if (response.status === 200) {
-                // 응답 데이터에 따라 결과 처리
-                setResults([response.data]); // 또는 적절한 데이터 처리
-            }
+          const selectedStyleObject = stylePresets.find(style => style.id === selectedStyle);
+          const styleValue = selectedStyleObject ? selectedStyleObject.value : 'watercolor';
+  
+          const requestData = {
+              genre: selectedGenre.join(", "),
+              style: styleValue,
+              title: title,
+              worldview: worldView,
+              keywords: keywords
+          };
+  
+          const response = await axios.post(
+              `${BACKEND_URL}image/generate`,
+              requestData,
+              {
+                  headers: {
+                      "Content-Type": "application/json",
+                  },
+              }
+          );
+  
+          if (response.status === 200) {
+              // 응답 데이터에 따라 결과 처리
+              setResults([response.data]); // 또는 적절한 데이터 처리
+          }
         } catch (error) {
             console.error("Image generation error:", error);
             alert("이미지 생성에 실패했습니다.");
@@ -510,6 +529,8 @@ const NovelBackgroundEditor = () => {
             setIsGenerating(false);
         }
     };
+    
+    
     
   return (
     <Box
@@ -605,7 +626,11 @@ const NovelBackgroundEditor = () => {
           <TextField
             fullWidth
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              const newValue = e.target.value;
+              console.log('Title changing to:', newValue);
+              setTitle(newValue);
+            }}
             placeholder="제목을 입력해주세요. AI 생성 후 수정도 가능합니다."
             variant="outlined"
             sx={{
@@ -727,7 +752,7 @@ const NovelBackgroundEditor = () => {
                   hoverBackgroundColor="#404040"
                   sx={{ py: 0.5 }}
                   onClick={handleSave}
-                  disabled={isSaving || (!novelId)}
+                  disabled={isSaving}
               >
                   {isSaving ? '저장 중...' : (novelId ? '수정' : '저장')}
               </PrimaryButton>
@@ -802,7 +827,7 @@ const NovelBackgroundEditor = () => {
                     character={character}
                     onChange={handleCharacterChange(character.id)}
                     onGenerate={handleCharacterGenerate(character.id)}
-                    novelPk={novelPk}
+                    novelPk={CreatedNovelPk}
                   />
                 ))}
               </Stack>
@@ -835,10 +860,21 @@ const NovelBackgroundEditor = () => {
               </PrimaryButton> */}
                 <PrimaryButton
                   startIcon={<CloudUploadIcon />}
-                  onClick={() => setGenerationType('upload')}
+                  onClick={(event) => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';  // 이미지 파일만 받도록 설정
+                    input.onchange = (event) => {
+                      const file = event.target.files[0];
+                      if (file) {
+                          handleFileUpload(file);
+                      }
+                    };
+                    input.click();
+                  }}
                   variant={generationType === 'upload' ? 'contained' : 'outlined'}
-                  backgroundColor={generationType === 'upload' ? '#FFA000' : 'transparent'}
-                  textColor={generationType === 'white' ? 'white' : '#FFA000'}
+                  backgroundColor='#FFA000'
+                  textColor='white'
                 >
                   파일 업로드
                 </PrimaryButton>
@@ -846,8 +882,8 @@ const NovelBackgroundEditor = () => {
                   startIcon={<AddIcon />}
                   onClick={() => setGenerationType('ai')}
                   variant={generationType === 'ai' ? 'contained' : 'outlined'}
-                  backgroundColor={generationType === 'ai' ? '#FFA000' : 'transparent'}
-                  textColor={generationType === 'ai' ? 'white' : '#FFA000'}
+                  backgroundColor='#FFA000'
+                  textColor='white'
                 >
                   AI 표지 생성
                 </PrimaryButton>
@@ -913,8 +949,7 @@ const NovelBackgroundEditor = () => {
                     {stylePresets.map((style) => (
                       <Grid item xs={12} sm={6} md={4} key={style.id}>
                         <Paper
-                          sx={{
-                            p: 2,
+                          sx={{p: 2,
                             cursor: 'pointer',
                             border: selectedStyle === style.id ? '2px solid #FFA000' : 'none',
                             '&:hover': {
