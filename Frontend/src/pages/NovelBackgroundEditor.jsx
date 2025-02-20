@@ -17,6 +17,8 @@ import { PrimaryButton } from '../components/common/buttons'
 
 // Import Axios
 
+axios.defaults.withCredentials = true
+
 // 결과 이미지 슬롯 스타일링
 const ResultSlot = styled(Paper)(({ theme }) => ({
   aspectRatio: '3/4',
@@ -75,57 +77,61 @@ const NovelBackgroundEditor = () => {
   
   axios.defaults.withCredentials = true; 
   // novelId가 변경될 때마다 실행되는 useEffect
-  useEffect(() => {
-      if (location.state && location.state.novelInfo) {
-          const data = location.state.novelInfo;
-          setNovelData(data);
-          setTitle(data.title || '');
-          setWorldView(data.worldview || '');
-          setBackground(data.synopsis || '');
-          setSelectedGenre(data.genres || []); 
-          setSummary(data.summary || '');
-          
-          // novel_pk로 캐릭터 데이터 가져오기
-          if (data.novel_pk) {
-            fetchCharacterData(data.novel_pk);
-          }
-          
-          setLoading(false);
-      } else if (novelId) {
-        const fetchNovelData = async () => {
-          setLoading(true);
-          try {
-            const response = await axios.get(`${BACKEND_URL}novel/${novelId}`);
-            const data = response.data;
-            setNovelData(data);
-            setTitle(data.title || '');
-            setWorldView(data.worldview || '');
-            setBackground(data.synopsis || '');
-            setSelectedGenre(data.genres || []); 
-            setSummary(data.summary || '');
-            
-            // novel_pk로 캐릭터 데이터 가져오기
-            if (data.novel_pk) {
-              await fetchCharacterData(data.novel_pk);
-            }
-            
-          } catch (error) {
-            console.error("Error fetching novel data:", error);
-          } finally {
-            setLoading(false);
-          }
-        };
-        fetchNovelData();
-      } else {
-          setLoading(false);
-          setTitle('');
-          setWorldView('');
-          setBackground('');
-          setSelectedGenre([]);
-          setSummary('');
-      }
-  }, [novelId, location.state]);
+useEffect(() => {
+  if (location.state && location.state.novelInfo) {
+    const data = location.state.novelInfo;
+    setNovelData(data);
+    setTitle(data.title || '');
+    setWorldView(data.worldview || '');
+    setBackground(data.synopsis || '');
+    setSelectedGenre(data.genres || []);
+    setSummary(data.summary || '');
 
+    // novel_pk로 캐릭터 데이터 가져오기
+    if (data.novel_pk) {
+      setNovelPk(data.novel_pk);  // novelPk 설정 추가
+      fetchCharacterData(data.novel_pk);
+    }
+
+    setLoading(false);
+  } else if (novelId) {
+    const fetchNovelData = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get(
+          `${BACKEND_URL}novel/${novelId}`,
+          {withCredentials: true}
+        );
+        const data = response.data;
+        setNovelData(data);
+        setTitle(data.title || '');
+        setWorldView(data.worldview || '');
+        setBackground(data.synopsis || '');
+        setSelectedGenre(data.genres || []);
+        setSummary(data.summary || '');
+
+        if (data.novel_pk) {
+          setNovelPk(data.novel_pk);  // novelPk 설정 추가
+          await fetchCharacterData(data.novel_pk);
+        }
+
+      } catch (error) {
+        console.error("Error fetching novel data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNovelData();
+  } else {
+    setTitle('');
+    setWorldView('');
+    setBackground('');
+    setSelectedGenre([]);
+    setSummary('');
+    setNovelPk(null);
+    setLoading(false); // novelId가 없는 경우에도 로딩 상태를 false로 설정
+  }
+}, [novelId, location.state]);
   // 캐릭터 데이터를 가져오는 함수
   const fetchCharacterData = async (novel_pk) => {
     try {
@@ -140,9 +146,9 @@ const NovelBackgroundEditor = () => {
               ...char,
               id: index + 1,
               character_pk: serverChar.character_pk || null,
-              role: serverChar.role || '',
+              type: serverChar.role || '',
               name: serverChar.name || '',
-              sex: serverChar.sex || '',
+              gender: serverChar.sex || '',
               age: serverChar.age || '',
               job: serverChar.job || '',
               profile: serverChar.profile || ''
@@ -184,6 +190,28 @@ const NovelBackgroundEditor = () => {
             console.error("Error generating worldview:", error);
             // Handle error appropriately (e.g., display an error message to the user)
         }
+    };
+    const handleCharacterDelete = async (characterId, characterPk) => {
+      try {
+        if (characterPk) {
+          // DB에서 삭제
+          const response = await axios.delete(`${BACKEND_URL}novel/character/${characterPk}`, {
+            withCredentials: true
+          });
+          
+          if (response.status === 200) {
+            // UI에서 삭제
+            setCharacters(prev => prev.filter(char => char.id !== characterId));
+            alert('캐릭터가 삭제되었습니다.');
+          }
+        } else {
+          // UI에서만 삭제
+          setCharacters(prev => prev.filter(char => char.id !== characterId));
+        }
+      } catch (error) {
+        console.error('Error deleting character:', error);
+        alert('캐릭터 삭제 중 오류가 발생했습니다.');
+      }
     };
 
 
@@ -318,107 +346,107 @@ const NovelBackgroundEditor = () => {
         }
     };
     const handleAICharacterGenerate = async () => {
-        setIsGenerating(true);
-        let endpoint = `${BACKEND_URL}ai/`;
-    
-        try {
-            const hasCharacterData = characters.some(char =>
-                char.name || char.gender || char.age || char.job || char.profile
-            );
-    
-            const requestData = {
-                genre: selectedGenre.join(" "),
-                title: title,
-                worldview: worldView,
-                synopsis: background,
-                characters: hasCharacterData ? characters : []
-            };
-    
-            endpoint += hasCharacterData ? "characters-new" : "characters";
-    
-            console.log("Request data:", requestData);
-    
-            const response = await axios.post(endpoint, requestData, {
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-    
-            console.log("API Response:", response.data);
-    
-            if (response.data) {
-                let newCharactersJSON = null;
-                if (hasCharacterData) {
-                    newCharactersJSON = response.data.new_characters;
-                } else {
-                    newCharactersJSON = response.data.characters;
-                }
-    
-                let newCharacters = []; // 기본값으로 빈 배열 설정
-    
-                try {
-                    if (newCharactersJSON) {
-                        // JSON 파싱 시도
-                        const parsedData = JSON.parse(newCharactersJSON);
-    
-                        // 파싱된 데이터가 배열인지 확인
-                        if (Array.isArray(parsedData)) {
-                            newCharacters = parsedData;
-                        } else {
-                            // 배열이 아닌 경우, 로그를 남기고 빈 배열 사용
-                            console.warn("Parsed character data is not an array, using empty array instead");
-                        }
-                    } else {
-                        console.warn("Character data is null or undefined, using empty array instead");
-                    }
-                } catch (error) {
-                    // JSON 파싱 실패 시 로그를 남기고 빈 배열 사용
-                    console.error("Failed to parse character data:", error);
-                    console.error("Raw data:", newCharactersJSON);
-                    console.warn("Using empty array instead");
-                }
-    
-                const formattedCharacters = newCharacters.map((char, index) => {
-                    const formattedChar = {
-                        id: characters[index]?.id || index + 1,
-                        type: char.role || 'protagonist',
-                        name: char.name || '',
-                        sex: char.sex || '',
-                        age: char.age || '',
-                        job: char.job || '',
-                        profile: char.profile || ''
-                    };
-                    console.log(`Formatted character ${index}:`, formattedChar);
-                    return formattedChar;
-                });
-    
-                console.log("About to update characters with:", formattedCharacters);
+      setIsGenerating(true);
+      let endpoint = `${BACKEND_URL}ai/`;
+  
+      try {
+          const hasCharacterData = characters.some(char =>
+              char.name || char.gender || char.age || char.job || char.profile
+          );
+  
+          const requestData = {
+              genre: selectedGenre.join(" "),
+              title: title,
+              worldview: worldView,
+              synopsis: background,
+              characters: hasCharacterData ? characters : []
+          };
+  
+          endpoint += hasCharacterData ? "characters-new" : "characters";
+  
+          console.log("Request data:", requestData);
+  
+          const response = await axios.post(endpoint, requestData, {
+              headers: {
+                  "Content-Type": "application/json",
+              },
+          });
+  
+          console.log("API Response:", response.data);
+  
+          if (response.data) {
+              let newCharactersJSON = null;
+              if (hasCharacterData) {
+                  newCharactersJSON = response.data.new_characters;
+              } else {
+                  newCharactersJSON = response.data.characters;
+              }
+  
+              let newCharacters = []; // 기본값으로 빈 배열 설정
+  
+              try {
+                  if (newCharactersJSON) {
+                      // JSON 파싱 시도
+                      const parsedData = JSON.parse(newCharactersJSON);
+  
+                      // 파싱된 데이터가 배열인지 확인
+                      if (Array.isArray(parsedData)) {
+                          newCharacters = parsedData;
+                      } else {
+                          // 배열이 아닌 경우, 로그를 남기고 빈 배열 사용
+                          console.warn("Parsed character data is not an array, using empty array instead");
+                      }
+                  } else {
+                      console.warn("Character data is null or undefined, using empty array instead");
+                  }
+              } catch (error) {
+                  // JSON 파싱 실패 시 로그를 남기고 빈 배열 사용
+                  console.error("Failed to parse character data:", error);
+                  console.error("Raw data:", newCharactersJSON);
+                  console.warn("Using empty array instead");
+              }
+  
+              const formattedCharacters = newCharacters.map((char, index) => {
+                  const formattedChar = {
+                      id: characters[index]?.id || index + 1,
+                      type: char.role || 'protagonist',
+                      name: char.name || '',
+                      gender: char.sex || '',
+                      age: char.age || '',
+                      job: char.job || '',
+                      profile: char.profile || ''
+                  };
+                  console.log(`Formatted character ${index}:`, formattedChar);
+                  return formattedChar;
+              });
+  
+              console.log("About to update characters with:", formattedCharacters);
 
 
-    
-                setCharacters(hasCharacterData ? [...characters, ...formattedCharacters] : formattedCharacters);
-    
-                setTimeout(() => {
-                    console.log("Characters state after update:", characters);
-                    if (characters !== formattedCharacters) {
-                        console.log("State update might not have been reflected immediately due to React's batching");
-                    }
-                }, 0);
-    
-            } else {
-                throw new Error("Invalid response format");
-            }
-    
-        } catch (error) {
-            console.error("Error in character generation:", error);
-            if (error.response) {
-                console.error("Server error response:", error.response.data);
-            }
-            alert("캐릭터 생성 중 오류가 발생했습니다. 다시 시도해 주세요.");
-        } finally {
-            setIsGenerating(false);
-        }
-    };
+  
+              setCharacters(hasCharacterData ? [...characters, ...formattedCharacters] : formattedCharacters);
+  
+              setTimeout(() => {
+                  console.log("Characters state after update:", characters);
+                  if (characters !== formattedCharacters) {
+                      console.log("State update might not have been reflected immediately due to React's batching");
+                  }
+              }, 0);
+  
+          } else {
+              throw new Error("Invalid response format");
+          }
+  
+      } catch (error) {
+          console.error("Error in character generation:", error);
+          if (error.response) {
+              console.error("Server error response:", error.response.data);
+          }
+          alert("캐릭터 생성 중 오류가 발생했습니다. 다시 시도해 주세요.");
+      } finally {
+          setIsGenerating(false);
+      }
+  };
 
     const handleAISummaryGenerate = async () => {
         setIsGeneratingSummary(true);
@@ -727,7 +755,7 @@ const NovelBackgroundEditor = () => {
                   hoverBackgroundColor="#404040"
                   sx={{ py: 0.5 }}
                   onClick={handleSave}
-                  disabled={isSaving || (!novelId)}
+                  disabled={isSaving}
               >
                   {isSaving ? '저장 중...' : (novelId ? '수정' : '저장')}
               </PrimaryButton>
@@ -802,7 +830,9 @@ const NovelBackgroundEditor = () => {
                     character={character}
                     onChange={handleCharacterChange(character.id)}
                     onGenerate={handleCharacterGenerate(character.id)}
+                    onDelete={handleCharacterDelete}  // 삭제 함수 전달
                     novelPk={novelPk}
+                    backendUrl={BACKEND_URL}
                   />
                 ))}
               </Stack>
@@ -837,8 +867,8 @@ const NovelBackgroundEditor = () => {
                   startIcon={<CloudUploadIcon />}
                   onClick={() => setGenerationType('upload')}
                   variant={generationType === 'upload' ? 'contained' : 'outlined'}
-                  backgroundColor={generationType === 'upload' ? '#FFA000' : 'transparent'}
-                  textColor={generationType === 'white' ? 'white' : '#FFA000'}
+                  backgroundColor='#FFA000'
+                  textColor='white'
                 >
                   파일 업로드
                 </PrimaryButton>
@@ -846,8 +876,8 @@ const NovelBackgroundEditor = () => {
                   startIcon={<AddIcon />}
                   onClick={() => setGenerationType('ai')}
                   variant={generationType === 'ai' ? 'contained' : 'outlined'}
-                  backgroundColor={generationType === 'ai' ? '#FFA000' : 'transparent'}
-                  textColor={generationType === 'ai' ? 'white' : '#FFA000'}
+                  backgroundColor='#FFA000'
+                  textColor='white'
                 >
                   AI 표지 생성
                 </PrimaryButton>
