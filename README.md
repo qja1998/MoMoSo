@@ -266,7 +266,7 @@
 
 | ERD | API 연동 규격서 |
 |:---:|:---:|
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
+| <img src="/uploads/5b9b66c0f28dea56d75738ed72205fec/image.png" width="450"/> | <img src="/uploads/08f77bc4e6d7c095cdfbce9b114efdc0/API.png" width="450"/> |
 
 </div>
 
@@ -274,7 +274,7 @@
 
 | 플로우 차트 | 화면 설계(목업) |
 |:---:|:---:|
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> | <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="450"/> |
+| <img src="/uploads/b67618129aa683147eeff1bea0c9dcff/플로우차트.png" width="450"/> | <img src="/uploads/8676f34054fca08a449ac07bb360b3f8/목업.png" width="450"/> |
 
 </div>
 
@@ -282,6 +282,7 @@
 
 | 포팅 매뉴얼 |
 |:---:|
-| <img src="/uploads/4a41858040a8f38644214eed08613063/전제후.png" width="900"/> |
+| <img src="/uploads/94a5c45a931fb1b613a6170bfeebf7d2/image.png" width="900"/> |
+| https://www.notion.so/11-ea8df2fe44d9413c8e8694b247d1f5e8?pvs=4 |
 
 </div>
