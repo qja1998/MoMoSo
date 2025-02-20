@@ -1441,11 +1441,15 @@ export default function DiscussionRoom() {
                     bgcolor: '#EEEEEE',
                     borderRadius: 1,
                     minHeight: 80,
+                    maxHeight: 200, //토론 주제 추천 스크롤
+                    overflow: 'auto',
                   }}
                 >
-                  <Typography variant="body2" color="text.secondary">
-                    {/* 카리나가 사용하는 타임 폴더의 기원과 목적에 대한 추측과 아이디어에 대해 토론해보세요.
-                    안녕녕 */}
+                  <Typography 
+                  variant="body2"
+                   color="text.secondary"
+                   sx={{ whiteSpace: 'pre-line'}}
+                   >
                     {subject_test}
                   </Typography>
                 </Stack>
@@ -1476,7 +1480,12 @@ export default function DiscussionRoom() {
                       <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                         &ldquo;{check.message}&rdquo;
                       </Typography>
-                      <Typography variant="body2">{check.result}</Typography>
+                      <Typography 
+                      variant="body2"
+                      sx={{ whiteSpace: 'pre-line'}}
+                      >
+                        {check.result}
+                        </Typography>
                     </Stack>
                   ))}
                 </Stack>
