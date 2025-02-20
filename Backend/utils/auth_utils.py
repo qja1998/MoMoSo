@@ -160,14 +160,18 @@ def delete_auth_cookies(response: Response, is_development: bool = True):
     response.delete_cookie(
         key="access_token",
         httponly=True,
+        secure=not is_development,  # 배포 환경에서는 True
         domain=domain,
-        path="/"
+        path="/",
+        samesite="lax"
     )
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
+        secure=not is_development,  # 배포 환경에서는 True
         domain=domain,
-        path="/"
+        path="/",
+        samesite="lax"
     )
 
 # ================================== 로그인 여부 확인 ===============================================

@@ -18,6 +18,7 @@ class GeminiDiscussionAssistant:
             document_path (str): Path to the document to be processed.
             api_key (str): Gemini의 API key.
         """
+        print("PATH", document_path)
         self.api_key = api_key
         self.document_path = document_path
         self.docs = self._load_documents()
@@ -35,7 +36,7 @@ class GeminiDiscussionAssistant:
         return loader.load_and_split()
     
     def _initialize_llm(self):
-        """Gemini miodel를 초기화합니다.
+        """Gemini 모델을 초기화합니다.
 
         Returns:
             ChatGoogleGenerativeAI: Configured LLM instance.
@@ -52,12 +53,12 @@ class GeminiDiscussionAssistant:
             GoogleGenerativeAIEmbeddings: Configured embedding instance.
         """
         return GoogleGenerativeAIEmbeddings(
-            model = "models/embedding-001", 
+            model="models/embedding-001", 
             google_api_key=self.api_key
         )
     
     def _initialize_chroma_db(self):
-        """Chroma database를 불러오거나 초기화합니다.
+        """Chroma 데이터베이스를 불러오거나 초기화합니다.
 
         Returns:
             Chroma: Configured Chroma database instance.
@@ -67,15 +68,21 @@ class GeminiDiscussionAssistant:
                         collection_name="lc_chroma_demo")
         collection = chroma_db.get()
         
-        if len(collection['ids']) == 0:
-            chroma_db = Chroma.from_documents(
-                documents=self.docs, 
-                embedding=self.embeddings, 
-                persist_directory="data",
-                collection_name="lc_chroma_demo"
-            )
-            chroma_db.persist()
+        if len(collection['ids']) > 0:
+            print("Existing data found in Chroma DB. Deleting the existing collection...")
+            chroma_db.delete_collection()  # 기존 데이터 삭제
         
+        # 새 데이터를 ChromaDB에 추가
+        chroma_db = Chroma.from_documents(
+            documents=self.docs,  # self.docs를 사용하여 ChromaDB 초기화
+            embedding=self.embeddings, 
+            persist_directory="data",
+            collection_name="lc_chroma_demo"
+        )
+        chroma_db.persist()  # 새로운 데이터를 저장
+        print("Chroma DB initialized with new data.")
+        
+        # Chroma DB에서 저장된 데이터를 검색 가능한 상태로 반환
         return chroma_db
     
     def recommend_discussion_topic(self, json_str: str):
@@ -91,9 +98,7 @@ class GeminiDiscussionAssistant:
         data = json.loads(json_str)
         
         # 토론 내용을 문자열로 변환
-        discussion_content = "\n".join([
-            f'{msg["user"]}: {msg["text"]}' for msg in data.get("messages", [])
-        ]).strip()
+        discussion_content = "\n".join([f'{msg["user"]}: {msg["text"]}' for msg in data.get("messages", [])]).strip()
         
         prompt = f"""
         프롬프트: 모든 책에 대한 토론 주제 생성
@@ -108,36 +113,25 @@ class GeminiDiscussionAssistant:
         주제는 책의 핵심 내용과 사람들의 발화를 반영해야 합니다.
         질문 형식으로 제시되어야 하며, 논쟁적이거나 깊이 있는 사고를 유도해야 합니다.
         철학적, 사회적, 심리적, 문화적 관점에서 다양한 해석이 가능해야 합니다.
-        
+
         실행 방법:
         context docs:
             full text of novel
         입력 데이터:
             사람들이 토론 중에 했던 발화 내용
         분석 과정:
-
         책에서 다루는 주요 주제를 추출합니다.
         사람들의 대화에서 강조된 논점이나 감정적인 반응을 분석합니다.
         독자가 깊이 생각해볼 만한 철학적/사회적/개인적 질문을 도출합니다.
-        토론 주제 예시 출력:
-        (아래는 책과 사람들의 발화에 따라 달라질 수 있음)
-
-        책 예시: "시간의 흔적"
-
-        사람들의 발화:
-        "시간은 흐르는 것 같지만, 결국 우리가 남긴 흔적이 중요하지 않을까요?"
-        "사람들과의 관계 속에서 시간의 의미가 달라진다고 생각해요."
-        "우리가 시간을 만들어간다고 해도, 환경적인 요소가 큰 영향을 주지 않나요?"
-
-        추천 토론 주제:
-        시간은 우리가 만들어가는 것인가, 아니면 단순히 흐르는 것인가?
-        과거의 기록(일기, 역사, 기억)은 현재에 어떤 영향을 미칠 수 있을까?
-        인간관계는 시간이 지나면서 자연스럽게 변화하는 것인가, 아니면 우리가 노력해야 유지되는 것인가?
-        시간 속에서 우리가 남기는 흔적(기억, 작품, 기록)은 얼마나 중요한 의미를 가지는가?
-        현대 사회에서 우리는 시간을 효율적으로 사용하고 있는가, 아니면 소비하고 있는가?
 
         토론 내용: {discussion_content}"""
+        
+        # Chroma DB에서 검색된 데이터를 사용해 쿼리를 실행합니다.
         retriever = self.chroma_db.as_retriever()
+        # Retrieving 관련 데이터를 얻고, 결과를 출력하는지 확인합니다.
+        results = retriever.get_relevant_documents(discussion_content)
+
+        # LLM과 연결하여 답변을 생성합니다.
         chain = RetrievalQA.from_chain_type(llm=self.llm, chain_type="stuff", retriever=retriever)
         return chain(prompt)['result']
     
@@ -176,7 +170,7 @@ class GeminiDiscussionAssistant:
             ✅ 완전 일치: 사용자의 문장이 책의 특정 위치에서 그대로 등장함.
             🔍 유사 문장 존재: 비슷한 의미를 가진 문장이 있으나, 정확히 일치하지 않음.
             ❌ 불일치: 해당 문장이 책에서 발견되지 않음.
-        
+
         출력 예시:
 
         💬 사용자 발화: "시간은 결국 우리가 남긴 흔적으로 기억된다."
@@ -184,14 +178,12 @@ class GeminiDiscussionAssistant:
         🔍 결과:
         ✅ 완전 일치: 사용자의 문장은 "시간의 흔적" 3장, 45페이지에서 동일하게 등장함.
 
-
         💬 사용자 발화: "우리는 시간의 흐름을 멈출 수 없다. 하지만 그 속에서 의미를 찾을 수 있다."
 
         🔍 결과:
         🔍 유사 문장 존재:
         - 책의 2장에서 "시간은 멈추지 않는다. 하지만 우리는 그 속에서 흔적을 남긴다." 라는 문장이 발견됨.
         - 의미적으로 유사하지만, 원문과 정확히 일치하지 않음.
-
 
         💬 사용자 발화: "미래는 이미 정해져 있다."
 
@@ -202,7 +194,7 @@ class GeminiDiscussionAssistant:
 
         사용자 발화: {query}
         결과:"""
-
+        
         retriever = self.chroma_db.as_retriever()
         chain = RetrievalQA.from_chain_type(llm=self.llm, chain_type="stuff", retriever=retriever)
         return chain(prompt)['result']

@@ -14,6 +14,7 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
 // 디자인 컴포넌트
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -42,8 +43,9 @@ import Typography from '@mui/material/Typography'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
+import CardMedia from '@mui/material/CardMedia'
 
-import coverPlaceholder from '../assets/placeholder/cover-image-placeholder.png'
+import placeholderImage from '/placeholder/cover-image-placeholder.png'
 import { useNovel } from '../contexts/NovelContext'
 import { useAuth } from '../hooks/useAuth'
 
@@ -56,6 +58,8 @@ axios.defaults.withCredentials = true
 const NovelEpisodeList = () => {
   // 상수
   const navigate = useNavigate()
+  const { isLoggedIn, showLoginModal, user } = useAuth()
+  const [localIsLiked, setLocalIsLiked] = useState(false);
   const { novelId } = useParams()
   const {
     novelData,
@@ -82,7 +86,32 @@ const NovelEpisodeList = () => {
     maxParticipants: false,
   })
 
-  const { isLoggedIn, showLoginModal } = useAuth()
+  const isLiked = useMemo(() => {
+    if (!isLoggedIn || !user || !novelData?.novel_info?.[0]) {
+      return false
+    }
+    const isLiked = novelData.novel_info[0].liked_users?.some(
+      likedUser => likedUser.user_pk === user.user_pk
+    )
+    return isLiked
+  }, [isLoggedIn, user, novelData])
+
+  const handleLike = async () => {
+    if (!isLoggedIn) {
+      showLoginModal();
+      return;
+    }
+  
+    try {
+      await axios.put(`${BACKEND_URL}/api/v1/novel/${novelId}/like`);
+      // 로컬 상태 즉시 토글
+      setLocalIsLiked(prev => !prev);
+      // 데이터 갱신
+      await fetchNovelData(novelId);
+    } catch (error) {
+      console.error('좋아요 처리 중 오류가 발생했습니다:', error);
+    }
+  };
 
   // 총 조회수/좋아요 계산을 useMemo로 최적화
   const { totalViews, totalLikes } = useMemo(
@@ -95,8 +124,15 @@ const NovelEpisodeList = () => {
 
   // 데이터 가져오기
   useEffect(() => {
-    fetchNovelData(novelId)
-  }, [novelId, fetchNovelData])
+    const fetchData = async () => {
+      try {
+        await fetchNovelData(novelId)
+      } catch (error) {
+        console.error('Error:', error)
+      }
+    }
+    fetchData()
+  }, [novelId])
 
   // 토론방 생성 핸들러
   const handleCreateDiscussion = useCallback(async () => {
@@ -127,8 +163,11 @@ const NovelEpisodeList = () => {
         withCredentials: true,
       })
 
+      console.log('토론방 생성 성공')
+
       // NovelContext의 fetchNovelData 사용
       await fetchNovelData(novelId)
+      console.log('데이터 새로고침 완료')
 
       setOpenModal(false)
       setDiscussionForm(initialDiscussionForm)
@@ -195,6 +234,10 @@ const NovelEpisodeList = () => {
   // novelData가 준비되지 않았을 때의 로딩 상태 확인
   const isLoading = !novelData?.novel_info?.[0]
 
+  const handleImageError = (event) => {
+    event.target.src = placeholderImage
+  }
+
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
       <Paper
@@ -222,13 +265,8 @@ const NovelEpisodeList = () => {
             }}
           />
         ) : (
-          <Box
+          <CardMedia
             component="img"
-            src={novelData.novel_info[0]?.novel_img || coverPlaceholder}
-            alt="소설 표지"
-            onError={(e) => {
-              e.target.src = coverPlaceholder
-            }}
             sx={{
               width: { xs: '100%', sm: 200 },
               height: { xs: 'auto', sm: 267 },
@@ -238,6 +276,9 @@ const NovelEpisodeList = () => {
               border: '1px solid #e0e0e0',
               flex: { xs: 'none', md: 2 },
             }}
+            image={novelData.novel_info[0]?.novel_img || placeholderImage}
+            alt="소설 표지"
+            onError={handleImageError}
           />
         )}
 
@@ -265,7 +306,9 @@ const NovelEpisodeList = () => {
                 <Typography variant="body1" color="text.secondary">
                   {novelData.author}
                 </Typography>
-                <Typography variant="body1">{novelData.novel_info[0]?.summary || '시놉시스 없음'}</Typography>
+                <Typography variant="body1">
+                  {novelData.novel_info[0]?.summary || '요약 없음'}
+                  </Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
                   <Stack direction="row" spacing={1} alignItems="center">
                     <VisibilityIcon color="action" />
@@ -274,9 +317,19 @@ const NovelEpisodeList = () => {
                     </Typography>
                   </Stack>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <FavoriteIcon color="error" />
+                    <IconButton 
+                        onClick={handleLike}
+                        size="small"
+                        sx={{ padding: 0.5 }}
+                      >
+                        {localIsLiked ? (
+                          <FavoriteIcon fontSize="small" sx={{ color: 'error.main' }} />
+                        ) : (
+                          <FavoriteBorderIcon fontSize="small" sx={{ color: 'error.main' }} />
+                        )}
+                      </IconButton>
                     <Typography variant="body2" color="text.secondary">
-                      {totalLikes.toLocaleString()}
+                      {novelData?.novel_info?.[0]?.likes?.toLocaleString() || 0}
                     </Typography>
                   </Stack>
                 </Stack>
@@ -346,13 +399,17 @@ const NovelEpisodeList = () => {
                   },
                 }}
               >
+                {console.log('현재 discussions:', discussions)}
                 {discussions && discussions.length > 0 ? (
-                  discussions.map((discussion) => {
-                    // 회차별 토론인 경우 해당 회차 정보와 인덱스 찾기
-                    const episodeIndex =
-                      discussion.category && discussion.ep_pk
-                        ? novelData.episode.findIndex((ep) => ep.ep_pk === discussion.ep_pk)
-                        : -1
+                  discussions
+                    .filter(discussion => discussion.is_active === true)
+                    .map((discussion) => {
+                      console.log('필터링된 discussion:', discussion)
+                      // 회차별 토론인 경우 해당 회차 정보와 인덱스 찾기
+                      const episodeIndex =
+                        discussion.category && discussion.ep_pk
+                          ? novelData.episode.findIndex((ep) => ep.ep_pk === discussion.ep_pk)
+                          : -1
 
                     return (
                       <Paper
@@ -417,11 +474,11 @@ const NovelEpisodeList = () => {
                       </Paper>
                     )
                   })
-                ) : (
-                  <Typography variant="body2" color="text.secondary" align="center">
-                    토론방이 없습니다.
-                  </Typography>
-                )}
+              ) : (
+                <Typography variant="body2" color="text.secondary" align="center">
+                  토론방이 없습니다.
+                </Typography>
+              )}
               </Stack>
             </>
           )}

@@ -99,11 +99,11 @@ def get_character_info(novel_pk : int, db: Session = Depends(get_db)) :
 def save_character(novel_pk : int, character_info : novel_schema.CharacterBase, db: Session = Depends(get_db)) :
     return novel_crud.save_character(novel_pk, character_info ,db)
 
-@router.put("/api/v1/novel/character/{character_pk}")
+@router.put("/novel/character/{character_pk}")
 def update_character(character_pk : int, update_data: novel_schema.CharacterUpdateBase, db: Session = Depends(get_db)) : 
     return novel_crud.update_character(character_pk,update_data, db)
 
-@router.delete("/api/v1/novel/character/{character_pk}")
+@router.delete("/novel/character/{character_pk}")
 def delete_character(character_pk : int, db: Session = Depends(get_db)) : 
     return novel_crud.delete_character(character_pk, db )
 
@@ -116,23 +116,35 @@ def update_novel(novel_pk: int, update_data: novel_schema.NovelUpdateBase,db: Se
     return novel
 
 # 소설 생성
+
+"""
+
+여기 여기 
+
+"""
 @router.post("/novel", response_model=novel_schema.NovelShowBase)
 def create_novel(novel_info: novel_schema.NovelCreateBase, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    print(user.refresh_token)
     novel = novel_crud.create_novel(novel_info, user.user_pk, db)
     return novel
 
-
-
-
 @router.delete("/novel/{novel_pk}")
-def delete_novel(novel_pk: int, db: Session = Depends(get_db)):
-    return novel_crud.delete_novel(novel_pk, db)
+def delete_novel(
+    novel_pk: int, 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return novel_crud.delete_novel(novel_pk=novel_pk, user=current_user, db=db)
 
 
 #소설 좋아요 
-@router.put("/novel/{novel_pk}/{user_pk}")
-def like_novel(novel_pk: int, user_pk: int, db: Session = Depends(get_db)):
-    return novel_crud.like_novel(novel_pk,user_pk, db)
+@router.put("/novel/{novel_pk}/like")
+async def like_novel(
+    novel_pk: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await novel_crud.like_novel(novel_pk, current_user.user_pk, db)
 
 # 에피소드 CRUD
 
@@ -155,12 +167,12 @@ def get_novel_title(
 def get_episode_detail(
     novel_pk: int,
     ep_pk: int,
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_user),  # 변경
     db: Session = Depends(get_db)
 ):
     novel, episode = novel_crud.get_episode_detail(novel_pk, ep_pk, db)
     
-    # 로그인한 사용자인 경우 최근 본 소설 목록에 추가
+    # 로그인한 사용자인 경우에만 최근 본 소설 저장
     if current_user:
         save_recent_novel(db, current_user.user_pk, novel_pk)
     
@@ -185,8 +197,13 @@ def change_episode(novel_pk: int, update_data: novel_schema.EpisodeUpdateBase, e
 
 #에피소드 삭제
 @router.delete("/novel/{novel_pk}/{ep_pk}")
-def delete_episode(novel_pk: int, ep_pk : int, db: Session = Depends(get_db)) : 
-    return novel_crud.delete_episode(novel_pk,ep_pk,db)
+def delete_episode(
+    novel_pk: int, 
+    ep_pk: int, 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) : 
+    return novel_crud.delete_episode(novel_pk, ep_pk, current_user, db)
 
 # 특정 에피소드의 댓글 조회
 @router.get("/novel/{novel_pk}/episode/{ep_pk}/comments")
