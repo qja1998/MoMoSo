@@ -419,6 +419,8 @@ async def create_meeting_minutes(
     db: Session = Depends(get_db)
 ):
     try:
+        logger.info(f"Starting meeting minutes creation for discussion_pk: {discussion_pk}")
+        
         # 1. Discussion 조회 및 비활성화 처리
         discussion = (
             db.query(Discussion)
@@ -426,20 +428,31 @@ async def create_meeting_minutes(
             .first()
         )
         if not discussion:
+            logger.error(f"Discussion not found: {discussion_pk}")
             raise HTTPException(status_code=404, detail="Discussion not found")
+        
+        logger.info(f"Found discussion with session_id: {discussion.session_id}")
             
         discussion.is_active = 0  # 토론 비활성화
-        discussion.end_time = datetime.now()  # 종료 시간 업데이트
+        discussion.end_time = datetime.datetime.now()  # 종료 시간 업데이트
+        logger.info("Discussion marked as inactive")
 
         # Novel 조회
         novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
         if not novel:
+            logger.error(f"Novel not found for novel_pk: {discussion.novel_pk}")
             raise HTTPException(status_code=404, detail="Novel not found")
+            
+        logger.info(f"Found novel: {novel.title}")
 
         # 2. 회의록 생성 및 요약
-        # JSON 문자열을 파이썬 객체로 변환
-        participants_list = json.loads(participants)
-        messages_list = json.loads(messages)
+        try:
+            participants_list = json.loads(participants)
+            messages_list = json.loads(messages)
+            logger.info("Successfully parsed participants and messages JSON")
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
 
         # 회의록 데이터 구성
         meeting_data = {
@@ -452,48 +465,66 @@ async def create_meeting_minutes(
             "participants": participants_list,
             "messages": messages_list,
         }
+        logger.info("Meeting data structured successfully")
 
         # 토론 텍스트 파일 경로 확인
         txt_filename = f"{novel.title}_{discussion.session_id}.txt"
         txt_file_path = os.path.join(DOCUMENT_PATH, txt_filename)
+        logger.info(f"Checking file path: {txt_file_path}")
 
         if not os.path.exists(txt_file_path):
+            logger.error(f"File not found: {txt_file_path}")
             raise HTTPException(
                 status_code=404,
-                detail="종료된 토론이므로 기능 사용이 불가합니다.",
+                detail=f"토론 파일을 찾을 수 없습니다: {txt_filename}",
             )
 
         # Gemini Assistant를 통한 요약 생성
-        assistant = GeminiDiscussionAssistant(txt_file_path, GEMINI_API_KEY)
-        meeting_json = json.dumps(meeting_data, ensure_ascii=False)
-        summary_response = assistant.generate_meeting_notes(meeting_json)
-        summary = (
-            summary_response.content
-            if hasattr(summary_response, "content")
-            else str(summary_response)
-        )
+        try:
+            logger.info("Starting Gemini Assistant for summary generation")
+            assistant = GeminiDiscussionAssistant(txt_file_path, GEMINI_API_KEY)
+            meeting_json = json.dumps(meeting_data, ensure_ascii=False)
+            summary_response = assistant.generate_meeting_notes(meeting_json)
+            summary = (
+                summary_response.content
+                if hasattr(summary_response, "content")
+                else str(summary_response)
+            )
+            logger.info("Summary generated successfully")
+        except Exception as e:
+            logger.error(f"Summary generation failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"요약 생성 실패: {str(e)}")
 
         # DB에 요약본 저장
-        new_note = Note(
-            novel_pk=novel.novel_pk,
-            user_pk=novel.user_pk,
-            discussion_pk=discussion.discussion_pk,
-            summary=summary,
-        )
-
-        db.add(new_note)
+        try:
+            new_note = Note(
+                novel_pk=novel.novel_pk,
+                user_pk=novel.user_pk,
+                discussion_pk=discussion.discussion_pk,
+                summary=summary,
+            )
+            db.add(new_note)
+            logger.info("Note added to database session")
+        except Exception as e:
+            logger.error(f"Failed to create note: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"요약본 저장 실패: {str(e)}")
         
         # 3. txt 파일 삭제
         if os.path.exists(txt_file_path):
             try:
                 os.remove(txt_file_path)
+                logger.info(f"Successfully deleted file: {txt_file_path}")
             except Exception as e:
-                # 파일 삭제 실패 시에도 DB 작업은 계속 진행
                 logger.error(f"Failed to delete file {txt_file_path}: {str(e)}")
 
         # 모든 변경사항 커밋
-        db.commit()
-        db.refresh(new_note)
+        try:
+            db.commit()
+            db.refresh(new_note)
+            logger.info("Successfully committed all changes to database")
+        except Exception as e:
+            logger.error(f"Database commit failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"데이터베이스 저장 실패: {str(e)}")
 
         return {
             "message": "토론이 종료되었으며, 요약본이 성공적으로 저장되었습니다.",
@@ -502,6 +533,7 @@ async def create_meeting_minutes(
         }
 
     except Exception as e:
+        logger.error(f"Unexpected error in create_meeting_minutes: {str(e)}")
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
