@@ -1,7 +1,4 @@
-import datetime
-import json
-import os
-import uuid
+import datetime, json, os, uuid, logging
 from pathlib import Path
 from typing import List
 
@@ -131,15 +128,15 @@ from models import Novel, Note, Discussion
 from .discussion_schema import SummaryRequest, FactCheckRequest, SubjectRequest
 import os
 
-document_path = ".document_path"  # txt 저장될 디렉토리
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
+DOCUMENT_PATH = "./document_path"  # txt 파일 저장 디렉토리
+
 
 
 def get_assistant(document_path: str = None):
     return GeminiDiscussionAssistant(document_path, GEMINI_API_KEY)
 
 
-DOCUMENT_PATH = "./document_path"  # txt 파일 저장 디렉토리
 
 
 # @router.post("/create-txt", description="토론 시작 시, 소설 txt 파일 생성")
@@ -406,6 +403,9 @@ async def receive_audio(
         return {"error": str(e)}
 
 
+# Logger 설정
+logger = logging.getLogger(__name__)
+
 @router.post("/meeting-minutes")
 async def create_meeting_minutes(
     discussion_pk: int = Form(...),
@@ -419,7 +419,25 @@ async def create_meeting_minutes(
     db: Session = Depends(get_db)
 ):
     try:
-         # JSON 문자열을 파이썬 객체로 변환
+        # 1. Discussion 조회 및 비활성화 처리
+        discussion = (
+            db.query(Discussion)
+            .filter(Discussion.discussion_pk == discussion_pk)
+            .first()
+        )
+        if not discussion:
+            raise HTTPException(status_code=404, detail="Discussion not found")
+            
+        discussion.is_active = 0  # 토론 비활성화
+        discussion.end_time = datetime.now()  # 종료 시간 업데이트
+
+        # Novel 조회
+        novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
+        if not novel:
+            raise HTTPException(status_code=404, detail="Novel not found")
+
+        # 2. 회의록 생성 및 요약
+        # JSON 문자열을 파이썬 객체로 변환
         participants_list = json.loads(participants)
         messages_list = json.loads(messages)
 
@@ -434,18 +452,6 @@ async def create_meeting_minutes(
             "participants": participants_list,
             "messages": messages_list,
         }
-
-        discussion = (
-            db.query(Discussion)
-            .filter(Discussion.discussion_pk == discussion_pk)
-            .first()
-        )
-        if not discussion:
-            raise HTTPException(status_code=404, detail="Discussion not found")
-
-        novel = db.query(Novel).filter(Novel.novel_pk == discussion.novel_pk).first()
-        if not novel:
-            raise HTTPException(status_code=404, detail="Novel not found")
 
         # 토론 텍스트 파일 경로 확인
         txt_filename = f"{novel.title}_{discussion.session_id}.txt"
@@ -476,16 +482,28 @@ async def create_meeting_minutes(
         )
 
         db.add(new_note)
+        
+        # 3. txt 파일 삭제
+        if os.path.exists(txt_file_path):
+            try:
+                os.remove(txt_file_path)
+            except Exception as e:
+                # 파일 삭제 실패 시에도 DB 작업은 계속 진행
+                logger.error(f"Failed to delete file {txt_file_path}: {str(e)}")
+
+        # 모든 변경사항 커밋
         db.commit()
         db.refresh(new_note)
 
         return {
-            "message": "토론 요약본이 성공적으로 저장되었습니다.",
-            "note": new_note
+            "message": "토론이 종료되었으며, 요약본이 성공적으로 저장되었습니다.",
+            "note": new_note,
+            "file_deleted": not os.path.exists(txt_file_path)
         }
 
     except Exception as e:
         db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/note/{note_id}", description="토론 요약본 상세 조회")
@@ -718,12 +736,15 @@ def create_discussion_factcheck(
     # 6. Gemini Assistant를 통한 주제 추천
     try:
         assistant = GeminiDiscussionAssistant(file_path, GEMINI_API_KEY)
-        factcheck = assistant.recommend_discussion_topic(content)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"주제 추천 생성 실패: {str(e)}")
+        factcheck = assistant.fact_check(content)
 
-    return {
-        "status": "success",
-        "message": "팩트 체크가 성공적으로 진행되었습니다.",
-        "factcheck": factcheck
-    }
+        return {
+            "status": "success",
+            "message": "팩트 체크가 성공적으로 진행되었습니다.",
+            "factcheck": factcheck
+        }
+
+    except Exception as e:
+        logger.error(f"Fact check failed: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
