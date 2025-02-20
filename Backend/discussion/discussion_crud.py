@@ -40,7 +40,8 @@ def get_discussions(db: Session) -> List[Discussion]:
             "topic": discussion.topic,
             "start_time": discussion.start_time,
             "end_time": discussion.end_time,
-            "participants": [{"user_pk": user.user_pk, "name": user.name, "nickname": user.nickname} for user in participants]
+            "participants": [{"user_pk": user.user_pk, "name": user.name, "nickname": user.nickname} for user in participants],
+            "is_active": discussion.is_active
         })
 
     return discussion_list
@@ -80,7 +81,8 @@ def get_discussion(db: Session, discussion_pk: int):
         "topic": discussion.topic,
         "start_time": discussion.start_time,
         "end_time": discussion.end_time,
-        "participants": [{"user_pk": user.user_pk, "name": user.name, "nickname": user.nickname} for user in participants]
+        "participants": [{"user_pk": user.user_pk, "name": user.name, "nickname": user.nickname} for user in participants],
+        "is_active": discussion.is_active
     }
 
 
