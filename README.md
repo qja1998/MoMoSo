@@ -202,7 +202,7 @@
 
 | 회원가입 | 로그인 |
 |---|---|
-| <img src="/uploads/8f5a6ce3d25d61b7c51a5af142b2678b/image.png" width="450"/> | <img src="/uploads/cce57554f789c1b1e65510b35fe9c5c8/image.png" width="450"/> |
+| <img src="exec\gif\회원가입.gif" width="450"/> | <img src="exec\gif\로그인.gif" width="450"/> |
 | 1. 이메일, 필명 중복 확인<br>2. twilio api 활용 휴대전화 인증 기능<br>3. 비밀번호 검증 로직 구현 | 1. JWT 기반 인증 시스템 구현<br>2. 구글 소셜 로그인을 사용한 회원가입 및 로그인 가능 |
 
 </div>
@@ -213,7 +213,7 @@
 
 | 랜딩 페이지 | 메인 페이지 |
 |---|---|
-| <img src="/uploads/e92c1078ff6a899f139353ed38dfca94/image.png" width="450"/> | <img src="/uploads/b0646b88b2aadb170ae4019ae09b1d63/image.png" width="450"/> |
+| <img src="exec\gif\랜딩페이지.gif" width="450"/> | <img src="exec\gif\메인페이지.gif" width="450"/> |
 | 1. 로그인하지 않은 사용자 : 서비스 소개 페이지 | 1. 로그인한 사용자 : 좋아요를 많이 받은 인기작, 사용자가 최근 본 소설 확인 가능 |
 
 </div>
@@ -224,7 +224,7 @@
 
 | 소설정보 페이지 | 소설작성 페이지 |
 |---|---|
-| <img src="/uploads/183239465072d74532630b283fa978a3/image.png" width="450"/> | <img src="/uploads/0065207055d9e30bef150e4c34be0419/image.png" width="450"/> |
+| <img src="exec\gif\소설정보_페이지.gif" width="450"/> | <img src="exec\gif\에피소드생성.gif" width="450"/> |
 | 1. 장르, 제목 작성<br>2. 세계관, 줄거리, 한줄요약, 등장인물, 표지 생성 AI 기능 사용 가능 | 1. AI 기반으로 소설 생성 가능 |
 
 </div>
@@ -235,7 +235,7 @@
 
 | 토론방 생성 | 그룹 토론 페이지 | 회의록 요약 |
 |---|---|---|
-| <img src="/uploads/0367dbe7af26bf47622970cf294f880c/image.png" width="300"/> | <img src="/uploads/a6c7de486b5355bd8403b623f9a65187/image.png" width="300"/> | <img src="/uploads/20b31b1bba19d1c6ddb1202da3d89eab/image.png" width="300"/> |
+| <img src="exec\gif\토론방생성.gif" width="300"/> | <img src="exec\gif\그룹토론.gif" width="300"/> | <img src="exec\gif\회의록요약.gif" width="300"/> |
 | 1. 전체 작품, 회차별 토론 생성 가능<br>2. 토론 일시, 주제, 최대 참여 인원 설정 | 1. 채팅, 음성 대화 가능<br>2. 음성은 STT 기술을 통해 텍스트로 전환<br>3. AI 기반 주제 추천, FactCheck 사용 가능 | 1. 회의 결과를 자동으로 AI가 요약<br>2. 요약된 회의록은 작가에게 전달 |
 
 </div>
@@ -246,8 +246,8 @@
 
 | 전체 소설 페이지 | 상세보기 페이지 |
 |---|---|
-| <img src="/uploads/ffe5c2082d756df0708e18f7090497f8/image.png" width="450"/> | <img src="/uploads/8724ca699e343266e4e85efa20c19617/image.png" width="450"/> |
-| 1. 초대 코드를 이용한 로그인<br>2. 계정에 등록되어 있는 멀티 프로필 선택 가능 | 1. 소셜 로그인을 사용한 로그인 가능 |
+| <img src="exec\gif\전체소설페이지.gif" width="450"/> | <img src="exec\gif\상세보기페이지.gif" width="450"/> |
+| 1. 작성된 모든 소설을 확인 가능<br>2. 장르별 필터링 혹은 검색 기능 | 1. 소설에 대한 소개 확인 및 에피소드 읽기<br>2. 폰트, 글자크기, 배경색 조절 가능<br>3. 댓글 작성 기능 |
 
 </div>
 
