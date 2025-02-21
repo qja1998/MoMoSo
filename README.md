@@ -3,7 +3,7 @@
 ![MOMOSO](/uploads/6b64d5218ef4c204ca5703cd4714e443/MOMOSO.png)
 
 ### **서비스 소개 영상**
-![UCC 영상](https://example.com/video)
+![UCC 영상](/uploads/53ccefa3bd90992ddfe06e7643853555/12기_공통PJT_영상_포트폴리오_B106.mp4)
 ---
 
 ## 목차
