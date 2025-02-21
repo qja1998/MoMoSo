@@ -17,14 +17,10 @@ import {
   Typography,
 } from '@mui/material'
 
-import { useAuth } from '../hooks/useAuth'
-
 export default function DiscussionSummaryList() {
   const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_IP}${import.meta.env.VITE_BACKEND_PORT}`
   const navigate = useNavigate()
-  const { isLoggedIn } = useAuth()
   const [discussions, setDiscussions] = useState([])
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -32,7 +28,6 @@ export default function DiscussionSummaryList() {
   }, [])
 
   const fetchDiscussions = async () => {
-    setIsLoading(true)
     try {
       const response = await axios.get(`${BACKEND_URL}/api/v1/discussion/user/notes`, {
         withCredentials: true,
@@ -46,8 +41,6 @@ export default function DiscussionSummaryList() {
     } catch (error) {
       console.error('Failed to fetch discussions:', error)
       setError('토론 목록을 불러오는데 실패했습니다.')
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -81,7 +74,7 @@ export default function DiscussionSummaryList() {
             mb: 3,
             border: '1px solid #e0e0e0',
             '& .MuiTableCell-head': {
-              backgroundColor: (theme) => '#FF8F00',
+              backgroundColor: '#FF8F00',
               fontWeight: 700,
             },
           }}
