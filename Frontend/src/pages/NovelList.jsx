@@ -211,7 +211,7 @@ const NovelList = () => {
                 <CardMedia
                   component="img"
                   sx={{ aspectRatio: '3/4', objectFit: 'cover' }}
-                  image={novel.coverImage || placeholderImage}
+                  image={novel.novel_img || placeholderImage}
                   alt={novel.title}
                   onError={handleImageError}
                 />
