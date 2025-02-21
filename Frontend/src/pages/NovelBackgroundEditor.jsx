@@ -1199,7 +1199,7 @@ const NovelBackgroundEditor = () => {
             <TextField
               fullWidth
               multiline
-              rows={4}
+              rows={12}
               value={worldView}
               onChange={(e) => setWorldView(e.target.value)}
               placeholder="세계관을 입력해주세요. AI 생성 후 수정도 가능합니다."
@@ -1223,7 +1223,7 @@ const NovelBackgroundEditor = () => {
             <TextField
               fullWidth
               multiline
-              rows={4}
+              rows={12}
               value={background}
               onChange={(e) => setBackground(e.target.value)}
               placeholder="기본 줄거리를 입력해주세요. AI 생성 후 수정도 가능합니다."
@@ -1246,7 +1246,7 @@ const NovelBackgroundEditor = () => {
               <TextField
                 fullWidth
                 multiline
-                rows={2}
+                rows={6}
                 value={summary}
                 onChange={(e) => setSummary(e.target.value)}
                 placeholder="작품의 한줄 요약을 입력해주세요. AI 생성 후 수정도 가능합니다."
